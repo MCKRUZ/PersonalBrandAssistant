@@ -13,7 +13,7 @@ COPY src/ src/
 RUN dotnet publish src/PersonalBrandAssistant.Api/PersonalBrandAssistant.Api.csproj -c Release -o /app/publish --no-restore
 
 FROM mcr.microsoft.com/dotnet/sdk:10.0-alpine AS dirs
-RUN mkdir -p /data-protection-keys
+RUN mkdir -p /data-protection-keys && chown 1654:1654 /data-protection-keys
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0-noble-chiseled AS runtime
 WORKDIR /app

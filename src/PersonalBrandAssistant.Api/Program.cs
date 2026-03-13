@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using PersonalBrandAssistant.Api.Endpoints;
 using PersonalBrandAssistant.Api.Handlers;
 using PersonalBrandAssistant.Api.Middleware;
@@ -6,6 +7,11 @@ using PersonalBrandAssistant.Infrastructure;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
+});
 
 builder.Host.UseSerilog((context, loggerConfiguration) =>
     loggerConfiguration.ReadFrom.Configuration(context.Configuration));

@@ -49,6 +49,10 @@
     "section-08-testing": {
       "status": "complete",
       "commit_hash": "e0b85fb"
+    },
+    "section-09-verification": {
+      "status": "complete",
+      "commit_hash": "22b2d10"
     }
   },
   "pre_commit": {

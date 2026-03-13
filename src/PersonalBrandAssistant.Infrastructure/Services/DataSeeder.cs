@@ -30,6 +30,8 @@ public class DataSeeder : IHostedService
         using var scope = _scopeFactory.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
+        await context.Database.EnsureCreatedAsync(cancellationToken);
+
         if (!await context.BrandProfiles.AnyAsync(cancellationToken))
         {
             context.BrandProfiles.Add(new BrandProfile
