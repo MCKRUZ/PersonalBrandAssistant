@@ -203,3 +203,15 @@ dotnet test tests/PersonalBrandAssistant.Domain.Tests/ --filter "FullyQualifiedN
 ```
 
 All tests should pass. The entities should compile with no dependencies on other Phase 03 sections beyond the three enums (which are in section-02, the other parallel batch-1 item).
+
+---
+
+## Implementation Notes (Post-Build)
+
+**Deviations from plan:**
+
+1. **Enum stubs created early:** `AgentCapabilityType`, `AgentExecutionStatus`, `ModelTier` enums were created in this section (not section-02) since they are required for compilation. Section-02 will validate/extend these.
+2. **RecordUsage input validation added (code review W-01):** Added `ArgumentException.ThrowIfNullOrWhiteSpace(modelId)` and `ArgumentOutOfRangeException.ThrowIfNegative` guards for all numeric parameters. 3 additional tests.
+3. **Error string truncation added (code review W-02):** `Fail()` truncates error messages to 4000 chars. 1 additional test.
+
+**Final test count:** 45 tests (41 planned + 4 from code review fixes). All passing.
