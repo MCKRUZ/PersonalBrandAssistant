@@ -25,6 +25,10 @@
     "section-02-domain": {
       "status": "complete",
       "commit_hash": "925a434d590e303a61f0a7e122cae25e7c951dcd"
+    },
+    "section-03-application": {
+      "status": "complete",
+      "commit_hash": "57d7f05"
     }
   },
   "pre_commit": {

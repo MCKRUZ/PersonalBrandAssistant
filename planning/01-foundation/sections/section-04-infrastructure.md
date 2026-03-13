@@ -307,25 +307,54 @@ The following configuration keys must be available (via `appsettings.json`, User
 
 ---
 
-## Key Files Summary
+## Actual Implementation Notes
+
+### Deviations from Plan
+
+1. **File paths**: Files placed under `Data/` not `Persistence/` (e.g., `Data/ApplicationDbContext.cs`, `Data/Configurations/`, `Data/Interceptors/`).
+2. **JsonValueConverter instead of ToJson()**: EF Core 10 preview + Npgsql has a `NullReferenceException` in `ModificationCommand.WriteJsonObject` when using `OwnsOne().ToJson()`. Created `JsonValueConverter<T>` using `ValueConverter<T, string>` with `HasColumnType("jsonb")` for all complex types.
+3. **xmin concurrency**: `UseXminAsConcurrencyToken()` removed in Npgsql EF Core 10. Used `builder.Property<uint>("xmin").HasColumnType("xid").ValueGeneratedOnAddOrUpdate().IsConcurrencyToken()` instead.
+4. **No TPH discriminator**: Content doesn't use TPH since there are no derived types.
+5. **No GIN index on TargetPlatforms**: Used `integer[]` column type instead of mapped enum array. GIN index deferred.
+6. **No enum mapping via NpgsqlDataSourceBuilder**: Enums stored as integers, not PostgreSQL custom types.
+7. **EF Core migration deferred**: Requires API project as startup project (section-05).
+8. **Migration tests, concurrency tests, query filter tests**: Deferred — require migrations applied to real database (section-05+).
+
+### Code Review Fixes Applied
+- Added `ArgumentNullException.ThrowIfNull` to `EncryptionService.Encrypt/Decrypt`
+- Fixed `AuditLogCleanupService` delay-before-first-run bug (cleanup now runs immediately on startup)
+- Added `xmin` concurrency tokens to `ContentCalendarSlotConfiguration` and `UserConfiguration`
+- Injected `IDateTimeProvider` into `AuditLogCleanupService` instead of `DateTimeOffset.UtcNow`
+
+### Test Summary
+- 24 tests total (7 unit + 17 integration via Testcontainers)
+- Encryption: 7 tests (round-trip, uniqueness, various strings)
+- DbContext configuration: 7 tests (indexes, filters, concurrency tokens)
+- Auditable interceptor: 3 integration tests
+- Audit log interceptor: 3 integration tests
+- Data seeder: 4 integration tests
+
+## Key Files Summary (Actual)
 
 | File | Purpose |
 |------|---------|
-| `src/PersonalBrandAssistant.Infrastructure/Persistence/ApplicationDbContext.cs` | DbContext implementing IApplicationDbContext |
-| `src/PersonalBrandAssistant.Infrastructure/Persistence/Configurations/ContentConfiguration.cs` | TPH, jsonb, xmin, query filter, GIN index |
-| `src/PersonalBrandAssistant.Infrastructure/Persistence/Configurations/PlatformConfiguration.cs` | Unique type, encrypted tokens as byte[], jsonb |
-| `src/PersonalBrandAssistant.Infrastructure/Persistence/Configurations/BrandProfileConfiguration.cs` | Arrays, jsonb, xmin |
-| `src/PersonalBrandAssistant.Infrastructure/Persistence/Configurations/ContentCalendarSlotConfiguration.cs` | Composite index, optional FK |
-| `src/PersonalBrandAssistant.Infrastructure/Persistence/Configurations/AuditLogEntryConfiguration.cs` | Timestamp index |
-| `src/PersonalBrandAssistant.Infrastructure/Persistence/Configurations/UserConfiguration.cs` | jsonb settings, unique email |
-| `src/PersonalBrandAssistant.Infrastructure/Interceptors/AuditableInterceptor.cs` | Sets CreatedAt/UpdatedAt |
-| `src/PersonalBrandAssistant.Infrastructure/Interceptors/AuditLogInterceptor.cs` | Creates AuditLogEntry on changes |
+| `src/PersonalBrandAssistant.Infrastructure/Data/ApplicationDbContext.cs` | DbContext implementing IApplicationDbContext |
+| `src/PersonalBrandAssistant.Infrastructure/Data/Configurations/ContentConfiguration.cs` | jsonb, xmin, query filter, indexes |
+| `src/PersonalBrandAssistant.Infrastructure/Data/Configurations/PlatformConfiguration.cs` | Unique type, encrypted tokens, jsonb |
+| `src/PersonalBrandAssistant.Infrastructure/Data/Configurations/BrandProfileConfiguration.cs` | jsonb, xmin |
+| `src/PersonalBrandAssistant.Infrastructure/Data/Configurations/ContentCalendarSlotConfiguration.cs` | Composite index, optional FK, xmin |
+| `src/PersonalBrandAssistant.Infrastructure/Data/Configurations/AuditLogEntryConfiguration.cs` | Timestamp index |
+| `src/PersonalBrandAssistant.Infrastructure/Data/Configurations/UserConfiguration.cs` | jsonb settings, unique email, xmin |
+| `src/PersonalBrandAssistant.Infrastructure/Data/Configurations/JsonValueConverter.cs` | Generic JSON value converter for jsonb columns |
+| `src/PersonalBrandAssistant.Infrastructure/Data/Interceptors/AuditableInterceptor.cs` | Sets CreatedAt/UpdatedAt |
+| `src/PersonalBrandAssistant.Infrastructure/Data/Interceptors/AuditLogInterceptor.cs` | Creates AuditLogEntry on changes |
 | `src/PersonalBrandAssistant.Infrastructure/Services/EncryptionService.cs` | Data Protection API wrapper |
 | `src/PersonalBrandAssistant.Infrastructure/Services/DateTimeProvider.cs` | IDateTimeProvider implementation |
 | `src/PersonalBrandAssistant.Infrastructure/Services/DataSeeder.cs` | Seeds default data on startup |
 | `src/PersonalBrandAssistant.Infrastructure/Services/AuditLogCleanupService.cs` | 90-day retention cleanup |
 | `src/PersonalBrandAssistant.Infrastructure/DependencyInjection.cs` | Service registration entry point |
-| `tests/PersonalBrandAssistant.Infrastructure.Tests/` | All test files listed in Tests First section |
+| `tests/PersonalBrandAssistant.Infrastructure.Tests/TestFixtures/PostgresFixture.cs` | Shared Testcontainers fixture |
+| `tests/PersonalBrandAssistant.Infrastructure.Tests/` | 5 test files, 24 tests total |
 
 ---
 
