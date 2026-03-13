@@ -421,3 +421,39 @@ A static class with an `AddApplication(this IServiceCollection services)` extens
 4. **Validation at pipeline level:** FluentValidation runs automatically via the `ValidationBehavior` pipeline, so handlers never need to validate input themselves. This keeps handlers focused on business logic.
 
 5. **Editable states:** Only `Draft` and `Review` content can be updated. All other states are considered locked. The delete command transitions to `Archived` using the domain state machine rather than physically deleting rows.
+
+---
+
+## Implementation Notes (Post-Implementation)
+
+### What was actually built
+All planned files were implemented as specified. 48 tests pass across 11 test files.
+
+### Code Review Fixes Applied
+- **ValidationBehavior**: Added null guard on reflection `GetMethod()` call instead of null-forgiving operator
+- **PagedResult.DecodeCursor**: Wrapped in try-catch for `FormatException` to handle malformed cursor input safely
+- **LoggingBehavior.SanitizeRequest**: Cached `GetProperties()` reflection call with `Lazy<PropertyInfo[]>` (per closed generic type)
+- **DependencyInjection**: Swapped pipeline behavior registration order — `LoggingBehavior` first (outer), `ValidationBehavior` second (inner) — so all requests are logged including validation failures
+- **CreateContentCommandValidator**: Added `MaximumLength(100_000)` on Body
+
+### Deferred Review Items
+- HIGH-2 (Version default to 0): Concurrency token config deferred to Infrastructure layer EF setup
+- HIGH-3 (domain entity return): DTOs deferred to API layer (section-05)
+
+### Test Files Created
+- `Common/ResultTests.cs` (5 tests)
+- `Common/PagedResultTests.cs` (3 tests)
+- `Behaviors/ValidationBehaviorTests.cs` (3 tests)
+- `Behaviors/LoggingBehaviorTests.cs` (3 tests)
+- `Features/Content/Commands/CreateContentCommandHandlerTests.cs` (4 tests)
+- `Features/Content/Commands/UpdateContentCommandHandlerTests.cs` (5 tests)
+- `Features/Content/Commands/DeleteContentCommandHandlerTests.cs` (3 tests)
+- `Features/Content/Queries/GetContentQueryHandlerTests.cs` (3 tests)
+- `Features/Content/Queries/ListContentQueryHandlerTests.cs` (7 tests)
+- `Features/Content/Validators/CreateContentCommandValidatorTests.cs` (2 tests)
+- `Features/Content/Validators/UpdateContentCommandValidatorTests.cs` (2 tests)
+- `Features/Content/Validators/ListContentQueryValidatorTests.cs` (2 theories × 3+3 cases = 6 tests)
+
+### Additional NuGet Packages Added to Test Project
+- `MockQueryable.Moq` 7.0.3 — for mocking `DbSet<T>` with async LINQ support
+- `FluentValidation` 12.1.1 — for `TestHelper` extensions in validator tests

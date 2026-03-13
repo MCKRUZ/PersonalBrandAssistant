@@ -17,7 +17,16 @@
     "section-08-testing",
     "section-09-verification"
   ],
-  "sections_state": {},
+  "sections_state": {
+    "section-01-scaffolding": {
+      "status": "complete",
+      "commit_hash": "07721d33a26c36836af1b38fdd1db919c8506274"
+    },
+    "section-02-domain": {
+      "status": "complete",
+      "commit_hash": "925a434d590e303a61f0a7e122cae25e7c951dcd"
+    }
+  },
   "pre_commit": {
     "present": false,
     "type": "none",
