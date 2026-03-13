@@ -3,6 +3,8 @@ using PersonalBrandAssistant.Domain.Enums;
 
 namespace PersonalBrandAssistant.Infrastructure.Tests.Utilities;
 
+// Note: CreateContentInState and new factory methods added for Phase 02
+
 public static class TestEntityFactory
 {
     public static Content CreateContent(

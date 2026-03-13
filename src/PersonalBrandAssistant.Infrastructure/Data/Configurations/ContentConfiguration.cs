@@ -25,8 +25,15 @@ public class ContentConfiguration : IEntityTypeConfiguration<Content>
         builder.Property(c => c.TargetPlatforms)
             .HasColumnType("integer[]");
 
+        builder.Property(c => c.CapturedAutonomyLevel).IsRequired().HasDefaultValue(AutonomyLevel.Manual);
+        builder.Property(c => c.RetryCount).IsRequired().HasDefaultValue(0);
+        builder.Property(c => c.NextRetryAt);
+        builder.Property(c => c.PublishingStartedAt);
+
         builder.HasIndex(c => c.Status);
         builder.HasIndex(c => c.ScheduledAt);
+        builder.HasIndex(c => new { c.Status, c.ScheduledAt });
+        builder.HasIndex(c => new { c.Status, c.NextRetryAt });
 
         builder.Property<uint>("xmin")
             .HasColumnType("xid")

@@ -7,17 +7,19 @@ namespace PersonalBrandAssistant.Domain.Entities;
 
 public class Content : AuditableEntityBase
 {
-    private static readonly Dictionary<ContentStatus, ContentStatus[]> AllowedTransitions = new()
+    private static readonly Dictionary<ContentStatus, ContentStatus[]> _allowedTransitions = new()
     {
         [ContentStatus.Draft] = [ContentStatus.Review, ContentStatus.Archived],
         [ContentStatus.Review] = [ContentStatus.Draft, ContentStatus.Approved, ContentStatus.Archived],
         [ContentStatus.Approved] = [ContentStatus.Scheduled, ContentStatus.Draft, ContentStatus.Archived],
-        [ContentStatus.Scheduled] = [ContentStatus.Publishing, ContentStatus.Draft, ContentStatus.Archived],
+        [ContentStatus.Scheduled] = [ContentStatus.Publishing, ContentStatus.Approved, ContentStatus.Archived],
         [ContentStatus.Publishing] = [ContentStatus.Published, ContentStatus.Failed],
         [ContentStatus.Published] = [ContentStatus.Archived],
         [ContentStatus.Failed] = [ContentStatus.Draft, ContentStatus.Archived],
         [ContentStatus.Archived] = [ContentStatus.Draft],
     };
+
+    public static IReadOnlyDictionary<ContentStatus, ContentStatus[]> ValidTransitions => _allowedTransitions;
 
     private Content() { }
 
@@ -30,13 +32,18 @@ public class Content : AuditableEntityBase
     public PlatformType[] TargetPlatforms { get; set; } = [];
     public DateTimeOffset? ScheduledAt { get; set; }
     public DateTimeOffset? PublishedAt { get; set; }
+    public AutonomyLevel CapturedAutonomyLevel { get; private init; }
+    public int RetryCount { get; set; }
+    public DateTimeOffset? NextRetryAt { get; set; }
+    public DateTimeOffset? PublishingStartedAt { get; set; }
     public uint Version { get; set; }
 
     public static Content Create(
         ContentType type,
         string body,
         string? title = null,
-        PlatformType[]? targetPlatforms = null)
+        PlatformType[]? targetPlatforms = null,
+        AutonomyLevel capturedAutonomyLevel = AutonomyLevel.Manual)
     {
         return new Content
         {
@@ -44,12 +51,13 @@ public class Content : AuditableEntityBase
             Body = body,
             Title = title,
             TargetPlatforms = targetPlatforms ?? [],
+            CapturedAutonomyLevel = capturedAutonomyLevel,
         };
     }
 
     public void TransitionTo(ContentStatus newStatus)
     {
-        if (!AllowedTransitions.TryGetValue(Status, out var allowed) ||
+        if (!_allowedTransitions.TryGetValue(Status, out var allowed) ||
             !allowed.Contains(newStatus))
         {
             throw new InvalidOperationException(

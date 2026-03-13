@@ -25,7 +25,7 @@ public class ContentTests
     [InlineData(ContentStatus.Approved, ContentStatus.Scheduled, true)]
     [InlineData(ContentStatus.Approved, ContentStatus.Draft, true)]
     [InlineData(ContentStatus.Scheduled, ContentStatus.Publishing, true)]
-    [InlineData(ContentStatus.Scheduled, ContentStatus.Draft, true)]
+    [InlineData(ContentStatus.Scheduled, ContentStatus.Draft, false)]
     [InlineData(ContentStatus.Publishing, ContentStatus.Published, true)]
     [InlineData(ContentStatus.Publishing, ContentStatus.Failed, true)]
     [InlineData(ContentStatus.Publishing, ContentStatus.Draft, false)]
@@ -81,6 +81,65 @@ public class ContentTests
     {
         var content = Content.Create(ContentType.SocialPost, "Post");
         Assert.Empty(content.TargetPlatforms);
+    }
+
+    [Fact]
+    public void CapturedAutonomyLevel_DefaultsToManual()
+    {
+        var content = CreateDraft();
+        Assert.Equal(AutonomyLevel.Manual, content.CapturedAutonomyLevel);
+    }
+
+    [Fact]
+    public void CapturedAutonomyLevel_SetViaCreate()
+    {
+        var content = Content.Create(ContentType.BlogPost, "Test",
+            capturedAutonomyLevel: AutonomyLevel.SemiAuto);
+        Assert.Equal(AutonomyLevel.SemiAuto, content.CapturedAutonomyLevel);
+    }
+
+    [Fact]
+    public void RetryCount_DefaultsToZero()
+    {
+        var content = CreateDraft();
+        Assert.Equal(0, content.RetryCount);
+    }
+
+    [Fact]
+    public void NextRetryAt_IsNullByDefault()
+    {
+        var content = CreateDraft();
+        Assert.Null(content.NextRetryAt);
+    }
+
+    [Fact]
+    public void PublishingStartedAt_IsNullByDefault()
+    {
+        var content = CreateDraft();
+        Assert.Null(content.PublishingStartedAt);
+    }
+
+    [Fact]
+    public void ValidTransitions_ExposesAllowedTransitions()
+    {
+        var transitions = Content.ValidTransitions;
+        Assert.NotEmpty(transitions);
+        Assert.True(transitions.ContainsKey(ContentStatus.Draft));
+    }
+
+    [Theory]
+    [InlineData(ContentStatus.Scheduled, ContentStatus.Approved, true)]
+    public void TransitionTo_ScheduledToApproved_Succeeds(
+        ContentStatus from, ContentStatus to, bool shouldSucceed)
+    {
+        var content = CreateDraft();
+        TransitionToState(content, from);
+
+        if (shouldSucceed)
+        {
+            content.TransitionTo(to);
+            Assert.Equal(to, content.Status);
+        }
     }
 
     private static void TransitionToState(Content content, ContentStatus target)

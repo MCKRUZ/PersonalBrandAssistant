@@ -43,4 +43,26 @@ public class EnumTests
         Assert.Contains(AutonomyLevel.SemiAuto, values);
         Assert.Contains(AutonomyLevel.Autonomous, values);
     }
+
+    [Fact]
+    public void NotificationType_HasExactly5Values()
+    {
+        var values = Enum.GetValues<NotificationType>();
+        Assert.Equal(5, values.Length);
+        Assert.Contains(NotificationType.ContentReadyForReview, values);
+        Assert.Contains(NotificationType.ContentApproved, values);
+        Assert.Contains(NotificationType.ContentRejected, values);
+        Assert.Contains(NotificationType.ContentPublished, values);
+        Assert.Contains(NotificationType.ContentFailed, values);
+    }
+
+    [Fact]
+    public void ActorType_HasExactly3Values()
+    {
+        var values = Enum.GetValues<ActorType>();
+        Assert.Equal(3, values.Length);
+        Assert.Contains(ActorType.User, values);
+        Assert.Contains(ActorType.System, values);
+        Assert.Contains(ActorType.Agent, values);
+    }
 }
