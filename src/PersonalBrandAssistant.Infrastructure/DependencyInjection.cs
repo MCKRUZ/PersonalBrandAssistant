@@ -41,6 +41,9 @@ public static class DependencyInjection
         services.AddSingleton<IEncryptionService, EncryptionService>();
 
         services.AddScoped<IWorkflowEngine, WorkflowEngine>();
+        services.AddScoped<IApprovalService, ApprovalService>();
+        services.AddScoped<IContentScheduler, ContentScheduler>();
+        services.AddScoped<INotificationService, NotificationService>();
 
         services.AddHostedService<DataSeeder>();
         services.AddHostedService<AuditLogCleanupService>();
