@@ -21,6 +21,9 @@ public class Content : AuditableEntityBase
 
     public static IReadOnlyDictionary<ContentStatus, ContentStatus[]> ValidTransitions => _allowedTransitions;
 
+    public static ContentStatus[] GetAllowedTransitions(ContentStatus status) =>
+        _allowedTransitions.TryGetValue(status, out var transitions) ? transitions : [];
+
     private Content() { }
 
     public ContentType ContentType { get; private init; }
