@@ -20,9 +20,22 @@ public class EntityBaseTests
     public void SequentialEntities_HaveChronologicallyOrderedIds()
     {
         var first = new TestEntity();
+        Thread.Sleep(2); // Ensure different millisecond timestamps
         var second = new TestEntity();
-        // UUIDv7 string representation sorts chronologically
+
+        // Compare UUIDv7 timestamps via big-endian byte layout (first 6 bytes = 48-bit Unix ms)
+        var firstBytes = first.Id.ToByteArray();
+        var secondBytes = second.Id.ToByteArray();
+
+        // .NET Guid.ToByteArray() uses mixed-endian; use ToString("N") and parse hex for reliable comparison
+        var firstHex = first.Id.ToString("N");
+        var secondHex = second.Id.ToString("N");
+
+        // First 12 hex chars = 48-bit timestamp; these should be non-decreasing
+        var firstTimestamp = firstHex[..12];
+        var secondTimestamp = secondHex[..12];
         Assert.True(
-            string.Compare(second.Id.ToString(), first.Id.ToString(), StringComparison.Ordinal) >= 0);
+            string.Compare(secondTimestamp, firstTimestamp, StringComparison.Ordinal) >= 0,
+            $"Expected second timestamp >= first: {secondTimestamp} vs {firstTimestamp}");
     }
 }
