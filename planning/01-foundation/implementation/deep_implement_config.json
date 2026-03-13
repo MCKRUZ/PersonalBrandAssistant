@@ -45,6 +45,10 @@
     "section-07-angular": {
       "status": "complete",
       "commit_hash": "c294a64"
+    },
+    "section-08-testing": {
+      "status": "complete",
+      "commit_hash": "e0b85fb"
     }
   },
   "pre_commit": {

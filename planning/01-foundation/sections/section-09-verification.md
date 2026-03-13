@@ -6,6 +6,31 @@ This section covers end-to-end Docker Compose validation, confirming that the en
 
 **Dependencies:** This section depends on section-06 (Docker), section-07 (Angular), and section-08 (Testing). All must be fully implemented before verification can run.
 
+## Implementation Notes (Actual)
+
+### Files Created
+- `scripts/verify-stack.sh` — Bash verification script (4 tests: health, CRUD, Angular, persistence)
+- `scripts/verify-stack.ps1` — PowerShell equivalent for Windows
+
+### Code Review Fixes Applied
+- Removed hardcoded API key fallback; both scripts resolve from env var or .env file
+- Fixed `set -e` + arithmetic crash (`((count++))` is falsy when count=0)
+- Aligned exit codes (0/1 for both scripts)
+- Removed false curl prerequisite from PowerShell
+- Added HTTP 201 status check in PowerShell CRUD test
+- Added contentType assertion to CRUD read-back
+- Added port conflict detection (5000, 5432, 4200)
+- Changed to true exponential backoff (2, 4, 8, 16 cap)
+- Added test data cleanup in trap/finally
+- Added web service to failure log dump
+
+### Test Coverage
+Both scripts implement 4 verification tests:
+1. Health endpoint returns 200 (no auth required)
+2. Content CRUD round-trip with field validation (title, body, status, contentType)
+3. Angular app loads with app-root element
+4. Data persistence across container restart
+
 ## Background
 
 The Personal Brand Assistant foundation consists of three Docker Compose services:
