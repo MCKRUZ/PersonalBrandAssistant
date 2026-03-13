@@ -1,0 +1,24 @@
+services:
+  db:
+    ports:
+      - "5432:5432"
+
+  api:
+    build:
+      context: .
+      dockerfile: src/PersonalBrandAssistant.Api/Dockerfile
+    volumes:
+      - ./src:/src
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+    command: ["dotnet", "watch", "run", "--project", "/src/PersonalBrandAssistant.Api/PersonalBrandAssistant.Api.csproj", "--urls", "http://+:8080"]
+
+  web:
+    build:
+      context: src/PersonalBrandAssistant.Web
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./src/PersonalBrandAssistant.Web:/app
+      - /app/node_modules
+    ports:
+      - "4200:4200"

@@ -33,8 +33,10 @@ All paths are relative to the repository root (`C:\Users\kruz7\OneDrive\Document
 | `src/PersonalBrandAssistant.Web/Dockerfile` | Multi-stage production build for Angular (nginx) |
 | `src/PersonalBrandAssistant.Web/Dockerfile.dev` | Development Angular container with hot reload |
 | `src/PersonalBrandAssistant.Web/nginx.conf` | Nginx configuration for SPA routing and security headers |
+| `src/PersonalBrandAssistant.Web/.dockerignore` | Docker build context exclusions for Angular |
+| `.dockerignore` | Docker build context exclusions for API (root context) |
 | `docker-compose.yml` | Production orchestration (api, db, web) |
-| `docker-compose.override.yml` | Development overrides (hot reload, debug ports) |
+| `docker-compose.override.yml` | Development overrides (hot reload, debug ports, DB port) |
 | `.env.example` | Template for required environment variables |
 
 ## Implementation Details
@@ -222,6 +224,18 @@ Within this section, implement files in this order:
 5. `src/PersonalBrandAssistant.Web/Dockerfile.dev` -- Same dependency as above.
 6. `docker-compose.yml` -- References both Dockerfiles.
 7. `docker-compose.override.yml` -- Extends the production compose file.
+
+## Deviations from Plan (Code Review Fixes)
+
+1. **Added `.dockerignore` files** (CRITICAL): Root `.dockerignore` and `src/PersonalBrandAssistant.Web/.dockerignore` to prevent `.env`, `.git/`, `node_modules/`, and build artifacts from leaking into Docker build context.
+2. **Moved DB port to override only** (HIGH): PostgreSQL `5432:5432` port mapping removed from production `docker-compose.yml`, added to `docker-compose.override.yml` for dev-only access.
+3. **Fixed chiseled image `mkdir`** (HIGH): `mkdir -p /data-protection-keys` cannot run on chiseled images (no shell). Used a separate SDK stage to create the directory and `COPY --from` it to the runtime stage.
+4. **Security headers in all nginx location blocks** (HIGH): nginx's `add_header` in nested `location` blocks replaces parent-level headers. All security headers are now repeated in static asset and SPA fallback location blocks.
+5. **Simplified CSP `connect-src`** (MEDIUM): Removed `http://api:8080` (Docker-internal hostname unresolvable by browsers). `connect-src 'self'` suffices since API calls go through the nginx `/api/` proxy.
+6. **Added HSTS comment** (MEDIUM): Commented-out `Strict-Transport-Security` header as a reminder for when TLS is configured.
+7. **Added `gzip_vary on`** and **`server_tokens off`** (MEDIUM): Proper CDN/proxy caching and nginx version disclosure prevention.
+8. **Removed `X-XSS-Protection`** (LOW): Deprecated by modern browsers; can introduce vulnerabilities in older ones. CSP is the modern replacement.
+9. **Clarified `.env.example` API_KEY comment** (LOW): Describes it as the application API key for backend auth.
 
 ## Important Notes
 

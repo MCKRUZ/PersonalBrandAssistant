@@ -1,0 +1,13 @@
+.git
+.env
+*.env
+!.env.example
+**/node_modules
+**/bin
+**/obj
+**/dist
+.angular
+.vs
+.vscode
+planning/
+tests/
