@@ -29,6 +29,10 @@
     "section-03-application": {
       "status": "complete",
       "commit_hash": "57d7f05"
+    },
+    "section-04-infrastructure": {
+      "status": "complete",
+      "commit_hash": "bd22618"
     }
   },
   "pre_commit": {

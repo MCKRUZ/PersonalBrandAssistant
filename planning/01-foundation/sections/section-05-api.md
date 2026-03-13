@@ -367,3 +367,42 @@ A custom `WebApplicationFactory<Program>` that:
 6. Wire everything together in `Program.cs` (services, middleware pipeline, endpoint mapping)
 7. Add `appsettings.json` and `appsettings.Development.json`
 8. Write all tests listed above, verify they pass
+
+---
+
+## Actual Implementation Notes
+
+### Deviations from Plan
+1. **Swagger config simplified**: Swashbuckle 10.x moved `Microsoft.OpenApi.Models` namespace. Used `AddSwaggerGen()` without custom security scheme config rather than fighting the API change.
+2. **`appsettings.Development.json` not modified**: Kept existing file. File sink not added.
+3. **Serilog enrichers**: Only `FromLogContext` configured — `MachineName` and `ThreadId` enrichers not added to avoid extra NuGet dependencies.
+4. **Tests in Infrastructure.Tests project**: Per plan, API integration tests live in `tests/PersonalBrandAssistant.Infrastructure.Tests/Api/` since they need Testcontainers.
+5. **Swagger tests omitted**: Environment-conditional Swagger testing requires separate factory configs. Deferred to testing section.
+6. **`EnsureCreatedAsync` instead of migrations**: No migrations generated yet. Tests use `EnsureCreatedAsync` to create schema.
+
+### Code Review Fixes Applied
+- API key comparison uses SHA256 + `CryptographicOperations.FixedTimeEquals` (timing-safe)
+- DELETE endpoint returns 204 No Content instead of 200
+- pageSize clamped with `Math.Clamp(pageSize, 1, 50)`
+- OPTIONS preflight requests exempted from API key check
+- HashSet uses `StringComparer.OrdinalIgnoreCase` with `Contains` instead of LINQ
+
+### Test Summary
+- 22 API tests total
+- ResultToHttpMapper: 9 unit tests (all error codes + RFC compliance + created)
+- ApiKeyMiddleware: 4 integration tests (valid/invalid/missing key, exempt path)
+- ContentEndpoints: 6 integration tests (CRUD + validation + 404)
+- HealthEndpoints: 2 integration tests (liveness + readiness)
+- GlobalExceptionHandler: 1 integration test (500 ProblemDetails format)
+
+### Key Files (Actual)
+| File | Purpose |
+|------|---------|
+| `src/PersonalBrandAssistant.Api/Program.cs` | Service registration, middleware pipeline, endpoint mapping |
+| `src/PersonalBrandAssistant.Api/Middleware/ApiKeyMiddleware.cs` | X-Api-Key validation with timing-safe comparison |
+| `src/PersonalBrandAssistant.Api/Endpoints/ContentEndpoints.cs` | Content CRUD via MediatR |
+| `src/PersonalBrandAssistant.Api/Endpoints/HealthEndpoints.cs` | Liveness + readiness probes |
+| `src/PersonalBrandAssistant.Api/Extensions/ResultExtensions.cs` | Result<T> to IResult/ProblemDetails mapping |
+| `src/PersonalBrandAssistant.Api/Handlers/GlobalExceptionHandler.cs` | IExceptionHandler returning 500 ProblemDetails |
+| `tests/.../Api/CustomWebApplicationFactory.cs` | WebApplicationFactory with Testcontainers PostgreSQL |
+| `tests/.../Api/` | 5 test files, 22 tests total |
