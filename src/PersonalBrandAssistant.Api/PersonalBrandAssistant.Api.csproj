@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <ProjectReference Include="..\PersonalBrandAssistant.Application\PersonalBrandAssistant.Application.csproj" />
+    <ProjectReference Include="..\PersonalBrandAssistant.Infrastructure\PersonalBrandAssistant.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MediatR" Version="14.1.0" />
+    <PackageReference Include="Serilog.AspNetCore" Version="10.0.0" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="10.1.5" />
+  </ItemGroup>
+
+</Project>

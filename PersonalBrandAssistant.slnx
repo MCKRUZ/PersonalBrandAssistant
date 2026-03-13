@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/PersonalBrandAssistant.Api/PersonalBrandAssistant.Api.csproj" />
+    <Project Path="src/PersonalBrandAssistant.Application/PersonalBrandAssistant.Application.csproj" />
+    <Project Path="src/PersonalBrandAssistant.Domain/PersonalBrandAssistant.Domain.csproj" />
+    <Project Path="src/PersonalBrandAssistant.Infrastructure/PersonalBrandAssistant.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/PersonalBrandAssistant.Application.Tests/PersonalBrandAssistant.Application.Tests.csproj" />
+    <Project Path="tests/PersonalBrandAssistant.Domain.Tests/PersonalBrandAssistant.Domain.Tests.csproj" />
+    <Project Path="tests/PersonalBrandAssistant.Infrastructure.Tests/PersonalBrandAssistant.Infrastructure.Tests.csproj" />
+  </Folder>
+</Solution>

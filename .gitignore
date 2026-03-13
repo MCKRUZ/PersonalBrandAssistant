@@ -18,9 +18,12 @@ dist/
 
 # Secrets
 *.env
-.env.*
+!.env.example
 appsettings.Development.json
 appsettings.Local.json
+
+# Data Protection
+data-protection-keys/
 
 # Claude Code
 CLAUDE.local.md
