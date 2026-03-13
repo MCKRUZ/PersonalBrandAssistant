@@ -1,0 +1,244 @@
+# Section 01: Solution Scaffolding
+
+## Overview
+
+This section creates the foundational .NET solution structure for the Personal Brand Assistant. It establishes the Clean Architecture project layout, configures shared build properties, installs all NuGet packages, and sets up project references. No business logic is implemented here -- this is purely structural scaffolding that every subsequent section depends on.
+
+## Prerequisites
+
+- .NET 10 SDK (v10.0.4 or later) installed
+- Node.js 22+ installed (for Angular project in section-07)
+- Docker Desktop or Docker Engine available (for Testcontainers in section-08)
+
+## Tests
+
+There are no unit tests for this section. Verification is structural:
+
+- The solution file builds successfully with `dotnet build`
+- All projects reference correctly (Domain has no project references, Application references Domain, Infrastructure references Application, Api references Application and Infrastructure)
+- Test projects reference their corresponding source projects
+- No build warnings related to missing packages or broken references
+
+Run verification after completing all steps:
+
+```
+dotnet build PersonalBrandAssistant.sln
+```
+
+Expected: Build succeeded with 0 errors.
+
+## Implementation Details
+
+### Step 1: Create Solution and Projects
+
+All paths are relative to the repository root: `C:\Users\kruz7\OneDrive\Documents\Code Repos\MCKRUZ\personal-brand-assistant`
+
+Create the solution file and all .NET projects:
+
+**Solution file:**
+- `PersonalBrandAssistant.sln` at repository root
+
+**Source projects (all class libraries except Api):**
+- `src/PersonalBrandAssistant.Domain/PersonalBrandAssistant.Domain.csproj` -- Class Library
+- `src/PersonalBrandAssistant.Application/PersonalBrandAssistant.Application.csproj` -- Class Library
+- `src/PersonalBrandAssistant.Infrastructure/PersonalBrandAssistant.Infrastructure.csproj` -- Class Library
+- `src/PersonalBrandAssistant.Api/PersonalBrandAssistant.Api.csproj` -- Web (ASP.NET Core)
+
+**Test projects (all xUnit):**
+- `tests/PersonalBrandAssistant.Domain.Tests/PersonalBrandAssistant.Domain.Tests.csproj`
+- `tests/PersonalBrandAssistant.Application.Tests/PersonalBrandAssistant.Application.Tests.csproj`
+- `tests/PersonalBrandAssistant.Infrastructure.Tests/PersonalBrandAssistant.Infrastructure.Tests.csproj`
+
+Use `dotnet new` commands to create each project, then `dotnet sln add` to register them in the solution.
+
+### Step 2: Directory.Build.props
+
+Create `Directory.Build.props` at the repository root. This file applies shared configuration to all projects automatically.
+
+**Required settings:**
+- `<TargetFramework>net10.0</TargetFramework>`
+- `<Nullable>enable</Nullable>`
+- `<ImplicitUsings>enable</ImplicitUsings>`
+- `<TreatWarningsAsErrors>true</TreatWarningsAsErrors>`
+
+### Step 3: Project References (Dependency Direction)
+
+Set up project-to-project references enforcing Clean Architecture boundaries:
+
+```
+Domain        → (no project references)
+Application   → Domain
+Infrastructure → Application (transitive: also gets Domain)
+Api           → Application, Infrastructure
+```
+
+**Test project references:**
+```
+Domain.Tests          → Domain
+Application.Tests     → Application
+Infrastructure.Tests  → Infrastructure, Api (for WebApplicationFactory)
+```
+
+### Step 4: NuGet Packages
+
+Install the following packages into the appropriate projects. Use the latest stable versions compatible with .NET 10.
+
+**PersonalBrandAssistant.Domain:**
+- `MediatR.Contracts` -- for domain event interfaces only (keeps Domain dependency-free from MediatR implementation)
+
+**PersonalBrandAssistant.Application:**
+- `MediatR` -- command/query dispatching and pipeline behaviors
+- `FluentValidation` -- request validation
+- `FluentValidation.DependencyInjectionExtensions` -- DI registration of validators
+
+**PersonalBrandAssistant.Infrastructure:**
+- `Microsoft.EntityFrameworkCore` -- ORM
+- `Npgsql.EntityFrameworkCore.PostgreSQL` -- PostgreSQL provider for EF Core
+- `Microsoft.EntityFrameworkCore.Design` -- EF tooling (migrations)
+- `Microsoft.AspNetCore.DataProtection` -- token encryption
+- `Microsoft.Extensions.Hosting.Abstractions` -- for IHostedService (seed data, cleanup)
+- `Serilog.AspNetCore` -- structured logging
+- `Serilog.Sinks.Console` -- console sink
+- `Serilog.Sinks.File` -- file sink (dev only)
+- `Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore` -- DB health check
+
+**PersonalBrandAssistant.Api:**
+- `Swashbuckle.AspNetCore` -- Swagger/OpenAPI (or the .NET 10 built-in OpenAPI if preferred)
+- `Serilog.AspNetCore` -- Serilog integration with ASP.NET Core
+- `MediatR` -- needed for ISender injection in endpoints
+
+**PersonalBrandAssistant.Domain.Tests:**
+- `Microsoft.NET.Test.Sdk`
+- `xunit`
+- `xunit.runner.visualstudio`
+- `Moq`
+
+**PersonalBrandAssistant.Application.Tests:**
+- `Microsoft.NET.Test.Sdk`
+- `xunit`
+- `xunit.runner.visualstudio`
+- `Moq`
+
+**PersonalBrandAssistant.Infrastructure.Tests:**
+- `Microsoft.NET.Test.Sdk`
+- `xunit`
+- `xunit.runner.visualstudio`
+- `Moq`
+- `Testcontainers.PostgreSql` -- real PostgreSQL for integration tests
+- `Microsoft.AspNetCore.Mvc.Testing` -- WebApplicationFactory
+
+### Step 5: Initial Folder Structure
+
+Create empty placeholder directories within each project to establish the expected feature organization. Each directory should contain a placeholder file (or `.gitkeep`) so git tracks them.
+
+**PersonalBrandAssistant.Domain:**
+```
+Entities/
+Enums/
+Events/
+ValueObjects/
+Common/
+```
+
+**PersonalBrandAssistant.Application:**
+```
+Common/
+  Behaviors/
+  Interfaces/
+  Models/
+Features/
+  Content/
+    Commands/
+    Queries/
+```
+
+**PersonalBrandAssistant.Infrastructure:**
+```
+Data/
+  Configurations/
+  Interceptors/
+  Migrations/
+Services/
+```
+
+**PersonalBrandAssistant.Api:**
+```
+Endpoints/
+Middleware/
+```
+
+### Step 6: .gitignore
+
+Ensure a `.gitignore` exists at the repository root covering:
+- `bin/`, `obj/` -- build output
+- `*.user`, `*.suo` -- IDE files
+- `appsettings.Development.json` -- dev secrets
+- `.env` -- Docker secrets (but NOT `.env.example`)
+- `node_modules/` -- Angular dependencies
+- `dist/` -- Angular build output
+- `data-protection-keys/` -- encryption keys
+
+### Step 7: Verify Build
+
+After all the above steps, run from the repository root:
+
+```bash
+dotnet build PersonalBrandAssistant.sln
+```
+
+The solution must build with 0 errors and 0 warnings. If `TreatWarningsAsErrors` is set, any warnings will manifest as errors, which is intentional to enforce code quality from the start.
+
+## Final Directory Structure
+
+After completing this section, the repository should look like:
+
+```
+PersonalBrandAssistant/
+├── src/
+│   ├── PersonalBrandAssistant.Domain/
+│   │   ├── Entities/
+│   │   ├── Enums/
+│   │   ├── Events/
+│   │   ├── ValueObjects/
+│   │   ├── Common/
+│   │   └── PersonalBrandAssistant.Domain.csproj
+│   ├── PersonalBrandAssistant.Application/
+│   │   ├── Common/
+│   │   │   ├── Behaviors/
+│   │   │   ├── Interfaces/
+│   │   │   └── Models/
+│   │   ├── Features/
+│   │   │   └── Content/
+│   │   │       ├── Commands/
+│   │   │       └── Queries/
+│   │   └── PersonalBrandAssistant.Application.csproj
+│   ├── PersonalBrandAssistant.Infrastructure/
+│   │   ├── Data/
+│   │   │   ├── Configurations/
+│   │   │   ├── Interceptors/
+│   │   │   └── Migrations/
+│   │   ├── Services/
+│   │   └── PersonalBrandAssistant.Infrastructure.csproj
+│   └── PersonalBrandAssistant.Api/
+│       ├── Endpoints/
+│       ├── Middleware/
+│       └── PersonalBrandAssistant.Api.csproj
+├── tests/
+│   ├── PersonalBrandAssistant.Domain.Tests/
+│   ├── PersonalBrandAssistant.Application.Tests/
+│   └── PersonalBrandAssistant.Infrastructure.Tests/
+├── Directory.Build.props
+├── PersonalBrandAssistant.sln
+└── .gitignore
+```
+
+## Dependencies on Other Sections
+
+This section has no dependencies. It is the first section to implement and blocks all subsequent sections.
+
+## Notes
+
+- The Angular project (`src/PersonalBrandAssistant.Web/`) is NOT created in this section. It is created in section-07 (Angular Foundation) using `ng new`.
+- No `docker-compose.yml` or Dockerfiles are created here. Those are in section-06.
+- No C# code files (classes, interfaces, etc.) are created here beyond what the `dotnet new` templates generate. All business logic starts in section-02.
+- If `TreatWarningsAsErrors` causes issues with auto-generated template code, suppress specific warnings in the affected `.csproj` rather than disabling the global setting.

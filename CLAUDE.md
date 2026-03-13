@@ -4,7 +4,7 @@
 AI agent that manages all aspects of personal branding — social media posting, blog writing, content scheduling, and audience engagement.
 
 ## Stack
-- **Backend:** .NET 9, C#, Minimal APIs or MediatR/CQRS
+- **Backend:** .NET 10, C#, Minimal APIs or MediatR/CQRS
 - **Frontend:** Angular 19, standalone components, NgRx signals
 - **AI/LLM:** Claude API (Anthropic SDK), agent orchestration
 - **Database:** TBD (likely SQL Server or PostgreSQL)
