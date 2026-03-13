@@ -1,0 +1,31 @@
+# IDE
+.vs/
+.vscode/
+*.user
+*.suo
+
+# .NET
+bin/
+obj/
+*.dll
+*.exe
+*.pdb
+
+# Node/Angular
+node_modules/
+dist/
+.angular/
+
+# Secrets
+*.env
+.env.*
+appsettings.Development.json
+appsettings.Local.json
+
+# Claude Code
+CLAUDE.local.md
+.claude/todo.md
+
+# OS
+Thumbs.db
+.DS_Store
