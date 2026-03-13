@@ -65,4 +65,38 @@ public class EnumTests
         Assert.Contains(ActorType.System, values);
         Assert.Contains(ActorType.Agent, values);
     }
+
+    [Fact]
+    public void AgentCapabilityType_HasExactly5Values()
+    {
+        var values = Enum.GetValues<AgentCapabilityType>();
+        Assert.Equal(5, values.Length);
+        Assert.Contains(AgentCapabilityType.Writer, values);
+        Assert.Contains(AgentCapabilityType.Social, values);
+        Assert.Contains(AgentCapabilityType.Repurpose, values);
+        Assert.Contains(AgentCapabilityType.Engagement, values);
+        Assert.Contains(AgentCapabilityType.Analytics, values);
+    }
+
+    [Fact]
+    public void AgentExecutionStatus_HasExactly5Values()
+    {
+        var values = Enum.GetValues<AgentExecutionStatus>();
+        Assert.Equal(5, values.Length);
+        Assert.Contains(AgentExecutionStatus.Pending, values);
+        Assert.Contains(AgentExecutionStatus.Running, values);
+        Assert.Contains(AgentExecutionStatus.Completed, values);
+        Assert.Contains(AgentExecutionStatus.Failed, values);
+        Assert.Contains(AgentExecutionStatus.Cancelled, values);
+    }
+
+    [Fact]
+    public void ModelTier_HasExactly3Values()
+    {
+        var values = Enum.GetValues<ModelTier>();
+        Assert.Equal(3, values.Length);
+        Assert.Contains(ModelTier.Fast, values);
+        Assert.Contains(ModelTier.Standard, values);
+        Assert.Contains(ModelTier.Advanced, values);
+    }
 }
