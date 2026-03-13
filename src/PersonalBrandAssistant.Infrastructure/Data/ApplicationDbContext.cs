@@ -17,6 +17,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<User> Users => Set<User>();
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<WorkflowTransitionLog> WorkflowTransitionLogs => Set<WorkflowTransitionLog>();
+    public DbSet<AutonomyConfiguration> AutonomyConfigurations => Set<AutonomyConfiguration>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -66,6 +66,12 @@ public class DataSeeder : IHostedService
             _logger.LogInformation("Seeded default User");
         }
 
+        if (!await context.AutonomyConfigurations.AnyAsync(cancellationToken))
+        {
+            context.AutonomyConfigurations.Add(AutonomyConfiguration.CreateDefault());
+            _logger.LogInformation("Seeded default AutonomyConfiguration");
+        }
+
         await context.SaveChangesAsync(cancellationToken);
     }
 

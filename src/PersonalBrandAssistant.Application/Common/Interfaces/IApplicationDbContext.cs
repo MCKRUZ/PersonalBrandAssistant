@@ -13,6 +13,7 @@ public interface IApplicationDbContext
     DbSet<User> Users { get; }
     DbSet<Notification> Notifications { get; }
     DbSet<WorkflowTransitionLog> WorkflowTransitionLogs { get; }
+    DbSet<AutonomyConfiguration> AutonomyConfigurations { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
