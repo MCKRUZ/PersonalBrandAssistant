@@ -12,17 +12,19 @@ namespace PersonalBrandAssistant.Infrastructure.Tests.Api;
 public class CustomWebApplicationFactory : WebApplicationFactory<Program>
 {
     private readonly string _connectionString;
+    private readonly string _environment;
 
-    public CustomWebApplicationFactory(string connectionString)
+    public CustomWebApplicationFactory(string connectionString, string environment = "Development")
     {
         _connectionString = connectionString;
+        _environment = environment;
     }
 
     public const string TestApiKey = "test-api-key-12345";
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        builder.UseEnvironment("Development");
+        builder.UseEnvironment(_environment);
 
         builder.UseSetting("ConnectionStrings:DefaultConnection", _connectionString);
         builder.UseSetting("ApiKey", TestApiKey);

@@ -33,6 +33,18 @@
     "section-04-infrastructure": {
       "status": "complete",
       "commit_hash": "bd22618"
+    },
+    "section-05-api": {
+      "status": "complete",
+      "commit_hash": "5b04808"
+    },
+    "section-06-docker": {
+      "status": "complete",
+      "commit_hash": "29dff90"
+    },
+    "section-07-angular": {
+      "status": "complete",
+      "commit_hash": "c294a64"
     }
   },
   "pre_commit": {
