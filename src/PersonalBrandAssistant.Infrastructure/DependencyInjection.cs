@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using PersonalBrandAssistant.Application.Common.Interfaces;
+using PersonalBrandAssistant.Infrastructure.BackgroundJobs;
 using PersonalBrandAssistant.Infrastructure.Data;
 using PersonalBrandAssistant.Infrastructure.Data.Interceptors;
 using PersonalBrandAssistant.Infrastructure.Services;
@@ -44,9 +45,14 @@ public static class DependencyInjection
         services.AddScoped<IApprovalService, ApprovalService>();
         services.AddScoped<IContentScheduler, ContentScheduler>();
         services.AddScoped<INotificationService, NotificationService>();
+        services.AddScoped<IPublishingPipeline, PublishingPipelineStub>();
 
         services.AddHostedService<DataSeeder>();
         services.AddHostedService<AuditLogCleanupService>();
+        services.AddHostedService<ScheduledPublishProcessor>();
+        services.AddHostedService<RetryFailedProcessor>();
+        services.AddHostedService<WorkflowRehydrator>();
+        services.AddHostedService<RetentionCleanupService>();
 
         services.AddHealthChecks()
             .AddDbContextCheck<ApplicationDbContext>();

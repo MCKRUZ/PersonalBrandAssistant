@@ -174,14 +174,16 @@ public class WorkflowEngine : IWorkflowEngine
 
         machine.Configure(ContentStatus.Publishing)
             .Permit(ContentTrigger.Complete, ContentStatus.Published)
-            .Permit(ContentTrigger.Fail, ContentStatus.Failed);
+            .Permit(ContentTrigger.Fail, ContentStatus.Failed)
+            .Permit(ContentTrigger.Requeue, ContentStatus.Scheduled);
 
         machine.Configure(ContentStatus.Published)
             .Permit(ContentTrigger.Archive, ContentStatus.Archived);
 
         machine.Configure(ContentStatus.Failed)
             .Permit(ContentTrigger.ReturnToDraft, ContentStatus.Draft)
-            .Permit(ContentTrigger.Archive, ContentStatus.Archived);
+            .Permit(ContentTrigger.Archive, ContentStatus.Archived)
+            .Permit(ContentTrigger.Retry, ContentStatus.Publishing);
 
         machine.Configure(ContentStatus.Archived)
             .Permit(ContentTrigger.Unarchive, ContentStatus.Draft);
@@ -205,9 +207,11 @@ public class WorkflowEngine : IWorkflowEngine
             (ContentStatus.Scheduled, ContentStatus.Archived) => ContentTrigger.Archive,
             (ContentStatus.Publishing, ContentStatus.Published) => ContentTrigger.Complete,
             (ContentStatus.Publishing, ContentStatus.Failed) => ContentTrigger.Fail,
+            (ContentStatus.Publishing, ContentStatus.Scheduled) => ContentTrigger.Requeue,
             (ContentStatus.Published, ContentStatus.Archived) => ContentTrigger.Archive,
             (ContentStatus.Failed, ContentStatus.Draft) => ContentTrigger.ReturnToDraft,
             (ContentStatus.Failed, ContentStatus.Archived) => ContentTrigger.Archive,
+            (ContentStatus.Failed, ContentStatus.Publishing) => ContentTrigger.Retry,
             (ContentStatus.Archived, ContentStatus.Draft) => ContentTrigger.Unarchive,
             _ => null,
         };
@@ -228,9 +232,11 @@ public class WorkflowEngine : IWorkflowEngine
             (ContentStatus.Scheduled, ContentTrigger.Archive) => ContentStatus.Archived,
             (ContentStatus.Publishing, ContentTrigger.Complete) => ContentStatus.Published,
             (ContentStatus.Publishing, ContentTrigger.Fail) => ContentStatus.Failed,
+            (ContentStatus.Publishing, ContentTrigger.Requeue) => ContentStatus.Scheduled,
             (ContentStatus.Published, ContentTrigger.Archive) => ContentStatus.Archived,
             (ContentStatus.Failed, ContentTrigger.ReturnToDraft) => ContentStatus.Draft,
             (ContentStatus.Failed, ContentTrigger.Archive) => ContentStatus.Archived,
+            (ContentStatus.Failed, ContentTrigger.Retry) => ContentStatus.Publishing,
             (ContentStatus.Archived, ContentTrigger.Unarchive) => ContentStatus.Draft,
             _ => null,
         };

@@ -28,11 +28,13 @@ public class ContentTests
     [InlineData(ContentStatus.Scheduled, ContentStatus.Draft, false)]
     [InlineData(ContentStatus.Publishing, ContentStatus.Published, true)]
     [InlineData(ContentStatus.Publishing, ContentStatus.Failed, true)]
+    [InlineData(ContentStatus.Publishing, ContentStatus.Scheduled, true)]
     [InlineData(ContentStatus.Publishing, ContentStatus.Draft, false)]
     [InlineData(ContentStatus.Published, ContentStatus.Archived, true)]
     [InlineData(ContentStatus.Published, ContentStatus.Draft, false)]
     [InlineData(ContentStatus.Failed, ContentStatus.Draft, true)]
     [InlineData(ContentStatus.Failed, ContentStatus.Archived, true)]
+    [InlineData(ContentStatus.Failed, ContentStatus.Publishing, true)]
     [InlineData(ContentStatus.Archived, ContentStatus.Draft, true)]
     [InlineData(ContentStatus.Archived, ContentStatus.Published, false)]
     public void TransitionTo_ValidatesStateTransitions(

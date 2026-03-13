@@ -59,4 +59,57 @@ public static class TestEntityFactory
         content.TransitionTo(ContentStatus.Archived);
         return content;
     }
+
+    public static Content CreateContentInReview(
+        AutonomyLevel autonomyLevel = AutonomyLevel.Manual)
+    {
+        var content = Content.Create(ContentType.BlogPost, "Review content",
+            capturedAutonomyLevel: autonomyLevel);
+        content.TransitionTo(ContentStatus.Review);
+        return content;
+    }
+
+    public static Content CreateContentInApproved()
+    {
+        var content = CreateContent();
+        content.TransitionTo(ContentStatus.Review);
+        content.TransitionTo(ContentStatus.Approved);
+        return content;
+    }
+
+    public static Content CreateContentInScheduled(DateTimeOffset scheduledAt)
+    {
+        var content = CreateContent();
+        content.TransitionTo(ContentStatus.Review);
+        content.TransitionTo(ContentStatus.Approved);
+        content.ScheduledAt = scheduledAt;
+        content.TransitionTo(ContentStatus.Scheduled);
+        return content;
+    }
+
+    public static Content CreateContentInFailed(
+        int retryCount = 0,
+        DateTimeOffset? nextRetryAt = null)
+    {
+        var content = CreateContent();
+        content.TransitionTo(ContentStatus.Review);
+        content.TransitionTo(ContentStatus.Approved);
+        content.TransitionTo(ContentStatus.Scheduled);
+        content.TransitionTo(ContentStatus.Publishing);
+        content.TransitionTo(ContentStatus.Failed);
+        content.RetryCount = retryCount;
+        content.NextRetryAt = nextRetryAt;
+        return content;
+    }
+
+    public static Content CreateContentInPublishing(DateTimeOffset publishingStartedAt)
+    {
+        var content = CreateContent();
+        content.TransitionTo(ContentStatus.Review);
+        content.TransitionTo(ContentStatus.Approved);
+        content.TransitionTo(ContentStatus.Scheduled);
+        content.TransitionTo(ContentStatus.Publishing);
+        content.PublishingStartedAt = publishingStartedAt;
+        return content;
+    }
 }

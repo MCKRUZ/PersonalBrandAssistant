@@ -13,4 +13,6 @@ public enum ContentTrigger
     ReturnToDraft,
     Archive,
     Unarchive,
+    Requeue,
+    Retry,
 }

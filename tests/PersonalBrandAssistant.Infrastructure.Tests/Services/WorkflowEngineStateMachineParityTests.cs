@@ -76,9 +76,11 @@ public class WorkflowEngineStateMachineParityTests
             (ContentStatus.Scheduled, ContentTrigger.Archive) => ContentStatus.Archived,
             (ContentStatus.Publishing, ContentTrigger.Complete) => ContentStatus.Published,
             (ContentStatus.Publishing, ContentTrigger.Fail) => ContentStatus.Failed,
+            (ContentStatus.Publishing, ContentTrigger.Requeue) => ContentStatus.Scheduled,
             (ContentStatus.Published, ContentTrigger.Archive) => ContentStatus.Archived,
             (ContentStatus.Failed, ContentTrigger.ReturnToDraft) => ContentStatus.Draft,
             (ContentStatus.Failed, ContentTrigger.Archive) => ContentStatus.Archived,
+            (ContentStatus.Failed, ContentTrigger.Retry) => ContentStatus.Publishing,
             (ContentStatus.Archived, ContentTrigger.Unarchive) => ContentStatus.Draft,
             _ => null,
         };

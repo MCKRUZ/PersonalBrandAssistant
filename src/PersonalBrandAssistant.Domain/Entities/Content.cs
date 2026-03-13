@@ -13,9 +13,9 @@ public class Content : AuditableEntityBase
         [ContentStatus.Review] = [ContentStatus.Draft, ContentStatus.Approved, ContentStatus.Archived],
         [ContentStatus.Approved] = [ContentStatus.Scheduled, ContentStatus.Draft, ContentStatus.Archived],
         [ContentStatus.Scheduled] = [ContentStatus.Publishing, ContentStatus.Approved, ContentStatus.Archived],
-        [ContentStatus.Publishing] = [ContentStatus.Published, ContentStatus.Failed],
+        [ContentStatus.Publishing] = [ContentStatus.Published, ContentStatus.Failed, ContentStatus.Scheduled],
         [ContentStatus.Published] = [ContentStatus.Archived],
-        [ContentStatus.Failed] = [ContentStatus.Draft, ContentStatus.Archived],
+        [ContentStatus.Failed] = [ContentStatus.Draft, ContentStatus.Archived, ContentStatus.Publishing],
         [ContentStatus.Archived] = [ContentStatus.Draft],
     };
 
