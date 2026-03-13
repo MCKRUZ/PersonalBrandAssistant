@@ -376,6 +376,28 @@ src/PersonalBrandAssistant.Web/
 
 ---
 
+## Deviations from Plan (Code Review Fixes)
+
+1. **Version alignment**: `@angular/animations` installed at `^19.2.0` to match Angular 19 core (was mistakenly pulled as v21).
+2. **API key interceptor scoped to apiUrl**: Added `req.url.startsWith(environment.apiUrl)` check to prevent leaking API key to third-party origins.
+3. **Network error handling**: Added status 0 handling in error interceptor for unreachable server scenarios.
+4. **Wildcard route**: Added `{ path: '**', redirectTo: 'dashboard' }` for 404 handling.
+5. **ARIA accessibility**: Added `role="navigation"`, `aria-label`, `aria-expanded` to sidebar and toggle button.
+6. **Routing tests**: Added `app.routes.spec.ts` with 7 tests (default redirect, all 5 feature routes, wildcard 404).
+7. **StatusBadge test fix**: Tests now verify actual severity value via component instance instead of just checking element existence.
+8. **Environment mutation safety**: API key test uses `beforeEach`/`afterEach` for guaranteed restore.
+
+## Actual Package Versions
+
+- PrimeNG: 21.1.3 (compatible with Angular 19)
+- @primeng/themes: 21.0.4
+- @ngrx/signals: 21.0.1 (compatible with Angular 19)
+- @angular/animations: 19.2.x (aligned with core)
+
+## Test Results
+
+30 tests passing: 5 API service, 3 UI store, 2 auth store, 2 page-header, 8 status-badge, 1 loading-spinner, 2 empty-state, 7 routing.
+
 ## Implementation Checklist
 
 1. Create Angular 19 project with standalone components, SCSS, no SSR, routing enabled

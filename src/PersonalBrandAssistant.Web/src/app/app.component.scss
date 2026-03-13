@@ -1,0 +1,100 @@
+@use '../styles/variables' as *;
+
+.app-layout {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.sidebar {
+  width: $sidebar-width;
+  background: var(--p-surface-800, #1e293b);
+  color: var(--p-surface-0, #fff);
+  display: flex;
+  flex-direction: column;
+  transition: width 0.2s ease;
+  overflow: hidden;
+
+  .sidebar-header {
+    height: $header-height;
+    display: flex;
+    align-items: center;
+    padding: 0 $spacing-md;
+    border-bottom: 1px solid var(--p-surface-700, #334155);
+
+    .logo {
+      font-size: 1.25rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+    }
+  }
+
+  nav {
+    flex: 1;
+    padding: $spacing-sm 0;
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: $spacing-sm;
+    padding: $spacing-sm $spacing-md;
+    color: var(--p-surface-300, #cbd5e1);
+    text-decoration: none;
+    transition: background 0.15s ease;
+
+    &:hover {
+      background: var(--p-surface-700, #334155);
+    }
+
+    &.active {
+      background: var(--p-surface-700, #334155);
+      color: var(--p-surface-0, #fff);
+      border-left: 3px solid var(--p-primary-color, $brand-primary);
+    }
+
+    i {
+      font-size: 1.1rem;
+      width: 1.5rem;
+      text-align: center;
+    }
+  }
+}
+
+.sidebar-collapsed .sidebar {
+  width: $sidebar-collapsed-width;
+
+  .nav-label,
+  .logo {
+    display: none;
+  }
+}
+
+.main-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.top-bar {
+  height: $header-height;
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  padding: 0 $spacing-md;
+  border-bottom: 1px solid var(--p-surface-200, #e2e8f0);
+  background: var(--p-surface-0, #fff);
+
+  .app-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+  }
+}
+
+.content {
+  flex: 1;
+  padding: $spacing-lg;
+  overflow-y: auto;
+  background: var(--p-surface-50, #f8fafc);
+}
