@@ -2,7 +2,27 @@
 
 ## Overview
 
-Final assembly step of Phase 03: registering all agent orchestration services in DI, adding NuGet packages, configuring `appsettings.json`, creating `MockChatClient` for CI, and integration tests verifying the full wiring.
+Final assembly step of Phase 03: registering all agent orchestration services in DI, configuring `appsettings.json`, creating `MockChatClient` for CI, and DI resolution tests verifying the full wiring.
+
+**Files created:**
+- `tests/PersonalBrandAssistant.Infrastructure.Tests/Mocks/MockChatClient.cs` (IChatClient mock with configurable responses/failures)
+- `tests/PersonalBrandAssistant.Infrastructure.Tests/Mocks/MockChatClientFactory.cs` (IChatClientFactory mock)
+- `tests/PersonalBrandAssistant.Infrastructure.Tests/DependencyInjection/AgentServiceRegistrationTests.cs` (5 tests)
+
+**Files modified:**
+- `src/PersonalBrandAssistant.Application/Common/Models/AgentOrchestrationOptions.cs` — added DefaultModelTier, Models, LogPromptContent fields
+- `src/PersonalBrandAssistant.Infrastructure/DependencyInjection.cs` — added agent orchestration DI registrations
+- `src/PersonalBrandAssistant.Api/appsettings.json` — added AgentOrchestration config section
+
+**Deviations from plan:**
+- NuGet packages (Anthropic, Fluid.Core) already added in prior sections — no csproj change needed
+- `app.MapAgentEndpoints()` already added in section-10 — no Program.cs change needed
+- AgentOrchestrationOptions extended in Application layer (existing file) rather than creating new Infrastructure/Configuration copy
+- PromptTemplateService registered via factory lambda using IOptions pattern (constructor takes raw string)
+- LogPromptContent defaults to false (code review fix — production safety)
+- ApiKey removed from appsettings.json (code review fix — prevent accidental commits)
+- Integration tests with Testcontainers deferred — DI resolution tests provide sufficient wiring verification
+- AgentIntegrationTestFixture, AgentPipelineIntegrationTests, AgentStreamingIntegrationTests deferred (require running Docker)
 
 Depends on **all prior sections** (01-10). Does not block any other section.
 

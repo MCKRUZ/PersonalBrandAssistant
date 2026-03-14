@@ -16,18 +16,29 @@ namespace PersonalBrandAssistant.Infrastructure.Tests.Api;
 
 public class AgentEndpointsTests : IClassFixture<AgentEndpointsTests.AgentTestFactory>
 {
+    private const string TestApiKey = "test-api-key-12345";
     private readonly AgentTestFactory _factory;
-    private static readonly Mock<IAgentOrchestrator> _orchestratorMock = new();
-    private static readonly Mock<ITokenTracker> _tokenTrackerMock = new();
+    private readonly Mock<IAgentOrchestrator> _orchestratorMock = new();
+    private readonly Mock<ITokenTracker> _tokenTrackerMock = new();
 
     public AgentEndpointsTests(AgentTestFactory factory)
     {
         _factory = factory;
-        _orchestratorMock.Reset();
-        _tokenTrackerMock.Reset();
     }
 
-    private HttpClient CreateClient() => _factory.CreateAuthenticatedClient();
+    private HttpClient CreateClient()
+    {
+        var client = _factory.WithWebHostBuilder(builder =>
+        {
+            builder.ConfigureTestServices(services =>
+            {
+                services.AddScoped<IAgentOrchestrator>(_ => _orchestratorMock.Object);
+                services.AddScoped<ITokenTracker>(_ => _tokenTrackerMock.Object);
+            });
+        }).CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", TestApiKey);
+        return client;
+    }
 
     // --- POST /api/agents/execute ---
 
@@ -256,30 +267,18 @@ public class AgentEndpointsTests : IClassFixture<AgentEndpointsTests.AgentTestFa
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
             builder.UseEnvironment("Development");
-            builder.UseSetting("ApiKey", "test-api-key-12345");
+            builder.UseSetting("ApiKey", TestApiKey);
             builder.UseSetting("ConnectionStrings:DefaultConnection",
                 "Host=localhost;Database=test_agents;Username=test;Password=test");
 
             builder.ConfigureTestServices(services =>
             {
-                // Remove background services
                 var hostedServices = services
                     .Where(d => d.ServiceType == typeof(Microsoft.Extensions.Hosting.IHostedService))
                     .ToList();
                 foreach (var svc in hostedServices)
                     services.Remove(svc);
-
-                // Mock orchestrator and token tracker
-                services.AddScoped<IAgentOrchestrator>(_ => _orchestratorMock.Object);
-                services.AddScoped<ITokenTracker>(_ => _tokenTrackerMock.Object);
             });
-        }
-
-        public HttpClient CreateAuthenticatedClient()
-        {
-            var client = CreateClient();
-            client.DefaultRequestHeaders.Add("X-Api-Key", "test-api-key-12345");
-            return client;
         }
     }
 }

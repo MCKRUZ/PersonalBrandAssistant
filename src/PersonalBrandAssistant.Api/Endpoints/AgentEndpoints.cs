@@ -1,5 +1,6 @@
 using System.Text.Json;
 using PersonalBrandAssistant.Api.Extensions;
+using PersonalBrandAssistant.Application.Common.Errors;
 using PersonalBrandAssistant.Application.Common.Interfaces;
 using PersonalBrandAssistant.Application.Common.Models;
 using PersonalBrandAssistant.Domain.Enums;
@@ -35,7 +36,6 @@ public static class AgentEndpoints
         httpContext.Response.Headers["X-Accel-Buffering"] = "no";
 
         var ct = httpContext.RequestAborted;
-        var writer = httpContext.Response.BodyWriter;
 
         try
         {
@@ -72,10 +72,13 @@ public static class AgentEndpoints
             }
             else
             {
+                var safeMessage = result.ErrorCode == ErrorCode.ValidationFailed
+                    ? string.Join("; ", result.Errors)
+                    : "Agent execution failed.";
                 await WriteSseEventAsync(httpContext, new
                 {
                     type = "error",
-                    message = string.Join("; ", result.Errors),
+                    message = safeMessage,
                 });
             }
         }

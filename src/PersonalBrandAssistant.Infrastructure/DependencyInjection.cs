@@ -2,7 +2,11 @@ using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using PersonalBrandAssistant.Application.Common.Interfaces;
+using PersonalBrandAssistant.Application.Common.Models;
+using PersonalBrandAssistant.Infrastructure.Agents;
+using PersonalBrandAssistant.Infrastructure.Agents.Capabilities;
 using PersonalBrandAssistant.Infrastructure.BackgroundJobs;
 using PersonalBrandAssistant.Infrastructure.Data;
 using PersonalBrandAssistant.Infrastructure.Data.Interceptors;
@@ -40,6 +44,26 @@ public static class DependencyInjection
             .SetApplicationName("PersonalBrandAssistant");
 
         services.AddSingleton<IEncryptionService, EncryptionService>();
+
+        // Agent orchestration
+        services.Configure<AgentOrchestrationOptions>(
+            configuration.GetSection(AgentOrchestrationOptions.SectionName));
+        services.AddSingleton<IChatClientFactory, ChatClientFactory>();
+        services.AddSingleton<IPromptTemplateService>(sp =>
+        {
+            var opts = sp.GetRequiredService<IOptions<AgentOrchestrationOptions>>().Value;
+            return new PromptTemplateService(
+                opts.PromptsPath,
+                sp.GetRequiredService<Microsoft.Extensions.Hosting.IHostEnvironment>(),
+                sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<PromptTemplateService>>());
+        });
+        services.AddScoped<ITokenTracker, TokenTracker>();
+        services.AddScoped<IAgentOrchestrator, AgentOrchestrator>();
+        services.AddScoped<IAgentCapability, WriterAgentCapability>();
+        services.AddScoped<IAgentCapability, SocialAgentCapability>();
+        services.AddScoped<IAgentCapability, RepurposeAgentCapability>();
+        services.AddScoped<IAgentCapability, EngagementAgentCapability>();
+        services.AddScoped<IAgentCapability, AnalyticsAgentCapability>();
 
         services.AddScoped<IWorkflowEngine, WorkflowEngine>();
         services.AddScoped<IApprovalService, ApprovalService>();
