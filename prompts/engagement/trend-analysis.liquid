@@ -1,0 +1,13 @@
+Analyze current trends relevant to the brand's expertise areas.
+
+{% if task.platform %}Platform: {{ task.platform }}{% endif %}
+{% if task.timeframe %}Timeframe: {{ task.timeframe }}{% endif %}
+{% if task.topics %}Focus areas: {{ task.topics }}{% endif %}
+
+Brand topics of expertise: {{ brand.Topics | join: ", " }}
+
+Requirements:
+- Identify trending topics that intersect with brand expertise
+- Rate each trend's relevance and engagement potential
+- Suggest content angles for the most promising trends
+- Flag any trends to avoid or approach cautiously

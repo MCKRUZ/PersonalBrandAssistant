@@ -1,0 +1,20 @@
+Repurpose the following blog post into a social media post.
+
+Target platform: {{ task.platform }}
+{% if task.tone %}Tone: {{ task.tone }}{% endif %}
+
+Original blog post:
+{{ content.Title }}
+
+{{ content.Body }}
+
+{% if platforms %}
+Platform constraints:
+- Character limit: {{ platforms.char_limit }}
+{% endif %}
+
+Requirements:
+- Distill the blog post into a single compelling social post
+- Lead with the most surprising or valuable insight
+- Fit within platform character limits
+- Include a call to action to read the full post

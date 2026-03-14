@@ -1,0 +1,22 @@
+Create a social media post for {{ task.platform }}.
+
+{% if task.topic %}Topic: {{ task.topic }}{% endif %}
+{% if task.tone %}Tone: {{ task.tone }}{% endif %}
+{% if task.hook %}Hook/angle: {{ task.hook }}{% endif %}
+
+{% if platforms %}
+Platform constraints:
+- Character limit: {{ platforms.char_limit }}
+- Hashtag strategy: {{ platforms.hashtag_strategy }}
+{% endif %}
+
+{% if content %}
+Based on this content:
+{{ content.Body }}
+{% endif %}
+
+Requirements:
+- Attention-grabbing opening line
+- Clear value proposition or insight
+- Platform-appropriate formatting and length
+- Natural call to engagement (not forced)

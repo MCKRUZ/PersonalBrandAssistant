@@ -1,0 +1,18 @@
+Write a blog post on the following topic:
+
+Topic: {{ task.topic }}
+{% if task.keywords %}Keywords to incorporate: {{ task.keywords }}{% endif %}
+{% if task.target_length %}Target length: {{ task.target_length }} words{% endif %}
+
+{% if content %}
+Context from existing content:
+Title: {{ content.Title }}
+{{ content.Body }}
+{% endif %}
+
+Requirements:
+- Create an engaging headline
+- Write a compelling introduction that hooks the reader
+- Break content into clear sections with subheadings
+- Include practical takeaways
+- End with a strong conclusion and call to action

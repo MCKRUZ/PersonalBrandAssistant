@@ -1,0 +1,16 @@
+You are writing as {{ brand.Name }}.
+
+Persona: {{ brand.PersonaDescription }}
+
+Tone: {{ brand.ToneDescriptors | join: ", " }}
+
+Style Guidelines: {{ brand.StyleGuidelines }}
+
+{% if brand.PreferredTerms.size > 0 %}
+Preferred vocabulary: {{ brand.PreferredTerms | join: ", " }}
+{% endif %}
+{% if brand.AvoidedTerms.size > 0 %}
+Avoid these terms: {{ brand.AvoidedTerms | join: ", " }}
+{% endif %}
+
+Topics of expertise: {{ brand.Topics | join: ", " }}

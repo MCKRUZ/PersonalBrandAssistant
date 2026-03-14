@@ -187,3 +187,20 @@ After implementation, run:
 ```bash
 dotnet test tests/PersonalBrandAssistant.Infrastructure.Tests --filter "PromptTemplateServiceTests"
 ```
+
+---
+
+## Implementation Notes (Post-Implementation)
+
+### What was built
+All files from the inventory were created as planned. The implementation follows the spec with these enhancements from code review:
+
+### Deviations from plan
+1. **Path traversal protection (security):** Added `ValidatePathSegment()` that rejects `..`, `/`, `\` in agentName/templateName parameters, plus `Path.GetFullPath` + `StartsWith` check inside template resolution.
+2. **Thread-safe caching:** Used `ConcurrentDictionary<string, Lazy<IFluidTemplate>>` with `GetOrAdd` instead of `TryGetValue`/`TryAdd` pattern to prevent double-parsing race conditions.
+3. **FluidParser per-call:** Instead of a shared `FluidParser` field, a new `FluidParser()` is created per parse call for thread safety.
+4. **Cache-first brand voice check:** Reversed the condition to check `_cache.ContainsKey` before `File.Exists` to avoid unnecessary filesystem hits.
+5. **Fluid.Core version:** Installed v2.31.0 (latest stable) instead of planned v2.12.1.
+
+### Test count
+12 tests total (8 original + 3 path traversal Theory cases + 1 malformed template test). All passing.

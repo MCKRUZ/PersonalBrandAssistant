@@ -19,7 +19,24 @@
     "section-10-api-endpoints",
     "section-11-di-config"
   ],
-  "sections_state": {},
+  "sections_state": {
+    "section-01-domain-entities": {
+      "status": "complete",
+      "commit_hash": "da9ccc9"
+    },
+    "section-02-enums-events": {
+      "status": "complete",
+      "commit_hash": "e24d307"
+    },
+    "section-03-interfaces": {
+      "status": "complete",
+      "commit_hash": "f1f3e2d"
+    },
+    "section-04-ef-core-config": {
+      "status": "complete",
+      "commit_hash": "1080151"
+    }
+  },
   "pre_commit": {
     "present": false,
     "type": "none",
