@@ -176,3 +176,38 @@ Multi-output: parse JSON array for blog-to-social transforms. Each item in `Agen
 ## DI Registration (section-11)
 
 Each capability registered as scoped `IAgentCapability`. Orchestrator receives `IEnumerable<IAgentCapability>` and routes by `capability.Type`.
+
+---
+
+## Implementation Notes (Post-Implementation)
+
+### What was built
+All five capabilities plus a shared `AgentCapabilityBase` abstract class. The base class implements the common execution flow (template rendering, chat client invocation, output building) so concrete capabilities only override specifics.
+
+### Actual file paths
+| File | Action |
+|------|--------|
+| `src/PersonalBrandAssistant.Infrastructure/Agents/Capabilities/AgentCapabilityBase.cs` | Created |
+| `src/PersonalBrandAssistant.Infrastructure/Agents/Capabilities/WriterAgentCapability.cs` | Created |
+| `src/PersonalBrandAssistant.Infrastructure/Agents/Capabilities/SocialAgentCapability.cs` | Created |
+| `src/PersonalBrandAssistant.Infrastructure/Agents/Capabilities/RepurposeAgentCapability.cs` | Created |
+| `src/PersonalBrandAssistant.Infrastructure/Agents/Capabilities/EngagementAgentCapability.cs` | Created |
+| `src/PersonalBrandAssistant.Infrastructure/Agents/Capabilities/AnalyticsAgentCapability.cs` | Created |
+| `tests/.../Agents/Capabilities/WriterAgentCapabilityTests.cs` | Created |
+| `tests/.../Agents/Capabilities/SocialAgentCapabilityTests.cs` | Created |
+| `tests/.../Agents/Capabilities/RepurposeAgentCapabilityTests.cs` | Created |
+| `tests/.../Agents/Capabilities/EngagementAgentCapabilityTests.cs` | Created |
+| `tests/.../Agents/Capabilities/AnalyticsAgentCapabilityTests.cs` | Created |
+| `tests/.../Agents/Capabilities/TestBrandProfile.cs` | Created (shared test helper) |
+
+### Deviations from plan
+1. **Added AgentCapabilityBase:** Shared abstract base class to eliminate code duplication. Implements common flow: render system+task templates, call chat client, build output.
+2. **Single-call pattern (no agentic loop):** Writer uses single LLM call instead of multi-turn tool-calling loop. Agentic loop deferred as future enhancement when tool/function calling is implemented.
+3. **No JSON parsing in Social/Repurpose:** Response text returned as-is. Structured JSON parsing deferred to future iteration.
+4. **Token count propagation:** `BuildOutput` accepts `UsageDetails?` from `ChatResponse.Usage` to populate `InputTokens`/`OutputTokens` on `AgentOutput`.
+5. **Parameters namespaced under "task" key:** Template variables use `task.paramName` instead of spreading params at root level to prevent key collisions.
+6. **Generic error messages:** Exception details logged but not returned in Result.Failure to avoid information leakage.
+7. **Writer title extraction via GeneratedRegex:** Uses source-generated `[GeneratedRegex]` for H1 markdown title extraction.
+
+### Test count
+29 tests total: Writer (9), Social (5), Repurpose (5), Engagement (4), Analytics (4), shared helper (2). All passing.

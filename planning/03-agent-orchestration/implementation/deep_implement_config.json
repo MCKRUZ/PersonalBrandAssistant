@@ -43,6 +43,10 @@
     "section-06-chat-client-factory": {
       "status": "complete",
       "commit_hash": "dd88f49"
+    },
+    "section-07-token-tracker": {
+      "status": "complete",
+      "commit_hash": "583de9b"
     }
   },
   "pre_commit": {
