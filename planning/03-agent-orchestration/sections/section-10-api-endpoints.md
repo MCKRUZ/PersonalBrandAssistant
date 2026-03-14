@@ -4,9 +4,18 @@
 
 This section implements the Minimal API endpoints that expose the agent orchestration system to HTTP clients. Six endpoints grouped under `/api/agents`: streaming SSE, non-streaming execution, status/history queries, and usage/budget reporting.
 
-**File to create:** `src/PersonalBrandAssistant.Api/Endpoints/AgentEndpoints.cs`
-**File to modify:** `src/PersonalBrandAssistant.Api/Program.cs` (add `app.MapAgentEndpoints()`)
-**Test file to create:** `tests/PersonalBrandAssistant.Infrastructure.Tests/Api/AgentEndpointsTests.cs`
+**Files created:**
+- `src/PersonalBrandAssistant.Api/Endpoints/AgentEndpoints.cs` (180 lines, 6 endpoints)
+- `tests/PersonalBrandAssistant.Infrastructure.Tests/Api/AgentEndpointsTests.cs` (12 tests)
+
+**Files modified:**
+- `src/PersonalBrandAssistant.Api/Program.cs` — added `app.MapAgentEndpoints()`
+
+**Deviations from plan:**
+- SSE error messages sanitized: only ValidationFailed errors show raw message, internal errors get generic message (code review fix)
+- Tests use per-test `WithWebHostBuilder` mocks instead of static shared mocks (code review fix — thread safety)
+- Input validation deferred to section-11 (FluentValidation wiring needed first)
+- Pagination for ListExecutions deferred (requires IAgentOrchestrator interface change)
 
 ## Dependencies
 
