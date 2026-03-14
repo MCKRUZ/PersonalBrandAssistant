@@ -35,6 +35,10 @@
     "section-04-ef-core-config": {
       "status": "complete",
       "commit_hash": "1080151"
+    },
+    "section-05-prompt-system": {
+      "status": "complete",
+      "commit_hash": "1da6786"
     }
   },
   "pre_commit": {

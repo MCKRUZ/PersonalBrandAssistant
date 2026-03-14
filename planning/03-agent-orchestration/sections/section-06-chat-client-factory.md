@@ -131,5 +131,24 @@ A small static class providing ambient execution context via `AsyncLocal<Guid?>`
 After implementation, run:
 
 ```bash
-dotnet test tests/PersonalBrandAssistant.Infrastructure.Tests --filter "ChatClientFactoryTests"
+dotnet test tests/PersonalBrandAssistant.Infrastructure.Tests --filter "ChatClientFactoryTests|AgentExecutionContextTests|TokenTrackingDecoratorTests"
 ```
+
+---
+
+## Implementation Notes (Post-Implementation)
+
+### What was built
+All files from the inventory were created as planned. Used Anthropic SDK 12.8.0 with `client.AsIChatClient(modelId)` to create `IChatClient` instances.
+
+### Deviations from plan
+1. **TokenTrackingDecorator uses `DelegatingChatClient`:** Used the built-in `Microsoft.Extensions.AI.DelegatingChatClient` base class instead of manually implementing `IChatClient`.
+2. **Streaming usage via `UsageContent`:** `ChatResponseUpdate` doesn't have a `Usage` property directly. Used `UsageContent` from the update's `Contents` collection instead.
+3. **Graceful tracker failure:** Added try/catch in `TryRecordUsageAsync` — token tracking failures are logged as warnings but don't crash LLM operations.
+4. **Checked casts:** All `long` to `int` conversions use `checked()` for overflow detection.
+5. **Dispose thread safety:** Added `volatile bool _disposed` guard in `ChatClientFactory.CreateClient`.
+6. **Optional logger on decorator:** `TokenTrackingDecorator` accepts optional `ILogger` for failure logging.
+7. **Anthropic SDK version:** Used v12.8.0 (latest stable) instead of unspecified in plan.
+
+### Test count
+15 tests total: 7 factory + 3 execution context + 3 decorator + 2 additional (tier Theory). All passing.
