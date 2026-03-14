@@ -153,3 +153,29 @@ Calls `GetBudgetRemainingAsync` and returns `remaining <= 0`.
 ```bash
 dotnet test tests/PersonalBrandAssistant.Infrastructure.Tests --filter "TokenTrackerTests"
 ```
+
+---
+
+## Implementation Notes (Post-Implementation)
+
+### What was built
+All files from the inventory were created as planned. Additionally, `AgentOrchestrationOptions` and `ModelPricingOptions` were created in the Application layer as the options class needed by TokenTracker.
+
+### Actual file paths
+| File | Action |
+|------|--------|
+| `src/PersonalBrandAssistant.Infrastructure/Services/TokenTracker.cs` | Created |
+| `src/PersonalBrandAssistant.Application/Common/Models/AgentOrchestrationOptions.cs` | Created |
+| `tests/PersonalBrandAssistant.Infrastructure.Tests/Services/TokenTrackerTests.cs` | Created |
+| `tests/PersonalBrandAssistant.Infrastructure.Tests/PersonalBrandAssistant.Infrastructure.Tests.csproj` | Modified (added MockQueryable.Moq 7.0.3) |
+
+### Deviations from plan
+1. **ModelPricingOptions as `record`:** Changed from `class` to `record` per project conventions (immutable patterns).
+2. **AgentOrchestrationOptions includes `PromptsPath`:** Added `PromptsPath` property (used by PromptTemplateService from section-05) alongside the budget/pricing properties.
+3. **Single DB query for budget:** `GetBudgetRemainingAsync` uses a single query to fetch monthly executions, then filters daily in-memory — instead of two separate calls to `GetCostForPeriodAsync`.
+4. **Input validation:** Added `ArgumentException.ThrowIfNullOrWhiteSpace(modelId)` and `ArgumentOutOfRangeException.ThrowIfNegative` for token counts in `RecordUsageAsync`.
+5. **ILogger injection:** Constructor takes `ILogger<TokenTracker>` for warning on missing executions and unknown model pricing.
+6. **MockQueryable.Moq v7.0.3:** Used `.AsQueryable().BuildMockDbSet()` pattern matching existing test infrastructure.
+
+### Test count
+10 tests total: RecordUsage (2), CalculateCost (2 including Theory with 3 models), GetCostForPeriod (2), IsOverBudget (1), HandleExecutionNotFound (1). All passing.

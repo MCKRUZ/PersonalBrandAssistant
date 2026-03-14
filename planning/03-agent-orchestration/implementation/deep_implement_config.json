@@ -39,6 +39,10 @@
     "section-05-prompt-system": {
       "status": "complete",
       "commit_hash": "1da6786"
+    },
+    "section-06-chat-client-factory": {
+      "status": "complete",
+      "commit_hash": "dd88f49"
     }
   },
   "pre_commit": {
