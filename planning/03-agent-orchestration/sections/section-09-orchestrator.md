@@ -4,8 +4,22 @@
 
 This section implements `AgentOrchestrator`, the central coordination class that routes agent tasks to capabilities, manages execution lifecycle (create, run, complete/fail/cancel), enforces budget limits, handles retry with model downgrade on transient errors, and optionally creates Content entities from agent output and submits them to the workflow engine.
 
-**File to create:** `src/PersonalBrandAssistant.Infrastructure/Agents/AgentOrchestrator.cs`
-**Test file to create:** `tests/PersonalBrandAssistant.Infrastructure.Tests/Agents/AgentOrchestratorTests.cs`
+**Files created:**
+- `src/PersonalBrandAssistant.Infrastructure/Agents/AgentOrchestrator.cs` (290 lines)
+- `tests/PersonalBrandAssistant.Infrastructure.Tests/Agents/AgentOrchestratorTests.cs` (20 tests)
+- `tests/PersonalBrandAssistant.Infrastructure.Tests/Helpers/AsyncQueryableHelpers.cs` (async EF Core mock helper)
+
+**Files modified:**
+- `src/PersonalBrandAssistant.Application/Common/Models/AgentOrchestrationOptions.cs` — added `ExecutionTimeoutSeconds` and `MaxRetriesPerExecution`
+
+**Deviations from plan:**
+- Used `FrozenDictionary` for capability registry (code review fix — immutability)
+- Added exponential backoff between retries (code review fix — was missing)
+- `RecordUsageAsync` passes actual tier (post-downgrade) instead of `execution.ModelUsed` (code review fix — stale tier tracking)
+- Budget re-check added before each retry attempt (code review fix — TOCTOU race condition)
+- `MapCapabilityToContentType` throws on unexpected types instead of silent default (code review fix)
+- Workflow transition result is checked and logged on failure (code review fix)
+- Notification message does not include raw error details (security — avoid leaking exception internals)
 
 ## Dependencies
 

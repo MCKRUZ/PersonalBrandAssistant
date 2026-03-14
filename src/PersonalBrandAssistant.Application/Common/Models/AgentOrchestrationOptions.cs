@@ -7,6 +7,8 @@ public class AgentOrchestrationOptions
     public decimal DailyBudget { get; init; } = 10.00m;
     public decimal MonthlyBudget { get; init; } = 100.00m;
     public string PromptsPath { get; init; } = "prompts";
+    public int ExecutionTimeoutSeconds { get; init; } = 120;
+    public int MaxRetriesPerExecution { get; init; } = 3;
     public Dictionary<string, ModelPricingOptions> Pricing { get; init; } = new();
 }
 

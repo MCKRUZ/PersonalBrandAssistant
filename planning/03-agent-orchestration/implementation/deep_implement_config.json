@@ -47,6 +47,10 @@
     "section-07-token-tracker": {
       "status": "complete",
       "commit_hash": "583de9b"
+    },
+    "section-08-agent-capabilities": {
+      "status": "complete",
+      "commit_hash": "df02842"
     }
   },
   "pre_commit": {
