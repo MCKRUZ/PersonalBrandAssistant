@@ -58,6 +58,7 @@ app.MapApprovalEndpoints();
 app.MapSchedulingEndpoints();
 app.MapNotificationEndpoints();
 app.MapAgentEndpoints();
+app.MapMediaEndpoints();
 
 app.Run();
 
