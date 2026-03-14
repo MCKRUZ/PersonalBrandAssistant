@@ -99,4 +99,17 @@ public class EnumTests
         Assert.Contains(ModelTier.Standard, values);
         Assert.Contains(ModelTier.Advanced, values);
     }
+
+    [Fact]
+    public void PlatformPublishStatus_HasExactly6Values()
+    {
+        var values = Enum.GetValues<PlatformPublishStatus>();
+        Assert.Equal(6, values.Length);
+        Assert.Contains(PlatformPublishStatus.Pending, values);
+        Assert.Contains(PlatformPublishStatus.Published, values);
+        Assert.Contains(PlatformPublishStatus.Failed, values);
+        Assert.Contains(PlatformPublishStatus.RateLimited, values);
+        Assert.Contains(PlatformPublishStatus.Skipped, values);
+        Assert.Contains(PlatformPublishStatus.Processing, values);
+    }
 }
