@@ -59,6 +59,10 @@
     "section-10-api-endpoints": {
       "status": "complete",
       "commit_hash": "eafeb46"
+    },
+    "section-11-di-config": {
+      "status": "complete",
+      "commit_hash": "588cd18"
     }
   },
   "pre_commit": {
