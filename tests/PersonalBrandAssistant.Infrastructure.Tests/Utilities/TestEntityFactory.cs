@@ -140,6 +140,33 @@ public static class TestEntityFactory
         return execution;
     }
 
+    public static ContentPlatformStatus CreateContentPlatformStatus(
+        Guid contentId,
+        PlatformType platform = PlatformType.TwitterX,
+        PlatformPublishStatus status = PlatformPublishStatus.Pending,
+        string? idempotencyKey = null) =>
+        new()
+        {
+            ContentId = contentId,
+            Platform = platform,
+            Status = status,
+            IdempotencyKey = idempotencyKey ?? $"{contentId}:{platform}:1",
+        };
+
+    public static OAuthState CreateOAuthState(
+        PlatformType platform = PlatformType.TwitterX,
+        string? state = null,
+        DateTimeOffset? expiresAt = null,
+        string? codeVerifier = null) =>
+        new()
+        {
+            State = state ?? Guid.NewGuid().ToString("N"),
+            Platform = platform,
+            CreatedAt = DateTimeOffset.UtcNow,
+            ExpiresAt = expiresAt ?? DateTimeOffset.UtcNow.AddMinutes(10),
+            CodeVerifier = codeVerifier,
+        };
+
     public static AgentExecutionLog CreateAgentExecutionLog(
         Guid? agentExecutionId = null,
         int stepNumber = 1,

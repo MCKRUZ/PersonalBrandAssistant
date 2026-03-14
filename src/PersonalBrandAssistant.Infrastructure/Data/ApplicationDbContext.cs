@@ -20,6 +20,8 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<AutonomyConfiguration> AutonomyConfigurations => Set<AutonomyConfiguration>();
     public DbSet<AgentExecution> AgentExecutions => Set<AgentExecution>();
     public DbSet<AgentExecutionLog> AgentExecutionLogs => Set<AgentExecutionLog>();
+    public DbSet<ContentPlatformStatus> ContentPlatformStatuses => Set<ContentPlatformStatus>();
+    public DbSet<OAuthState> OAuthStates => Set<OAuthState>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

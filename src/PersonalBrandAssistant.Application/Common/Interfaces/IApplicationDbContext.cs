@@ -16,6 +16,8 @@ public interface IApplicationDbContext
     DbSet<AutonomyConfiguration> AutonomyConfigurations { get; }
     DbSet<AgentExecution> AgentExecutions { get; }
     DbSet<AgentExecutionLog> AgentExecutionLogs { get; }
+    DbSet<ContentPlatformStatus> ContentPlatformStatuses { get; }
+    DbSet<OAuthState> OAuthStates { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

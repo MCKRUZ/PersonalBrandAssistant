@@ -178,4 +178,101 @@ public class ApplicationDbContextConfigurationTests
         Assert.Equal(18, costProperty.GetPrecision());
         Assert.Equal(6, costProperty.GetScale());
     }
+
+    [Fact]
+    public void ContentPlatformStatus_IsRegistered()
+    {
+        using var context = CreateInMemoryContext();
+        Assert.NotNull(context.Model.FindEntityType(typeof(ContentPlatformStatus)));
+    }
+
+    [Fact]
+    public void ContentPlatformStatus_HasCompositeIndexOnContentIdAndPlatform()
+    {
+        using var context = CreateInMemoryContext();
+        var entityType = context.Model.FindEntityType(typeof(ContentPlatformStatus))!;
+        var index = entityType.GetIndexes()
+            .FirstOrDefault(i => i.Properties.Count == 2 &&
+                i.Properties.Any(p => p.Name == "ContentId") &&
+                i.Properties.Any(p => p.Name == "Platform"));
+
+        Assert.NotNull(index);
+    }
+
+    [Fact]
+    public void ContentPlatformStatus_HasUniqueIndexOnIdempotencyKey()
+    {
+        using var context = CreateInMemoryContext();
+        var entityType = context.Model.FindEntityType(typeof(ContentPlatformStatus))!;
+        var index = entityType.GetIndexes()
+            .FirstOrDefault(i => i.Properties.Any(p => p.Name == "IdempotencyKey"));
+
+        Assert.NotNull(index);
+        Assert.True(index!.IsUnique);
+    }
+
+    [Fact]
+    public void ContentPlatformStatus_HasXminConcurrencyToken()
+    {
+        using var context = CreateInMemoryContext();
+        var entityType = context.Model.FindEntityType(typeof(ContentPlatformStatus))!;
+        var xmin = entityType.FindProperty("xmin");
+
+        Assert.NotNull(xmin);
+        Assert.True(xmin!.IsConcurrencyToken);
+    }
+
+    [Fact]
+    public void ContentPlatformStatus_HasFkToContent_WithCascadeDelete()
+    {
+        using var context = CreateInMemoryContext();
+        var entityType = context.Model.FindEntityType(typeof(ContentPlatformStatus))!;
+        var fk = entityType.GetForeignKeys()
+            .FirstOrDefault(f => f.Properties.Any(p => p.Name == "ContentId"));
+
+        Assert.NotNull(fk);
+        Assert.Equal(DeleteBehavior.Cascade, fk!.DeleteBehavior);
+    }
+
+    [Fact]
+    public void OAuthState_IsRegistered()
+    {
+        using var context = CreateInMemoryContext();
+        Assert.NotNull(context.Model.FindEntityType(typeof(OAuthState)));
+    }
+
+    [Fact]
+    public void OAuthState_HasUniqueIndexOnState()
+    {
+        using var context = CreateInMemoryContext();
+        var entityType = context.Model.FindEntityType(typeof(OAuthState))!;
+        var index = entityType.GetIndexes()
+            .FirstOrDefault(i => i.Properties.Any(p => p.Name == "State"));
+
+        Assert.NotNull(index);
+        Assert.True(index!.IsUnique);
+    }
+
+    [Fact]
+    public void OAuthState_HasIndexOnExpiresAt()
+    {
+        using var context = CreateInMemoryContext();
+        var entityType = context.Model.FindEntityType(typeof(OAuthState))!;
+        var index = entityType.GetIndexes()
+            .FirstOrDefault(i => i.Properties.Any(p => p.Name == "ExpiresAt"));
+
+        Assert.NotNull(index);
+    }
+
+    [Fact]
+    public void Platform_GrantedScopes_HasTextArrayColumnType()
+    {
+        using var context = CreateInMemoryContext();
+        var entityType = context.Model.FindEntityType(typeof(Platform))!;
+        var prop = entityType.FindProperty("GrantedScopes");
+
+        Assert.NotNull(prop);
+        Assert.Equal("text[]", prop!.GetColumnType());
+    }
+
 }
