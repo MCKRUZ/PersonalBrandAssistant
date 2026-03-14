@@ -18,6 +18,8 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<WorkflowTransitionLog> WorkflowTransitionLogs => Set<WorkflowTransitionLog>();
     public DbSet<AutonomyConfiguration> AutonomyConfigurations => Set<AutonomyConfiguration>();
+    public DbSet<AgentExecution> AgentExecutions => Set<AgentExecution>();
+    public DbSet<AgentExecutionLog> AgentExecutionLogs => Set<AgentExecutionLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
