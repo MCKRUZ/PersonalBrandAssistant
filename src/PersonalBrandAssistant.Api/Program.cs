@@ -22,13 +22,16 @@ builder.Services.AddProblemDetails();
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 
+builder.Services.AddSignalR();
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAngularDev", policy =>
     {
         policy.WithOrigins("http://localhost:4200")
               .AllowAnyHeader()
-              .AllowAnyMethod();
+              .AllowAnyMethod()
+              .AllowCredentials();
     });
 });
 
@@ -50,6 +53,11 @@ if (app.Environment.IsDevelopment())
 
 app.MapHealthEndpoints();
 app.MapContentEndpoints();
+app.MapWorkflowEndpoints();
+app.MapApprovalEndpoints();
+app.MapSchedulingEndpoints();
+app.MapNotificationEndpoints();
+app.MapAgentEndpoints();
 
 app.Run();
 

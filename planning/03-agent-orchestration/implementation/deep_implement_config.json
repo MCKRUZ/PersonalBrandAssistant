@@ -1,0 +1,73 @@
+{
+  "plugin_root": "C:\\Users\\kruz7\\.claude\\plugins\\cache\\piercelamb-plugins\\deep-implement\\0.2.0",
+  "sections_dir": "C:\\Users\\kruz7\\OneDrive\\Documents\\Code Repos\\MCKRUZ\\personal-brand-assistant\\planning\\03-agent-orchestration\\sections",
+  "target_dir": "C:\\Users\\kruz7\\OneDrive\\Documents\\Code Repos\\MCKRUZ\\personal-brand-assistant",
+  "state_dir": "C:\\Users\\kruz7\\OneDrive\\Documents\\Code Repos\\MCKRUZ\\personal-brand-assistant\\planning\\03-agent-orchestration\\implementation",
+  "git_root": "C:\\Users\\kruz7\\OneDrive\\Documents\\Code Repos\\MCKRUZ\\personal-brand-assistant",
+  "commit_style": "conventional",
+  "test_command": "uv run pytest",
+  "sections": [
+    "section-01-domain-entities",
+    "section-02-enums-events",
+    "section-03-interfaces",
+    "section-04-ef-core-config",
+    "section-05-prompt-system",
+    "section-06-chat-client-factory",
+    "section-07-token-tracker",
+    "section-08-agent-capabilities",
+    "section-09-orchestrator",
+    "section-10-api-endpoints",
+    "section-11-di-config"
+  ],
+  "sections_state": {
+    "section-01-domain-entities": {
+      "status": "complete",
+      "commit_hash": "da9ccc9"
+    },
+    "section-02-enums-events": {
+      "status": "complete",
+      "commit_hash": "e24d307"
+    },
+    "section-03-interfaces": {
+      "status": "complete",
+      "commit_hash": "f1f3e2d"
+    },
+    "section-04-ef-core-config": {
+      "status": "complete",
+      "commit_hash": "1080151"
+    },
+    "section-05-prompt-system": {
+      "status": "complete",
+      "commit_hash": "1da6786"
+    },
+    "section-06-chat-client-factory": {
+      "status": "complete",
+      "commit_hash": "dd88f49"
+    },
+    "section-07-token-tracker": {
+      "status": "complete",
+      "commit_hash": "583de9b"
+    },
+    "section-08-agent-capabilities": {
+      "status": "complete",
+      "commit_hash": "df02842"
+    },
+    "section-09-orchestrator": {
+      "status": "complete",
+      "commit_hash": "d921aea"
+    },
+    "section-10-api-endpoints": {
+      "status": "complete",
+      "commit_hash": "eafeb46"
+    }
+  },
+  "pre_commit": {
+    "present": false,
+    "type": "none",
+    "config_file": null,
+    "native_hook": null,
+    "may_modify_files": false,
+    "detected_formatters": []
+  },
+  "created_at": "2026-03-13T23:41:07.876652+00:00"
+}

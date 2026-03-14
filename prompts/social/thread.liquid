@@ -1,0 +1,17 @@
+Create a social media thread on {{ task.platform }}.
+
+Topic: {{ task.topic }}
+{% if task.thread_length %}Target length: {{ task.thread_length }} posts{% endif %}
+
+{% if content %}
+Source material:
+{{ content.Body }}
+{% endif %}
+
+Requirements:
+- Strong hook in the first post that stops the scroll
+- Each post should stand alone while building on the narrative
+- Number posts for clarity (1/, 2/, etc.)
+- Include a takeaway or actionable insight
+- End with a summary post and call to engagement
+- Keep each post within platform character limits

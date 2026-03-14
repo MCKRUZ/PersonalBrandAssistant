@@ -29,8 +29,20 @@ public class ApiKeyMiddleware
             return;
         }
 
-        if (!context.Request.Headers.TryGetValue(ApiKeyHeaderName, out var providedKey) ||
-            !IsValidKey(providedKey.ToString()))
+        var hasHeaderKey = context.Request.Headers.TryGetValue(ApiKeyHeaderName, out var providedKey)
+                           && IsValidKey(providedKey.ToString());
+
+        if (!hasHeaderKey && context.Request.Path.StartsWithSegments("/hubs"))
+        {
+            var queryKey = context.Request.Query["apiKey"].FirstOrDefault();
+            if (queryKey is not null && IsValidKey(queryKey))
+            {
+                await _next(context);
+                return;
+            }
+        }
+
+        if (!hasHeaderKey)
         {
             var problemDetails = new ProblemDetails
             {

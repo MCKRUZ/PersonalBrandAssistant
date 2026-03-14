@@ -3,6 +3,8 @@ using PersonalBrandAssistant.Domain.Enums;
 
 namespace PersonalBrandAssistant.Infrastructure.Tests.Utilities;
 
+// Note: CreateContentInState and new factory methods added for Phase 02
+
 public static class TestEntityFactory
 {
     public static Content CreateContent(
@@ -57,4 +59,97 @@ public static class TestEntityFactory
         content.TransitionTo(ContentStatus.Archived);
         return content;
     }
+
+    public static Content CreateContentInReview(
+        AutonomyLevel autonomyLevel = AutonomyLevel.Manual)
+    {
+        var content = Content.Create(ContentType.BlogPost, "Review content",
+            capturedAutonomyLevel: autonomyLevel);
+        content.TransitionTo(ContentStatus.Review);
+        return content;
+    }
+
+    public static Content CreateContentInApproved()
+    {
+        var content = CreateContent();
+        content.TransitionTo(ContentStatus.Review);
+        content.TransitionTo(ContentStatus.Approved);
+        return content;
+    }
+
+    public static Content CreateContentInScheduled(DateTimeOffset scheduledAt)
+    {
+        var content = CreateContent();
+        content.TransitionTo(ContentStatus.Review);
+        content.TransitionTo(ContentStatus.Approved);
+        content.ScheduledAt = scheduledAt;
+        content.TransitionTo(ContentStatus.Scheduled);
+        return content;
+    }
+
+    public static Content CreateContentInFailed(
+        int retryCount = 0,
+        DateTimeOffset? nextRetryAt = null)
+    {
+        var content = CreateContent();
+        content.TransitionTo(ContentStatus.Review);
+        content.TransitionTo(ContentStatus.Approved);
+        content.TransitionTo(ContentStatus.Scheduled);
+        content.TransitionTo(ContentStatus.Publishing);
+        content.TransitionTo(ContentStatus.Failed);
+        content.RetryCount = retryCount;
+        content.NextRetryAt = nextRetryAt;
+        return content;
+    }
+
+    public static Content CreateContentInPublishing(DateTimeOffset publishingStartedAt)
+    {
+        var content = CreateContent();
+        content.TransitionTo(ContentStatus.Review);
+        content.TransitionTo(ContentStatus.Approved);
+        content.TransitionTo(ContentStatus.Scheduled);
+        content.TransitionTo(ContentStatus.Publishing);
+        content.PublishingStartedAt = publishingStartedAt;
+        return content;
+    }
+
+    public static AgentExecution CreateAgentExecution(
+        AgentCapabilityType agentType = AgentCapabilityType.Writer,
+        ModelTier modelTier = ModelTier.Standard,
+        Guid? contentId = null) =>
+        AgentExecution.Create(agentType, modelTier, contentId);
+
+    public static AgentExecution CreateRunningAgentExecution(
+        AgentCapabilityType agentType = AgentCapabilityType.Writer,
+        ModelTier modelTier = ModelTier.Standard,
+        Guid? contentId = null)
+    {
+        var execution = CreateAgentExecution(agentType, modelTier, contentId);
+        execution.MarkRunning();
+        return execution;
+    }
+
+    public static AgentExecution CreateCompletedAgentExecution(
+        AgentCapabilityType agentType = AgentCapabilityType.Writer,
+        ModelTier modelTier = ModelTier.Standard,
+        Guid? contentId = null,
+        string? outputSummary = "Test output")
+    {
+        var execution = CreateRunningAgentExecution(agentType, modelTier, contentId);
+        execution.Complete(outputSummary);
+        return execution;
+    }
+
+    public static AgentExecutionLog CreateAgentExecutionLog(
+        Guid? agentExecutionId = null,
+        int stepNumber = 1,
+        string stepType = "prompt",
+        string? content = "Test prompt content",
+        int tokensUsed = 100) =>
+        AgentExecutionLog.Create(
+            agentExecutionId ?? Guid.NewGuid(),
+            stepNumber,
+            stepType,
+            content,
+            tokensUsed);
 }

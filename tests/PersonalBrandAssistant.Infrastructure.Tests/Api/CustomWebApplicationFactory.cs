@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using PersonalBrandAssistant.Infrastructure.BackgroundJobs;
 using PersonalBrandAssistant.Infrastructure.Data;
 using PersonalBrandAssistant.Infrastructure.Services;
 
@@ -35,6 +36,10 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
             // Remove hosted services that depend on DB schema existing at startup
             RemoveService<DataSeeder>(services);
             RemoveService<AuditLogCleanupService>(services);
+            RemoveService<ScheduledPublishProcessor>(services);
+            RemoveService<RetryFailedProcessor>(services);
+            RemoveService<WorkflowRehydrator>(services);
+            RemoveService<RetentionCleanupService>(services);
         });
     }
 

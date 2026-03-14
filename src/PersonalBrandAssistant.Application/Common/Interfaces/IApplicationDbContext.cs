@@ -11,6 +11,11 @@ public interface IApplicationDbContext
     DbSet<ContentCalendarSlot> ContentCalendarSlots { get; }
     DbSet<AuditLogEntry> AuditLogEntries { get; }
     DbSet<User> Users { get; }
+    DbSet<Notification> Notifications { get; }
+    DbSet<WorkflowTransitionLog> WorkflowTransitionLogs { get; }
+    DbSet<AutonomyConfiguration> AutonomyConfigurations { get; }
+    DbSet<AgentExecution> AgentExecutions { get; }
+    DbSet<AgentExecutionLog> AgentExecutionLogs { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
