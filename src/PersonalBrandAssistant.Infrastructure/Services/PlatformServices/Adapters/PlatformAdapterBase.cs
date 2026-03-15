@@ -64,6 +64,13 @@ public abstract class PlatformAdapterBase : ISocialPlatform
     public abstract Task<Result<ContentValidation>> ValidateContentAsync(
         PlatformContent content, CancellationToken ct);
 
+    public virtual Task<Result<PlatformPublishStatusCheck>> CheckPublishStatusAsync(
+        string platformPostId, CancellationToken ct)
+    {
+        return Task.FromResult(Result.Success(
+            new PlatformPublishStatusCheck(PlatformPublishStatus.Published, null, null)));
+    }
+
     protected abstract Task<Result<PublishResult>> ExecutePublishAsync(
         string accessToken, PlatformContent content, CancellationToken ct);
 

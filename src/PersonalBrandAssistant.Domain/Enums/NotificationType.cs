@@ -6,5 +6,8 @@ public enum NotificationType
     ContentApproved,
     ContentRejected,
     ContentPublished,
-    ContentFailed
+    ContentFailed,
+    PlatformDisconnected,
+    PlatformTokenExpiring,
+    PlatformScopeMismatch
 }

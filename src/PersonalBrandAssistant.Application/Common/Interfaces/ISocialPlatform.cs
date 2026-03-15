@@ -12,4 +12,5 @@ public interface ISocialPlatform
     Task<Result<EngagementStats>> GetEngagementAsync(string platformPostId, CancellationToken ct);
     Task<Result<PlatformProfile>> GetProfileAsync(CancellationToken ct);
     Task<Result<ContentValidation>> ValidateContentAsync(PlatformContent content, CancellationToken ct);
+    Task<Result<PlatformPublishStatusCheck>> CheckPublishStatusAsync(string platformPostId, CancellationToken ct);
 }
