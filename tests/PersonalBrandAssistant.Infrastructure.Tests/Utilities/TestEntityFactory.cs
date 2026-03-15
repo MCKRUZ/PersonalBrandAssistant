@@ -164,7 +164,7 @@ public static class TestEntityFactory
             Platform = platform,
             CreatedAt = DateTimeOffset.UtcNow,
             ExpiresAt = expiresAt ?? DateTimeOffset.UtcNow.AddMinutes(10),
-            CodeVerifier = codeVerifier,
+            EncryptedCodeVerifier = codeVerifier != null ? System.Text.Encoding.UTF8.GetBytes(codeVerifier) : null,
         };
 
     public static AgentExecutionLog CreateAgentExecutionLog(

@@ -24,18 +24,19 @@ public class OAuthStateTests
     [Fact]
     public void OAuthState_StoresAllFields()
     {
+        var encryptedVerifier = System.Text.Encoding.UTF8.GetBytes("pkce-code-verifier");
         var state = new OAuthState
         {
             State = "csrf-state-token",
             Platform = PlatformType.TwitterX,
-            CodeVerifier = "pkce-code-verifier",
+            EncryptedCodeVerifier = encryptedVerifier,
             CreatedAt = DateTimeOffset.UtcNow,
             ExpiresAt = DateTimeOffset.UtcNow.AddMinutes(10),
         };
 
         Assert.Equal("csrf-state-token", state.State);
         Assert.Equal(PlatformType.TwitterX, state.Platform);
-        Assert.Equal("pkce-code-verifier", state.CodeVerifier);
+        Assert.Equal(encryptedVerifier, state.EncryptedCodeVerifier);
     }
 
     [Fact]

@@ -14,7 +14,7 @@ public class OAuthStateConfiguration : IEntityTypeConfiguration<OAuthState>
 
         builder.Property(o => o.State).IsRequired().HasMaxLength(200);
         builder.Property(o => o.Platform).IsRequired();
-        builder.Property(o => o.CodeVerifier).HasMaxLength(200);
+        builder.Property(o => o.EncryptedCodeVerifier);
         builder.Property(o => o.CreatedAt).IsRequired();
         builder.Property(o => o.ExpiresAt).IsRequired();
 
