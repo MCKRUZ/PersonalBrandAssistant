@@ -2,6 +2,7 @@ namespace PersonalBrandAssistant.Application.Common.Models;
 
 public class PlatformIntegrationOptions
 {
+    public const string SectionName = "PlatformIntegrations";
     public PlatformOptions Twitter { get; set; } = new();
     public PlatformOptions LinkedIn { get; set; } = new();
     public PlatformOptions Instagram { get; set; } = new();

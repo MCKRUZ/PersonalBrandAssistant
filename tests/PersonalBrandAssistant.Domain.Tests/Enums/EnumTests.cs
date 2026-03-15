@@ -45,15 +45,18 @@ public class EnumTests
     }
 
     [Fact]
-    public void NotificationType_HasExactly5Values()
+    public void NotificationType_HasExactly8Values()
     {
         var values = Enum.GetValues<NotificationType>();
-        Assert.Equal(5, values.Length);
+        Assert.Equal(8, values.Length);
         Assert.Contains(NotificationType.ContentReadyForReview, values);
         Assert.Contains(NotificationType.ContentApproved, values);
         Assert.Contains(NotificationType.ContentRejected, values);
         Assert.Contains(NotificationType.ContentPublished, values);
         Assert.Contains(NotificationType.ContentFailed, values);
+        Assert.Contains(NotificationType.PlatformDisconnected, values);
+        Assert.Contains(NotificationType.PlatformTokenExpiring, values);
+        Assert.Contains(NotificationType.PlatformScopeMismatch, values);
     }
 
     [Fact]

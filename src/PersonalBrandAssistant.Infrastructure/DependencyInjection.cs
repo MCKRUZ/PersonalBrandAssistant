@@ -11,6 +11,10 @@ using PersonalBrandAssistant.Infrastructure.BackgroundJobs;
 using PersonalBrandAssistant.Infrastructure.Data;
 using PersonalBrandAssistant.Infrastructure.Data.Interceptors;
 using PersonalBrandAssistant.Infrastructure.Services;
+using PersonalBrandAssistant.Infrastructure.Services.MediaServices;
+using PersonalBrandAssistant.Infrastructure.Services.PlatformServices;
+using PersonalBrandAssistant.Infrastructure.Services.PlatformServices.Adapters;
+using PersonalBrandAssistant.Infrastructure.Services.PlatformServices.Formatters;
 
 namespace PersonalBrandAssistant.Infrastructure;
 
@@ -69,14 +73,64 @@ public static class DependencyInjection
         services.AddScoped<IApprovalService, ApprovalService>();
         services.AddScoped<IContentScheduler, ContentScheduler>();
         services.AddScoped<INotificationService, NotificationService>();
-        services.AddScoped<IPublishingPipeline, PublishingPipelineStub>();
 
+        // Platform integration options
+        services.Configure<PlatformIntegrationOptions>(configuration.GetSection(PlatformIntegrationOptions.SectionName));
+        services.Configure<MediaStorageOptions>(configuration.GetSection("MediaStorage"));
+
+        // Singleton services
+        services.AddSingleton(TimeProvider.System);
+        services.AddMemoryCache();
+        services.AddSingleton<IMediaStorage, LocalMediaStorage>();
+
+        // Platform adapters with typed HttpClients
+        services.AddHttpClient<TwitterPlatformAdapter>(client =>
+        {
+            client.BaseAddress = new Uri(
+                configuration["PlatformIntegrations:Twitter:BaseUrl"] ?? "https://api.x.com/2");
+        });
+        services.AddHttpClient<LinkedInPlatformAdapter>(client =>
+        {
+            client.BaseAddress = new Uri(
+                configuration["PlatformIntegrations:LinkedIn:BaseUrl"] ?? "https://api.linkedin.com/rest");
+            client.DefaultRequestHeaders.Add("X-Restli-Protocol-Version", "2.0.0");
+            var apiVersion = configuration["PlatformIntegrations:LinkedIn:ApiVersion"] ?? "202603";
+            client.DefaultRequestHeaders.Add("Linkedin-Version", apiVersion);
+        });
+        services.AddHttpClient<InstagramPlatformAdapter>(client =>
+        {
+            client.BaseAddress = new Uri(
+                configuration["PlatformIntegrations:Instagram:BaseUrl"] ?? "https://graph.facebook.com/v19.0");
+        });
+        services.AddHttpClient<YouTubePlatformAdapter>();
+
+        // Scoped services
+        services.AddScoped<IPublishingPipeline, PublishingPipeline>();
+        services.AddScoped<IOAuthManager, OAuthManager>();
+        services.AddScoped<IRateLimiter, DatabaseRateLimiter>();
+
+        // Platform adapters (multi-registration for IEnumerable<ISocialPlatform>)
+        services.AddScoped<ISocialPlatform>(sp => sp.GetRequiredService<TwitterPlatformAdapter>());
+        services.AddScoped<ISocialPlatform>(sp => sp.GetRequiredService<LinkedInPlatformAdapter>());
+        services.AddScoped<ISocialPlatform>(sp => sp.GetRequiredService<InstagramPlatformAdapter>());
+        services.AddScoped<ISocialPlatform>(sp => sp.GetRequiredService<YouTubePlatformAdapter>());
+
+        // Content formatters (multi-registration)
+        services.AddScoped<IPlatformContentFormatter, TwitterContentFormatter>();
+        services.AddScoped<IPlatformContentFormatter, LinkedInContentFormatter>();
+        services.AddScoped<IPlatformContentFormatter, InstagramContentFormatter>();
+        services.AddScoped<IPlatformContentFormatter, YouTubeContentFormatter>();
+
+        // Background services
         services.AddHostedService<DataSeeder>();
         services.AddHostedService<AuditLogCleanupService>();
         services.AddHostedService<ScheduledPublishProcessor>();
         services.AddHostedService<RetryFailedProcessor>();
         services.AddHostedService<WorkflowRehydrator>();
         services.AddHostedService<RetentionCleanupService>();
+        services.AddHostedService<TokenRefreshProcessor>();
+        services.AddHostedService<PlatformHealthMonitor>();
+        services.AddHostedService<PublishCompletionPoller>();
 
         services.AddHealthChecks()
             .AddDbContextCheck<ApplicationDbContext>();

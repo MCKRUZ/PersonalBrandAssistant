@@ -45,6 +45,9 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
             RemoveService<RetryFailedProcessor>(services);
             RemoveService<WorkflowRehydrator>(services);
             RemoveService<RetentionCleanupService>(services);
+            RemoveService<TokenRefreshProcessor>(services);
+            RemoveService<PlatformHealthMonitor>(services);
+            RemoveService<PublishCompletionPoller>(services);
 
             services.Configure<MediaStorageOptions>(opts =>
             {
