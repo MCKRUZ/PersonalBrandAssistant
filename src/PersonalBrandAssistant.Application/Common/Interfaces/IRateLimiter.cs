@@ -5,7 +5,7 @@ namespace PersonalBrandAssistant.Application.Common.Interfaces;
 
 public interface IRateLimiter
 {
-    Task<RateLimitDecision> CanMakeRequestAsync(PlatformType platform, string endpoint, CancellationToken ct);
-    Task RecordRequestAsync(PlatformType platform, string endpoint, int remaining, DateTimeOffset? resetAt, CancellationToken ct);
-    Task<RateLimitStatus> GetStatusAsync(PlatformType platform, CancellationToken ct);
+    Task<Result<RateLimitDecision>> CanMakeRequestAsync(PlatformType platform, string endpoint, CancellationToken ct);
+    Task<Result<bool>> RecordRequestAsync(PlatformType platform, string endpoint, int remaining, DateTimeOffset? resetAt, CancellationToken ct);
+    Task<Result<RateLimitStatus>> GetStatusAsync(PlatformType platform, CancellationToken ct);
 }
