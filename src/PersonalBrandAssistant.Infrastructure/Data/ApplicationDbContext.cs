@@ -12,7 +12,13 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<Content> Contents => Set<Content>();
     public DbSet<Platform> Platforms => Set<Platform>();
     public DbSet<BrandProfile> BrandProfiles => Set<BrandProfile>();
-    public DbSet<ContentCalendarSlot> ContentCalendarSlots => Set<ContentCalendarSlot>();
+    public DbSet<CalendarSlot> CalendarSlots => Set<CalendarSlot>();
+    public DbSet<ContentSeries> ContentSeries => Set<ContentSeries>();
+    public DbSet<TrendSource> TrendSources => Set<TrendSource>();
+    public DbSet<TrendItem> TrendItems => Set<TrendItem>();
+    public DbSet<TrendSuggestion> TrendSuggestions => Set<TrendSuggestion>();
+    public DbSet<TrendSuggestionItem> TrendSuggestionItems => Set<TrendSuggestionItem>();
+    public DbSet<EngagementSnapshot> EngagementSnapshots => Set<EngagementSnapshot>();
     public DbSet<AuditLogEntry> AuditLogEntries => Set<AuditLogEntry>();
     public DbSet<User> Users => Set<User>();
     public DbSet<Notification> Notifications => Set<Notification>();

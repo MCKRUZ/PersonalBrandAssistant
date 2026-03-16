@@ -115,4 +115,36 @@ public class EnumTests
         Assert.Contains(PlatformPublishStatus.Skipped, values);
         Assert.Contains(PlatformPublishStatus.Processing, values);
     }
+
+    [Fact]
+    public void TrendSourceType_HasExactly4Values()
+    {
+        var values = Enum.GetValues<TrendSourceType>();
+        Assert.Equal(4, values.Length);
+        Assert.Contains(TrendSourceType.TrendRadar, values);
+        Assert.Contains(TrendSourceType.FreshRSS, values);
+        Assert.Contains(TrendSourceType.Reddit, values);
+        Assert.Contains(TrendSourceType.HackerNews, values);
+    }
+
+    [Fact]
+    public void TrendSuggestionStatus_HasExactly3Values()
+    {
+        var values = Enum.GetValues<TrendSuggestionStatus>();
+        Assert.Equal(3, values.Length);
+        Assert.Contains(TrendSuggestionStatus.Pending, values);
+        Assert.Contains(TrendSuggestionStatus.Accepted, values);
+        Assert.Contains(TrendSuggestionStatus.Dismissed, values);
+    }
+
+    [Fact]
+    public void CalendarSlotStatus_HasExactly4Values()
+    {
+        var values = Enum.GetValues<CalendarSlotStatus>();
+        Assert.Equal(4, values.Length);
+        Assert.Contains(CalendarSlotStatus.Open, values);
+        Assert.Contains(CalendarSlotStatus.Filled, values);
+        Assert.Contains(CalendarSlotStatus.Published, values);
+        Assert.Contains(CalendarSlotStatus.Skipped, values);
+    }
 }

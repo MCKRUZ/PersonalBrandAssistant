@@ -42,11 +42,18 @@ public class ContentConfiguration : IEntityTypeConfiguration<Content>
 
         builder.HasQueryFilter(c => c.Status != ContentStatus.Archived);
 
+        builder.Property(c => c.TreeDepth).IsRequired().HasDefaultValue(0);
+        builder.Property(c => c.RepurposeSourcePlatform);
+
         builder.Property(c => c.ParentContentId);
         builder.HasOne<Content>()
             .WithMany()
             .HasForeignKey(c => c.ParentContentId)
             .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasIndex(c => new { c.ParentContentId, c.RepurposeSourcePlatform, c.ContentType })
+            .IsUnique()
+            .HasFilter("\"ParentContentId\" IS NOT NULL");
 
         builder.Ignore(c => c.DomainEvents);
     }

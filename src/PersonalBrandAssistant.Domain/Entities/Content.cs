@@ -39,6 +39,8 @@ public class Content : AuditableEntityBase
     public int RetryCount { get; set; }
     public DateTimeOffset? NextRetryAt { get; set; }
     public DateTimeOffset? PublishingStartedAt { get; set; }
+    public int TreeDepth { get; set; }
+    public PlatformType? RepurposeSourcePlatform { get; set; }
     public uint Version { get; set; }
 
     public static Content Create(

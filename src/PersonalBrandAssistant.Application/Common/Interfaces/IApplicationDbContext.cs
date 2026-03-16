@@ -8,7 +8,13 @@ public interface IApplicationDbContext
     DbSet<Content> Contents { get; }
     DbSet<Platform> Platforms { get; }
     DbSet<BrandProfile> BrandProfiles { get; }
-    DbSet<ContentCalendarSlot> ContentCalendarSlots { get; }
+    DbSet<CalendarSlot> CalendarSlots { get; }
+    DbSet<ContentSeries> ContentSeries { get; }
+    DbSet<TrendSource> TrendSources { get; }
+    DbSet<TrendItem> TrendItems { get; }
+    DbSet<TrendSuggestion> TrendSuggestions { get; }
+    DbSet<TrendSuggestionItem> TrendSuggestionItems { get; }
+    DbSet<EngagementSnapshot> EngagementSnapshots { get; }
     DbSet<AuditLogEntry> AuditLogEntries { get; }
     DbSet<User> Users { get; }
     DbSet<Notification> Notifications { get; }

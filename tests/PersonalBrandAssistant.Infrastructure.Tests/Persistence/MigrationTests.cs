@@ -29,7 +29,13 @@ public class MigrationTests
         Assert.Contains("Contents", tables);
         Assert.Contains("Platforms", tables);
         Assert.Contains("BrandProfiles", tables);
-        Assert.Contains("ContentCalendarSlots", tables);
+        Assert.Contains("CalendarSlots", tables);
+        Assert.Contains("ContentSeries", tables);
+        Assert.Contains("TrendSources", tables);
+        Assert.Contains("TrendItems", tables);
+        Assert.Contains("TrendSuggestions", tables);
+        Assert.Contains("TrendSuggestionItems", tables);
+        Assert.Contains("EngagementSnapshots", tables);
         Assert.Contains("AuditLogEntries", tables);
         Assert.Contains("Users", tables);
     }

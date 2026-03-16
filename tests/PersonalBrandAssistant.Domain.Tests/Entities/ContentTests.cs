@@ -144,6 +144,20 @@ public class ContentTests
         }
     }
 
+    [Fact]
+    public void Content_TreeDepth_DefaultsToZero()
+    {
+        var content = CreateDraft();
+        Assert.Equal(0, content.TreeDepth);
+    }
+
+    [Fact]
+    public void Content_RepurposeSourcePlatform_IsNullable()
+    {
+        var content = CreateDraft();
+        Assert.Null(content.RepurposeSourcePlatform);
+    }
+
     private static void TransitionToState(Content content, ContentStatus target)
     {
         if (content.Status == target) return;
