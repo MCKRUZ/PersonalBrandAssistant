@@ -13,4 +13,6 @@ public class ContentEngineOptions
     public int EngagementRetentionDays { get; set; } = 30;
 
     public int EngagementAggregationIntervalHours { get; set; } = 4;
+
+    public int SlotMaterializationDays { get; set; } = 7;
 }
