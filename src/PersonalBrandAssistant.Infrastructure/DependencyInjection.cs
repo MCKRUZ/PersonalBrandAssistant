@@ -81,6 +81,7 @@ public static class DependencyInjection
         services.AddScoped<IBrandVoiceService, StubBrandVoiceService>();
         services.AddScoped<IContentPipeline, ContentPipeline>();
         services.AddScoped<IRepurposingService, RepurposingService>();
+        services.AddScoped<IContentCalendarService, ContentCalendarService>();
 
         // Platform integration options
         services.Configure<PlatformIntegrationOptions>(configuration.GetSection(PlatformIntegrationOptions.SectionName));
