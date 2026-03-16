@@ -78,7 +78,7 @@ public static class DependencyInjection
         // Content pipeline
         services.Configure<ContentEngineOptions>(
             configuration.GetSection(ContentEngineOptions.SectionName));
-        services.AddScoped<IBrandVoiceService, StubBrandVoiceService>();
+        services.AddScoped<IBrandVoiceService, BrandVoiceService>();
         services.AddScoped<IContentPipeline, ContentPipeline>();
         services.AddScoped<IRepurposingService, RepurposingService>();
         services.AddScoped<IContentCalendarService, ContentCalendarService>();
