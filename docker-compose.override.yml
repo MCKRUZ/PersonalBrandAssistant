@@ -3,6 +3,17 @@ services:
     ports:
       - "5432:5432"
 
+  sidecar:
+    ports:
+      - "3001:3001"
+    networks:
+      - default
+      - internal
+
+  freshrss:
+    ports:
+      - "8080:80"
+
   api:
     build:
       context: .

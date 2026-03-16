@@ -75,13 +75,21 @@ public static class DependencyInjection
         services.AddScoped<IContentScheduler, ContentScheduler>();
         services.AddScoped<INotificationService, NotificationService>();
 
-        // Content pipeline
+        // Content engine options
+        services.Configure<SidecarOptions>(
+            configuration.GetSection(SidecarOptions.SectionName));
         services.Configure<ContentEngineOptions>(
             configuration.GetSection(ContentEngineOptions.SectionName));
+        services.Configure<TrendMonitoringOptions>(
+            configuration.GetSection(TrendMonitoringOptions.SectionName));
+
+        // Content engine services
         services.AddScoped<IBrandVoiceService, BrandVoiceService>();
         services.AddScoped<IContentPipeline, ContentPipeline>();
         services.AddScoped<IRepurposingService, RepurposingService>();
         services.AddScoped<IContentCalendarService, ContentCalendarService>();
+        services.AddScoped<ITrendMonitor, TrendMonitor>();
+        services.AddScoped<IEngagementAggregator, EngagementAggregator>();
 
         // Platform integration options
         services.Configure<PlatformIntegrationOptions>(configuration.GetSection(PlatformIntegrationOptions.SectionName));
@@ -140,6 +148,12 @@ public static class DependencyInjection
         services.AddHostedService<TokenRefreshProcessor>();
         services.AddHostedService<PlatformHealthMonitor>();
         services.AddHostedService<PublishCompletionPoller>();
+
+        // Content engine background services
+        services.AddHostedService<RepurposeOnPublishProcessor>();
+        services.AddHostedService<TrendAggregationProcessor>();
+        services.AddHostedService<EngagementAggregationProcessor>();
+        services.AddHostedService<CalendarSlotProcessor>();
 
         services.AddHealthChecks()
             .AddDbContextCheck<ApplicationDbContext>();
