@@ -1,0 +1,251 @@
+using System.Text;
+using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using PersonalBrandAssistant.Application.Common.Errors;
+using PersonalBrandAssistant.Application.Common.Interfaces;
+using PersonalBrandAssistant.Application.Common.Models;
+using PersonalBrandAssistant.Domain.Entities;
+using PersonalBrandAssistant.Domain.Enums;
+
+namespace PersonalBrandAssistant.Infrastructure.Services.ContentServices;
+
+public sealed class ContentPipeline : IContentPipeline
+{
+    private readonly IApplicationDbContext _dbContext;
+    private readonly ISidecarClient _sidecarClient;
+    private readonly IBrandVoiceService _brandVoiceService;
+    private readonly IWorkflowEngine _workflowEngine;
+    private readonly ILogger<ContentPipeline> _logger;
+
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+    };
+
+    public ContentPipeline(
+        IApplicationDbContext dbContext,
+        ISidecarClient sidecarClient,
+        IBrandVoiceService brandVoiceService,
+        IWorkflowEngine workflowEngine,
+        ILogger<ContentPipeline> logger)
+    {
+        _dbContext = dbContext;
+        _sidecarClient = sidecarClient;
+        _brandVoiceService = brandVoiceService;
+        _workflowEngine = workflowEngine;
+        _logger = logger;
+    }
+
+    public async Task<Result<Guid>> CreateFromTopicAsync(ContentCreationRequest request, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(request.Topic))
+        {
+            return Result<Guid>.Failure(ErrorCode.ValidationFailed, "Topic is required");
+        }
+
+        var content = Content.Create(
+            request.Type,
+            body: string.Empty,
+            title: null,
+            request.TargetPlatforms);
+
+        content.ParentContentId = request.ParentContentId;
+        content.Metadata.AiGenerationContext = JsonSerializer.Serialize(
+            new { topic = request.Topic, outline = request.Outline }, JsonOptions);
+
+        if (request.Parameters is not null)
+        {
+            foreach (var (key, value) in request.Parameters)
+            {
+                content.Metadata.PlatformSpecificData[key] = value;
+            }
+        }
+
+        _dbContext.Contents.Add(content);
+        await _dbContext.SaveChangesAsync(ct);
+
+        return Result<Guid>.Success(content.Id);
+    }
+
+    public async Task<Result<string>> GenerateOutlineAsync(Guid contentId, CancellationToken ct)
+    {
+        var content = await _dbContext.Contents.FindAsync([contentId], ct);
+        if (content is null)
+        {
+            return Result<string>.NotFound($"Content {contentId} not found");
+        }
+
+        var (topic, _) = ParseGenerationContext(content.Metadata.AiGenerationContext);
+        var prompt = $"Generate a detailed outline for a {content.ContentType} about: {topic}";
+
+        var (text, _, _, _, error) = await ConsumeEventStreamAsync(prompt, ct);
+        if (text is null)
+        {
+            return Result<string>.Failure(ErrorCode.InternalError, error ?? "Sidecar returned no text");
+        }
+
+        content.Metadata.AiGenerationContext = JsonSerializer.Serialize(
+            new { topic, outline = text }, JsonOptions);
+        await _dbContext.SaveChangesAsync(ct);
+
+        return Result<string>.Success(text);
+    }
+
+    public async Task<Result<string>> GenerateDraftAsync(Guid contentId, CancellationToken ct)
+    {
+        var content = await _dbContext.Contents.FindAsync([contentId], ct);
+        if (content is null)
+        {
+            return Result<string>.NotFound($"Content {contentId} not found");
+        }
+
+        var (topic, outline) = ParseGenerationContext(content.Metadata.AiGenerationContext);
+        var brandContext = await LoadBrandContextAsync(ct);
+        var seoKeywords = content.Metadata.SeoKeywords.Count > 0
+            ? string.Join(", ", content.Metadata.SeoKeywords)
+            : null;
+
+        var promptBuilder = new StringBuilder();
+        promptBuilder.AppendLine($"Write a {content.ContentType} about: {topic}");
+        if (outline is not null)
+            promptBuilder.AppendLine($"\nOutline:\n{outline}");
+        if (brandContext is not null)
+            promptBuilder.AppendLine($"\nBrand voice: {brandContext}");
+        if (seoKeywords is not null)
+            promptBuilder.AppendLine($"\nSEO keywords: {seoKeywords}");
+
+        var prompt = promptBuilder.ToString();
+        var (text, filePath, inputTokens, outputTokens, draftError) = await ConsumeEventStreamAsync(prompt, ct);
+
+        if (text is null)
+        {
+            return Result<string>.Failure(ErrorCode.InternalError, draftError ?? "Sidecar returned no text");
+        }
+
+        content.Body = text;
+
+        if (filePath is not null)
+        {
+            content.Metadata.PlatformSpecificData["filePath"] = filePath;
+        }
+
+        content.Metadata.TokensUsed = inputTokens + outputTokens;
+        await _dbContext.SaveChangesAsync(ct);
+
+        return Result<string>.Success(text);
+    }
+
+    public async Task<Result<BrandVoiceScore>> ValidateVoiceAsync(Guid contentId, CancellationToken ct)
+    {
+        var content = await _dbContext.Contents.FindAsync([contentId], ct);
+        if (content is null)
+        {
+            return Result<BrandVoiceScore>.NotFound($"Content {contentId} not found");
+        }
+
+        var scoreResult = await _brandVoiceService.ScoreContentAsync(contentId, ct);
+        if (!scoreResult.IsSuccess)
+        {
+            return scoreResult;
+        }
+
+        content.Metadata.PlatformSpecificData["brandVoiceScore"] =
+            JsonSerializer.Serialize(scoreResult.Value, JsonOptions);
+        await _dbContext.SaveChangesAsync(ct);
+
+        return scoreResult;
+    }
+
+    public async Task<Result<MediatR.Unit>> SubmitForReviewAsync(Guid contentId, CancellationToken ct)
+    {
+        var content = await _dbContext.Contents.FindAsync([contentId], ct);
+        if (content is null)
+        {
+            return Result<MediatR.Unit>.NotFound($"Content {contentId} not found");
+        }
+
+        var transitionResult = await _workflowEngine.TransitionAsync(
+            contentId, ContentStatus.Review,
+            "Submitted via content pipeline", ActorType.System, ct);
+
+        if (!transitionResult.IsSuccess)
+        {
+            return Result<MediatR.Unit>.Failure(transitionResult.ErrorCode, transitionResult.Errors.ToArray());
+        }
+
+        if (await _workflowEngine.ShouldAutoApproveAsync(contentId, ct))
+        {
+            var approvalResult = await _workflowEngine.TransitionAsync(
+                contentId, ContentStatus.Approved,
+                "Auto-approved by autonomy policy", ActorType.System, ct);
+
+            if (!approvalResult.IsSuccess)
+            {
+                _logger.LogWarning(
+                    "Auto-approval failed for content {ContentId}: {Errors}",
+                    contentId, string.Join("; ", approvalResult.Errors));
+            }
+        }
+
+        return Result<MediatR.Unit>.Success(MediatR.Unit.Value);
+    }
+
+    private async Task<(string? Text, string? FilePath, int InputTokens, int OutputTokens, string? Error)>
+        ConsumeEventStreamAsync(string prompt, CancellationToken ct)
+    {
+        var textBuilder = new StringBuilder();
+        string? filePath = null;
+        int inputTokens = 0, outputTokens = 0;
+
+        await foreach (var evt in _sidecarClient.SendTaskAsync(prompt, null, null, ct))
+        {
+            switch (evt)
+            {
+                case ChatEvent { Text: not null } chat:
+                    textBuilder.Append(chat.Text);
+                    break;
+                case FileChangeEvent file:
+                    filePath = file.FilePath;
+                    break;
+                case TaskCompleteEvent complete:
+                    inputTokens = complete.InputTokens;
+                    outputTokens = complete.OutputTokens;
+                    break;
+                case ErrorEvent error:
+                    _logger.LogError("Sidecar error during content pipeline: {Message}", error.Message);
+                    return (null, null, 0, 0, error.Message);
+            }
+        }
+
+        var text = textBuilder.Length > 0 ? textBuilder.ToString() : null;
+        return (text, filePath, inputTokens, outputTokens, null);
+    }
+
+    private static (string? Topic, string? Outline) ParseGenerationContext(string? json)
+    {
+        if (string.IsNullOrEmpty(json)) return (null, null);
+
+        try
+        {
+            var doc = JsonSerializer.Deserialize<JsonElement>(json);
+            var topic = doc.TryGetProperty("topic", out var t) ? t.GetString() : null;
+            var outline = doc.TryGetProperty("outline", out var o) && o.ValueKind != JsonValueKind.Null
+                ? o.GetString() : null;
+            return (topic, outline);
+        }
+        catch (JsonException)
+        {
+            return (null, null);
+        }
+    }
+
+    private async Task<string?> LoadBrandContextAsync(CancellationToken ct)
+    {
+        var profile = await _dbContext.BrandProfiles.FirstOrDefaultAsync(p => p.IsActive, ct);
+        if (profile is null) return null;
+
+        return $"{profile.PersonaDescription}. Tone: {string.Join(", ", profile.ToneDescriptors)}. " +
+               $"Style: {profile.StyleGuidelines}";
+    }
+}

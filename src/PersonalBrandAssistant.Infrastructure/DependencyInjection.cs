@@ -11,6 +11,7 @@ using PersonalBrandAssistant.Infrastructure.BackgroundJobs;
 using PersonalBrandAssistant.Infrastructure.Data;
 using PersonalBrandAssistant.Infrastructure.Data.Interceptors;
 using PersonalBrandAssistant.Infrastructure.Services;
+using PersonalBrandAssistant.Infrastructure.Services.ContentServices;
 using PersonalBrandAssistant.Infrastructure.Services.MediaServices;
 using PersonalBrandAssistant.Infrastructure.Services.PlatformServices;
 using PersonalBrandAssistant.Infrastructure.Services.PlatformServices.Adapters;
@@ -73,6 +74,10 @@ public static class DependencyInjection
         services.AddScoped<IApprovalService, ApprovalService>();
         services.AddScoped<IContentScheduler, ContentScheduler>();
         services.AddScoped<INotificationService, NotificationService>();
+
+        // Content pipeline
+        services.AddScoped<IBrandVoiceService, StubBrandVoiceService>();
+        services.AddScoped<IContentPipeline, ContentPipeline>();
 
         // Platform integration options
         services.Configure<PlatformIntegrationOptions>(configuration.GetSection(PlatformIntegrationOptions.SectionName));
