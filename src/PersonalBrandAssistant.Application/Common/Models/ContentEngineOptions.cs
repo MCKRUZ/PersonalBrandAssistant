@@ -9,4 +9,8 @@ public class ContentEngineOptions
     public int BrandVoiceScoreThreshold { get; set; } = 70;
 
     public int MaxAutoRegenerateAttempts { get; set; } = 3;
+
+    public int EngagementRetentionDays { get; set; } = 30;
+
+    public int EngagementAggregationIntervalHours { get; set; } = 4;
 }
