@@ -60,6 +60,12 @@ app.MapNotificationEndpoints();
 app.MapAgentEndpoints();
 app.MapMediaEndpoints();
 app.MapPlatformEndpoints();
+app.MapContentPipelineEndpoints();
+app.MapRepurposingEndpoints();
+app.MapCalendarEndpoints();
+app.MapBrandVoiceEndpoints();
+app.MapTrendEndpoints();
+app.MapAnalyticsEndpoints();
 
 app.Run();
 
