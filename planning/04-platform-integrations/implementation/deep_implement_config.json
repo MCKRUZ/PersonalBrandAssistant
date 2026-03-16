@@ -1,0 +1,82 @@
+{
+  "plugin_root": "C:\\Users\\kruz7\\.claude\\plugins\\cache\\piercelamb-plugins\\deep-implement\\0.2.0",
+  "sections_dir": "C:\\Users\\kruz7\\OneDrive\\Documents\\Code Repos\\MCKRUZ\\personal-brand-assistant\\planning\\04-platform-integrations\\sections",
+  "target_dir": "C:\\Users\\kruz7\\OneDrive\\Documents\\Code Repos\\MCKRUZ\\personal-brand-assistant",
+  "state_dir": "C:\\Users\\kruz7\\OneDrive\\Documents\\Code Repos\\MCKRUZ\\personal-brand-assistant\\planning\\04-platform-integrations\\implementation",
+  "git_root": "C:\\Users\\kruz7\\OneDrive\\Documents\\Code Repos\\MCKRUZ\\personal-brand-assistant",
+  "commit_style": "conventional",
+  "test_command": "uv run pytest",
+  "sections": [
+    "section-01-domain-entities",
+    "section-02-interfaces-models",
+    "section-03-ef-core-config",
+    "section-04-media-storage",
+    "section-05-rate-limiter",
+    "section-06-oauth-manager",
+    "section-07-content-formatters",
+    "section-08-platform-adapters",
+    "section-09-publishing-pipeline",
+    "section-10-api-endpoints",
+    "section-11-background-processors",
+    "section-12-di-configuration"
+  ],
+  "sections_state": {
+    "section-01-domain-entities": {
+      "status": "complete",
+      "commit_hash": "a2eca6c"
+    },
+    "section-02-interfaces-models": {
+      "status": "complete",
+      "commit_hash": "47740ad"
+    },
+    "section-03-ef-core-config": {
+      "status": "complete",
+      "commit_hash": "86bb294"
+    },
+    "section-04-media-storage": {
+      "status": "complete",
+      "commit_hash": "6796d9b"
+    },
+    "section-05-rate-limiter": {
+      "status": "complete",
+      "commit_hash": "3dc24ec"
+    },
+    "section-06-oauth-manager": {
+      "status": "complete",
+      "commit_hash": "1b059fb"
+    },
+    "section-07-content-formatters": {
+      "status": "complete",
+      "commit_hash": "81c18d4"
+    },
+    "section-08-platform-adapters": {
+      "status": "complete",
+      "commit_hash": "968c3aa"
+    },
+    "section-09-publishing-pipeline": {
+      "status": "complete",
+      "commit_hash": "c154a57"
+    },
+    "section-10-api-endpoints": {
+      "status": "complete",
+      "commit_hash": "146d670"
+    },
+    "section-11-background-processors": {
+      "status": "complete",
+      "commit_hash": "5a406d3"
+    },
+    "section-12-di-configuration": {
+      "status": "complete",
+      "commit_hash": "eefa29d"
+    }
+  },
+  "pre_commit": {
+    "present": false,
+    "type": "none",
+    "config_file": null,
+    "native_hook": null,
+    "may_modify_files": false,
+    "detected_formatters": []
+  },
+  "created_at": "2026-03-14T19:29:49.756606+00:00"
+}
