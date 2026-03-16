@@ -10,6 +10,12 @@ public record StatusEvent(string Status) : SidecarEvent;
 
 public record SessionUpdateEvent(string SessionId) : SidecarEvent;
 
-public record TaskCompleteEvent(string SessionId, int InputTokens, int OutputTokens) : SidecarEvent;
+public record TaskCompleteEvent(
+    string SessionId,
+    int InputTokens,
+    int OutputTokens,
+    int CacheReadTokens = 0,
+    int CacheCreationTokens = 0,
+    decimal Cost = 0m) : SidecarEvent;
 
 public record ErrorEvent(string Message) : SidecarEvent;

@@ -1,5 +1,4 @@
 using System.Text.RegularExpressions;
-using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 using PersonalBrandAssistant.Application.Common.Models;
 using PersonalBrandAssistant.Domain.Enums;
@@ -16,18 +15,17 @@ public sealed partial class WriterAgentCapability : AgentCapabilityBase
     protected override string DefaultTemplate => "blog-post";
     protected override bool CreatesContent => true;
 
-    protected override Result<AgentOutput> BuildOutput(string responseText, UsageDetails? usage)
+    protected override Result<AgentOutput> BuildOutput(
+        string responseText, int inputTokens, int outputTokens,
+        int cacheReadTokens, int cacheCreationTokens, decimal cost, List<string> fileChanges)
     {
-        var title = ExtractTitle(responseText);
+        var baseResult = base.BuildOutput(responseText, inputTokens, outputTokens,
+            cacheReadTokens, cacheCreationTokens, cost, fileChanges);
 
-        return Result<AgentOutput>.Success(new AgentOutput
-        {
-            GeneratedText = responseText,
-            Title = title,
-            CreatesContent = true,
-            InputTokens = (int)(usage?.InputTokenCount ?? 0),
-            OutputTokens = (int)(usage?.OutputTokenCount ?? 0)
-        });
+        if (!baseResult.IsSuccess) return baseResult;
+
+        var title = ExtractTitle(responseText);
+        return Result<AgentOutput>.Success(baseResult.Value! with { Title = title });
     }
 
     private static string? ExtractTitle(string text)

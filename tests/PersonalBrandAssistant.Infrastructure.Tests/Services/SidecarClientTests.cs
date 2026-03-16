@@ -211,7 +211,7 @@ public class SidecarClientTests : IAsyncDisposable
         await client.ConnectAsync(CancellationToken.None);
 
         var events = new List<SidecarEvent>();
-        await foreach (var evt in client.SendTaskAsync("do something", null, CancellationToken.None))
+        await foreach (var evt in client.SendTaskAsync("do something", null, null, CancellationToken.None))
         {
             events.Add(evt);
         }
@@ -246,7 +246,7 @@ public class SidecarClientTests : IAsyncDisposable
         await client.ConnectAsync(CancellationToken.None);
 
         SidecarEvent? lastEvent = null;
-        await foreach (var evt in client.SendTaskAsync("test", null, CancellationToken.None))
+        await foreach (var evt in client.SendTaskAsync("test", null, null, CancellationToken.None))
         {
             lastEvent = evt;
         }
@@ -290,7 +290,7 @@ public class SidecarClientTests : IAsyncDisposable
 
         try
         {
-            await foreach (var evt in client.SendTaskAsync("test", null, cts.Token))
+            await foreach (var evt in client.SendTaskAsync("test", null, null, cts.Token))
             {
                 events.Add(evt);
                 if (events.Count >= 2)
@@ -393,7 +393,7 @@ public class SidecarClientTests : IAsyncDisposable
         await client.ConnectAsync(CancellationToken.None);
 
         var events = new List<SidecarEvent>();
-        await foreach (var evt in client.SendTaskAsync("test", null, CancellationToken.None))
+        await foreach (var evt in client.SendTaskAsync("test", null, null, CancellationToken.None))
         {
             events.Add(evt);
         }
@@ -430,7 +430,7 @@ public class SidecarClientTests : IAsyncDisposable
         await client.ConnectAsync(CancellationToken.None);
 
         var events = new List<SidecarEvent>();
-        await foreach (var evt in client.SendTaskAsync("test", null, CancellationToken.None))
+        await foreach (var evt in client.SendTaskAsync("test", null, null, CancellationToken.None))
         {
             events.Add(evt);
         }

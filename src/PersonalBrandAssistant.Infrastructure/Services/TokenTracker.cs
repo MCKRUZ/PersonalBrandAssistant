@@ -30,13 +30,12 @@ public sealed class TokenTracker : ITokenTracker
         int outputTokens,
         int cacheReadTokens,
         int cacheCreationTokens,
+        decimal cost,
         CancellationToken ct)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(modelId);
         ArgumentOutOfRangeException.ThrowIfNegative(inputTokens);
         ArgumentOutOfRangeException.ThrowIfNegative(outputTokens);
-
-        var cost = CalculateCost(modelId, inputTokens, outputTokens);
 
         var execution = await _dbContext.AgentExecutions
             .FirstOrDefaultAsync(e => e.Id == executionId, ct);
@@ -46,6 +45,13 @@ public sealed class TokenTracker : ITokenTracker
             _logger.LogWarning(
                 "AgentExecution {ExecutionId} not found for token recording", executionId);
             return;
+        }
+
+        if (cost == 0m)
+        {
+            _logger.LogWarning(
+                "Sidecar reported zero cost for execution {ExecutionId} — budget enforcement may be inaccurate",
+                executionId);
         }
 
         execution.RecordUsage(modelId, inputTokens, outputTokens,
@@ -102,16 +108,4 @@ public sealed class TokenTracker : ITokenTracker
         return remaining <= 0;
     }
 
-    internal decimal CalculateCost(string modelId, int inputTokens, int outputTokens)
-    {
-        if (!_options.Pricing.TryGetValue(modelId, out var pricing))
-        {
-            _logger.LogWarning(
-                "No pricing configured for model {ModelId}, recording cost as 0", modelId);
-            return 0m;
-        }
-
-        return (inputTokens / 1_000_000m * pricing.InputPerMillion)
-            + (outputTokens / 1_000_000m * pricing.OutputPerMillion);
-    }
 }

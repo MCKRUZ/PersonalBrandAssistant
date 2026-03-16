@@ -1,4 +1,4 @@
-using Microsoft.Extensions.AI;
+using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging;
 using Moq;
 using PersonalBrandAssistant.Application.Common.Interfaces;
@@ -11,13 +11,13 @@ namespace PersonalBrandAssistant.Infrastructure.Tests.Agents.Capabilities;
 public class EngagementAgentCapabilityTests
 {
     private readonly Mock<IPromptTemplateService> _promptService;
-    private readonly Mock<IChatClient> _chatClient;
+    private readonly Mock<ISidecarClient> _sidecarClient;
     private readonly EngagementAgentCapability _capability;
 
     public EngagementAgentCapabilityTests()
     {
         _promptService = new Mock<IPromptTemplateService>();
-        _chatClient = new Mock<IChatClient>();
+        _sidecarClient = new Mock<ISidecarClient>();
         _capability = new EngagementAgentCapability(
             new Mock<ILogger<EngagementAgentCapability>>().Object);
     }
@@ -28,9 +28,8 @@ public class EngagementAgentCapabilityTests
             ExecutionId = Guid.NewGuid(),
             BrandProfile = TestBrandProfile.Create(),
             PromptService = _promptService.Object,
-            ChatClient = _chatClient.Object,
+            SidecarClient = _sidecarClient.Object,
             Parameters = parameters ?? new Dictionary<string, string>(),
-            ModelTier = ModelTier.Fast
         };
 
     [Fact]
@@ -49,7 +48,7 @@ public class EngagementAgentCapabilityTests
     public async Task ExecuteAsync_SetsCreatesContentFalse()
     {
         SetupPrompts("engagement", "response-suggestion");
-        SetupChatResponse("Here are some response suggestions...");
+        SetupSidecarResponse("Here are some response suggestions...");
 
         var context = CreateContext();
         var result = await _capability.ExecuteAsync(context, CancellationToken.None);
@@ -62,7 +61,7 @@ public class EngagementAgentCapabilityTests
     public async Task ExecuteAsync_ReturnsSuggestionsAsOutput()
     {
         SetupPrompts("engagement", "response-suggestion");
-        SetupChatResponse("Suggestion 1: Reply with gratitude\nSuggestion 2: Ask a follow-up");
+        SetupSidecarResponse("Suggestion 1: Reply with gratitude\nSuggestion 2: Ask a follow-up");
 
         var context = CreateContext();
         var result = await _capability.ExecuteAsync(context, CancellationToken.None);
@@ -79,13 +78,21 @@ public class EngagementAgentCapabilityTests
             .ReturnsAsync("task prompt");
     }
 
-    private void SetupChatResponse(string text)
+    private void SetupSidecarResponse(string text)
     {
-        var response = new ChatResponse(new ChatMessage(ChatRole.Assistant, text));
-        _chatClient.Setup(c => c.GetResponseAsync(
-                It.IsAny<IList<ChatMessage>>(),
-                It.IsAny<ChatOptions>(),
+        _sidecarClient.Setup(c => c.SendTaskAsync(
+                It.IsAny<string>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(response);
+            .Returns(CreateSidecarEvents(text));
+    }
+
+    private static async IAsyncEnumerable<SidecarEvent> CreateSidecarEvents(
+        string text, [EnumeratorCancellation] CancellationToken ct = default)
+    {
+        yield return new ChatEvent("assistant", text, null, null);
+        yield return new TaskCompleteEvent("mock-session", 100, 50);
+        await Task.CompletedTask;
     }
 }

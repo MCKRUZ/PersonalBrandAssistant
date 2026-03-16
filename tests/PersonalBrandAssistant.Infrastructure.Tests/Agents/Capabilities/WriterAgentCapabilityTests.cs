@@ -1,4 +1,4 @@
-using Microsoft.Extensions.AI;
+using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging;
 using Moq;
 using PersonalBrandAssistant.Application.Common.Interfaces;
@@ -11,13 +11,13 @@ namespace PersonalBrandAssistant.Infrastructure.Tests.Agents.Capabilities;
 public class WriterAgentCapabilityTests
 {
     private readonly Mock<IPromptTemplateService> _promptService;
-    private readonly Mock<IChatClient> _chatClient;
+    private readonly Mock<ISidecarClient> _sidecarClient;
     private readonly WriterAgentCapability _capability;
 
     public WriterAgentCapabilityTests()
     {
         _promptService = new Mock<IPromptTemplateService>();
-        _chatClient = new Mock<IChatClient>();
+        _sidecarClient = new Mock<ISidecarClient>();
         _capability = new WriterAgentCapability(
             new Mock<ILogger<WriterAgentCapability>>().Object);
     }
@@ -28,9 +28,8 @@ public class WriterAgentCapabilityTests
             ExecutionId = Guid.NewGuid(),
             BrandProfile = TestBrandProfile.Create(),
             PromptService = _promptService.Object,
-            ChatClient = _chatClient.Object,
+            SidecarClient = _sidecarClient.Object,
             Parameters = parameters ?? new Dictionary<string, string>(),
-            ModelTier = ModelTier.Standard
         };
 
     [Fact]
@@ -53,7 +52,7 @@ public class WriterAgentCapabilityTests
         _promptService.Setup(p => p.RenderAsync("writer", "blog-post", It.IsAny<Dictionary<string, object>>()))
             .ReturnsAsync("task prompt");
 
-        SetupChatResponse("# My Blog Post\n\nThis is the body content.");
+        SetupSidecarResponse("# My Blog Post\n\nThis is the body content.");
 
         var context = CreateContext();
         await _capability.ExecuteAsync(context, CancellationToken.None);
@@ -70,7 +69,7 @@ public class WriterAgentCapabilityTests
         _promptService.Setup(p => p.RenderAsync("writer", "article", It.IsAny<Dictionary<string, object>>()))
             .ReturnsAsync("article prompt");
 
-        SetupChatResponse("# Article Title\n\nArticle body.");
+        SetupSidecarResponse("# Article Title\n\nArticle body.");
 
         var context = CreateContext(new Dictionary<string, string> { ["template"] = "article" });
         await _capability.ExecuteAsync(context, CancellationToken.None);
@@ -82,7 +81,7 @@ public class WriterAgentCapabilityTests
     public async Task ExecuteAsync_ReturnsAgentOutputWithCreatesContentTrue()
     {
         SetupPrompts("writer", "blog-post");
-        SetupChatResponse("# My Title\n\nContent body here.");
+        SetupSidecarResponse("# My Title\n\nContent body here.");
 
         var context = CreateContext();
         var result = await _capability.ExecuteAsync(context, CancellationToken.None);
@@ -95,7 +94,7 @@ public class WriterAgentCapabilityTests
     public async Task ExecuteAsync_ParsesTitleFromResponse()
     {
         SetupPrompts("writer", "blog-post");
-        SetupChatResponse("# The Great Title\n\nSome content body.");
+        SetupSidecarResponse("# The Great Title\n\nSome content body.");
 
         var context = CreateContext();
         var result = await _capability.ExecuteAsync(context, CancellationToken.None);
@@ -108,7 +107,7 @@ public class WriterAgentCapabilityTests
     public async Task ExecuteAsync_ReturnsFailureOnEmptyResponse()
     {
         SetupPrompts("writer", "blog-post");
-        SetupChatResponse("");
+        SetupSidecarResponse("");
 
         var context = CreateContext();
         var result = await _capability.ExecuteAsync(context, CancellationToken.None);
@@ -126,7 +125,7 @@ public class WriterAgentCapabilityTests
         _promptService.Setup(p => p.RenderAsync("writer", "blog-post", It.IsAny<Dictionary<string, object>>()))
             .ReturnsAsync("task prompt");
 
-        SetupChatResponse("# Title\n\nBody");
+        SetupSidecarResponse("# Title\n\nBody");
 
         var context = CreateContext();
         await _capability.ExecuteAsync(context, CancellationToken.None);
@@ -137,20 +136,21 @@ public class WriterAgentCapabilityTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_ReturnsFailureOnChatClientException()
+    public async Task ExecuteAsync_ReturnsFailureOnSidecarException()
     {
         SetupPrompts("writer", "blog-post");
-        _chatClient.Setup(c => c.GetResponseAsync(
-                It.IsAny<IList<ChatMessage>>(),
-                It.IsAny<ChatOptions>(),
+        _sidecarClient.Setup(c => c.SendTaskAsync(
+                It.IsAny<string>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>(),
                 It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new HttpRequestException("API unavailable"));
+            .Throws(new InvalidOperationException("Sidecar connection lost"));
 
         var context = CreateContext();
         var result = await _capability.ExecuteAsync(context, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.DoesNotContain("API unavailable", result.Errors[0]);
+        Assert.DoesNotContain("Sidecar connection lost", result.Errors[0]);
     }
 
     [Fact]
@@ -163,7 +163,7 @@ public class WriterAgentCapabilityTests
         _promptService.Setup(p => p.RenderAsync("writer", "blog-post", It.IsAny<Dictionary<string, object>>()))
             .ReturnsAsync("task prompt");
 
-        SetupChatResponse("# Title\n\nBody");
+        SetupSidecarResponse("# Title\n\nBody");
 
         var context = CreateContext(new Dictionary<string, string> { ["topic"] = "AI" });
         await _capability.ExecuteAsync(context, CancellationToken.None);
@@ -182,13 +182,22 @@ public class WriterAgentCapabilityTests
             .ReturnsAsync("task prompt");
     }
 
-    private void SetupChatResponse(string text)
+    private void SetupSidecarResponse(string text)
     {
-        var response = new ChatResponse(new ChatMessage(ChatRole.Assistant, text));
-        _chatClient.Setup(c => c.GetResponseAsync(
-                It.IsAny<IList<ChatMessage>>(),
-                It.IsAny<ChatOptions>(),
+        _sidecarClient.Setup(c => c.SendTaskAsync(
+                It.IsAny<string>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(response);
+            .Returns(CreateSidecarEvents(text));
+    }
+
+    private static async IAsyncEnumerable<SidecarEvent> CreateSidecarEvents(
+        string text, [EnumeratorCancellation] CancellationToken ct = default)
+    {
+        if (!string.IsNullOrEmpty(text))
+            yield return new ChatEvent("assistant", text, null, null);
+        yield return new TaskCompleteEvent("mock-session", 100, 50);
+        await Task.CompletedTask;
     }
 }

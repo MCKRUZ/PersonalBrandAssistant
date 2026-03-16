@@ -1,4 +1,4 @@
-using Microsoft.Extensions.AI;
+using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging;
 using Moq;
 using PersonalBrandAssistant.Application.Common.Interfaces;
@@ -11,13 +11,13 @@ namespace PersonalBrandAssistant.Infrastructure.Tests.Agents.Capabilities;
 public class RepurposeAgentCapabilityTests
 {
     private readonly Mock<IPromptTemplateService> _promptService;
-    private readonly Mock<IChatClient> _chatClient;
+    private readonly Mock<ISidecarClient> _sidecarClient;
     private readonly RepurposeAgentCapability _capability;
 
     public RepurposeAgentCapabilityTests()
     {
         _promptService = new Mock<IPromptTemplateService>();
-        _chatClient = new Mock<IChatClient>();
+        _sidecarClient = new Mock<ISidecarClient>();
         _capability = new RepurposeAgentCapability(
             new Mock<ILogger<RepurposeAgentCapability>>().Object);
     }
@@ -36,9 +36,8 @@ public class RepurposeAgentCapabilityTests
                 TargetPlatforms = [PlatformType.TwitterX]
             },
             PromptService = _promptService.Object,
-            ChatClient = _chatClient.Object,
+            SidecarClient = _sidecarClient.Object,
             Parameters = parameters ?? new Dictionary<string, string> { ["template"] = "blog-to-thread" },
-            ModelTier = ModelTier.Standard
         };
 
     [Fact]
@@ -57,7 +56,7 @@ public class RepurposeAgentCapabilityTests
     public async Task ExecuteAsync_LoadsRepurposeTemplates()
     {
         SetupPrompts("repurpose", "blog-to-thread");
-        SetupChatResponse("Repurposed thread content");
+        SetupSidecarResponse("Repurposed thread content");
 
         var context = CreateContext();
         await _capability.ExecuteAsync(context, CancellationToken.None);
@@ -70,7 +69,7 @@ public class RepurposeAgentCapabilityTests
     public async Task ExecuteAsync_SetsCreatesContentTrue()
     {
         SetupPrompts("repurpose", "blog-to-thread");
-        SetupChatResponse("Thread content from blog.");
+        SetupSidecarResponse("Thread content from blog.");
 
         var context = CreateContext();
         var result = await _capability.ExecuteAsync(context, CancellationToken.None);
@@ -89,7 +88,7 @@ public class RepurposeAgentCapabilityTests
         _promptService.Setup(p => p.RenderAsync("repurpose", "system", It.IsAny<Dictionary<string, object>>()))
             .ReturnsAsync("system prompt");
 
-        SetupChatResponse("Repurposed content.");
+        SetupSidecarResponse("Repurposed content.");
 
         var context = CreateContext();
         await _capability.ExecuteAsync(context, CancellationToken.None);
@@ -106,13 +105,21 @@ public class RepurposeAgentCapabilityTests
             .ReturnsAsync("task prompt");
     }
 
-    private void SetupChatResponse(string text)
+    private void SetupSidecarResponse(string text)
     {
-        var response = new ChatResponse(new ChatMessage(ChatRole.Assistant, text));
-        _chatClient.Setup(c => c.GetResponseAsync(
-                It.IsAny<IList<ChatMessage>>(),
-                It.IsAny<ChatOptions>(),
+        _sidecarClient.Setup(c => c.SendTaskAsync(
+                It.IsAny<string>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(response);
+            .Returns(CreateSidecarEvents(text));
+    }
+
+    private static async IAsyncEnumerable<SidecarEvent> CreateSidecarEvents(
+        string text, [EnumeratorCancellation] CancellationToken ct = default)
+    {
+        yield return new ChatEvent("assistant", text, null, null);
+        yield return new TaskCompleteEvent("mock-session", 100, 50);
+        await Task.CompletedTask;
     }
 }

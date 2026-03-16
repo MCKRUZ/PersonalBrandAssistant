@@ -52,7 +52,7 @@ public static class DependencyInjection
         // Agent orchestration
         services.Configure<AgentOrchestrationOptions>(
             configuration.GetSection(AgentOrchestrationOptions.SectionName));
-        services.AddSingleton<IChatClientFactory, ChatClientFactory>();
+        services.AddSingleton<ISidecarClient, SidecarClient>();
         services.AddSingleton<IPromptTemplateService>(sp =>
         {
             var opts = sp.GetRequiredService<IOptions<AgentOrchestrationOptions>>().Value;

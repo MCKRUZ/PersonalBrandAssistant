@@ -1,4 +1,4 @@
-using Microsoft.Extensions.AI;
+using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging;
 using Moq;
 using PersonalBrandAssistant.Application.Common.Interfaces;
@@ -11,13 +11,13 @@ namespace PersonalBrandAssistant.Infrastructure.Tests.Agents.Capabilities;
 public class AnalyticsAgentCapabilityTests
 {
     private readonly Mock<IPromptTemplateService> _promptService;
-    private readonly Mock<IChatClient> _chatClient;
+    private readonly Mock<ISidecarClient> _sidecarClient;
     private readonly AnalyticsAgentCapability _capability;
 
     public AnalyticsAgentCapabilityTests()
     {
         _promptService = new Mock<IPromptTemplateService>();
-        _chatClient = new Mock<IChatClient>();
+        _sidecarClient = new Mock<ISidecarClient>();
         _capability = new AnalyticsAgentCapability(
             new Mock<ILogger<AnalyticsAgentCapability>>().Object);
     }
@@ -28,9 +28,8 @@ public class AnalyticsAgentCapabilityTests
             ExecutionId = Guid.NewGuid(),
             BrandProfile = TestBrandProfile.Create(),
             PromptService = _promptService.Object,
-            ChatClient = _chatClient.Object,
+            SidecarClient = _sidecarClient.Object,
             Parameters = parameters ?? new Dictionary<string, string>(),
-            ModelTier = ModelTier.Fast
         };
 
     [Fact]
@@ -49,7 +48,7 @@ public class AnalyticsAgentCapabilityTests
     public async Task ExecuteAsync_SetsCreatesContentFalse()
     {
         SetupPrompts("analytics", "performance-insights");
-        SetupChatResponse("Your top performing content was...");
+        SetupSidecarResponse("Your top performing content was...");
 
         var context = CreateContext();
         var result = await _capability.ExecuteAsync(context, CancellationToken.None);
@@ -62,7 +61,7 @@ public class AnalyticsAgentCapabilityTests
     public async Task ExecuteAsync_ReturnsRecommendations()
     {
         SetupPrompts("analytics", "performance-insights");
-        SetupChatResponse("Recommendation: Post more on Tuesdays for better engagement.");
+        SetupSidecarResponse("Recommendation: Post more on Tuesdays for better engagement.");
 
         var context = CreateContext();
         var result = await _capability.ExecuteAsync(context, CancellationToken.None);
@@ -79,13 +78,21 @@ public class AnalyticsAgentCapabilityTests
             .ReturnsAsync("task prompt");
     }
 
-    private void SetupChatResponse(string text)
+    private void SetupSidecarResponse(string text)
     {
-        var response = new ChatResponse(new ChatMessage(ChatRole.Assistant, text));
-        _chatClient.Setup(c => c.GetResponseAsync(
-                It.IsAny<IList<ChatMessage>>(),
-                It.IsAny<ChatOptions>(),
+        _sidecarClient.Setup(c => c.SendTaskAsync(
+                It.IsAny<string>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(response);
+            .Returns(CreateSidecarEvents(text));
+    }
+
+    private static async IAsyncEnumerable<SidecarEvent> CreateSidecarEvents(
+        string text, [EnumeratorCancellation] CancellationToken ct = default)
+    {
+        yield return new ChatEvent("assistant", text, null, null);
+        yield return new TaskCompleteEvent("mock-session", 100, 50);
+        await Task.CompletedTask;
     }
 }

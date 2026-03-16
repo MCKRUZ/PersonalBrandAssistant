@@ -65,6 +65,7 @@ public sealed class SidecarClient : ISidecarClient, IDisposable
 
     public async IAsyncEnumerable<SidecarEvent> SendTaskAsync(
         string task,
+        string? systemPrompt,
         string? sessionId,
         [EnumeratorCancellation] CancellationToken ct)
     {
@@ -76,9 +77,13 @@ public sealed class SidecarClient : ISidecarClient, IDisposable
 
         try
         {
-            var message = sessionId is not null
-                ? new { type = "send-message", payload = new { message = task, sessionId } }
-                : (object)new { type = "send-message", payload = new { message = task } };
+            object message = (systemPrompt, sessionId) switch
+            {
+                (not null, not null) => new { type = "send-message", payload = new { message = task, systemPrompt, sessionId } },
+                (not null, null) => new { type = "send-message", payload = new { message = task, systemPrompt } },
+                (null, not null) => new { type = "send-message", payload = new { message = task, sessionId } },
+                _ => new { type = "send-message", payload = new { message = task } },
+            };
 
             await SendMessageAsync(message, ct);
 
@@ -109,10 +114,16 @@ public sealed class SidecarClient : ISidecarClient, IDisposable
                         {
                             var inputTokens = payload.TryGetProperty("inputTokens", out var it) ? it.GetInt32() : 0;
                             var outputTokens = payload.TryGetProperty("outputTokens", out var ot) ? ot.GetInt32() : 0;
+                            var cacheReadTokens = payload.TryGetProperty("cacheReadTokens", out var crt) ? crt.GetInt32() : 0;
+                            var cacheCreationTokens = payload.TryGetProperty("cacheCreationTokens", out var cct) ? cct.GetInt32() : 0;
+                            var cost = payload.TryGetProperty("cost", out var c) ? c.GetDecimal() : 0m;
                             yield return new TaskCompleteEvent(
                                 _currentSessionId ?? "",
                                 inputTokens,
-                                outputTokens);
+                                outputTokens,
+                                cacheReadTokens,
+                                cacheCreationTokens,
+                                cost);
                             yield break;
                         }
                         yield return new StatusEvent(status ?? "unknown");

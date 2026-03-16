@@ -24,8 +24,8 @@ public class AgentServiceRegistrationTests : IClassFixture<AgentServiceRegistrat
         {
             builder.ConfigureTestServices(services =>
             {
-                // Replace ChatClientFactory with mock to avoid real Anthropic API key requirement
-                services.AddSingleton<IChatClientFactory>(new MockChatClientFactory());
+                // Replace SidecarClient with mock to avoid real sidecar connection
+                services.AddSingleton<ISidecarClient>(new MockSidecarClient());
             });
         });
         _scope = factory.Services.CreateScope();
@@ -33,10 +33,10 @@ public class AgentServiceRegistrationTests : IClassFixture<AgentServiceRegistrat
     }
 
     [Fact]
-    public void IChatClientFactory_Resolves()
+    public void ISidecarClient_Resolves()
     {
         var sp = CreateServiceProvider();
-        var service = sp.GetService<IChatClientFactory>();
+        var service = sp.GetService<ISidecarClient>();
         Assert.NotNull(service);
     }
 

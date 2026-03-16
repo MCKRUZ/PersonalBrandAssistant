@@ -1,4 +1,4 @@
-using Microsoft.Extensions.AI;
+using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging;
 using Moq;
 using PersonalBrandAssistant.Application.Common.Interfaces;
@@ -11,13 +11,13 @@ namespace PersonalBrandAssistant.Infrastructure.Tests.Agents.Capabilities;
 public class SocialAgentCapabilityTests
 {
     private readonly Mock<IPromptTemplateService> _promptService;
-    private readonly Mock<IChatClient> _chatClient;
+    private readonly Mock<ISidecarClient> _sidecarClient;
     private readonly SocialAgentCapability _capability;
 
     public SocialAgentCapabilityTests()
     {
         _promptService = new Mock<IPromptTemplateService>();
-        _chatClient = new Mock<IChatClient>();
+        _sidecarClient = new Mock<ISidecarClient>();
         _capability = new SocialAgentCapability(
             new Mock<ILogger<SocialAgentCapability>>().Object);
     }
@@ -28,9 +28,8 @@ public class SocialAgentCapabilityTests
             ExecutionId = Guid.NewGuid(),
             BrandProfile = TestBrandProfile.Create(),
             PromptService = _promptService.Object,
-            ChatClient = _chatClient.Object,
+            SidecarClient = _sidecarClient.Object,
             Parameters = parameters ?? new Dictionary<string, string>(),
-            ModelTier = ModelTier.Fast
         };
 
     [Fact]
@@ -49,7 +48,7 @@ public class SocialAgentCapabilityTests
     public async Task ExecuteAsync_LoadsSocialTemplates()
     {
         SetupPrompts("social", "post");
-        SetupChatResponse("{\"text\": \"Check out this post!\", \"hashtags\": [\"#tech\"]}");
+        SetupSidecarResponse("{\"text\": \"Check out this post!\", \"hashtags\": [\"#tech\"]}");
 
         var context = CreateContext();
         await _capability.ExecuteAsync(context, CancellationToken.None);
@@ -62,7 +61,7 @@ public class SocialAgentCapabilityTests
     public async Task ExecuteAsync_SetsCreatesContentTrue()
     {
         SetupPrompts("social", "post");
-        SetupChatResponse("{\"text\": \"Social post content\", \"hashtags\": [\"#brand\"]}");
+        SetupSidecarResponse("{\"text\": \"Social post content\", \"hashtags\": [\"#brand\"]}");
 
         var context = CreateContext();
         var result = await _capability.ExecuteAsync(context, CancellationToken.None);
@@ -75,7 +74,7 @@ public class SocialAgentCapabilityTests
     public async Task ExecuteAsync_UsesThreadTemplateFromParameters()
     {
         SetupPrompts("social", "thread");
-        SetupChatResponse("{\"text\": \"Thread content\", \"hashtags\": []}");
+        SetupSidecarResponse("{\"text\": \"Thread content\", \"hashtags\": []}");
 
         var context = CreateContext(new Dictionary<string, string> { ["template"] = "thread" });
         await _capability.ExecuteAsync(context, CancellationToken.None);
@@ -87,7 +86,7 @@ public class SocialAgentCapabilityTests
     public async Task ExecuteAsync_ReturnsGeneratedText()
     {
         SetupPrompts("social", "post");
-        SetupChatResponse("{\"text\": \"Amazing content here!\", \"hashtags\": [\"#ai\", \"#tech\"]}");
+        SetupSidecarResponse("{\"text\": \"Amazing content here!\", \"hashtags\": [\"#ai\", \"#tech\"]}");
 
         var context = CreateContext();
         var result = await _capability.ExecuteAsync(context, CancellationToken.None);
@@ -104,13 +103,21 @@ public class SocialAgentCapabilityTests
             .ReturnsAsync("task prompt");
     }
 
-    private void SetupChatResponse(string text)
+    private void SetupSidecarResponse(string text)
     {
-        var response = new ChatResponse(new ChatMessage(ChatRole.Assistant, text));
-        _chatClient.Setup(c => c.GetResponseAsync(
-                It.IsAny<IList<ChatMessage>>(),
-                It.IsAny<ChatOptions>(),
+        _sidecarClient.Setup(c => c.SendTaskAsync(
+                It.IsAny<string>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(response);
+            .Returns(CreateSidecarEvents(text));
+    }
+
+    private static async IAsyncEnumerable<SidecarEvent> CreateSidecarEvents(
+        string text, [EnumeratorCancellation] CancellationToken ct = default)
+    {
+        yield return new ChatEvent("assistant", text, null, null);
+        yield return new TaskCompleteEvent("mock-session", 100, 50);
+        await Task.CompletedTask;
     }
 }

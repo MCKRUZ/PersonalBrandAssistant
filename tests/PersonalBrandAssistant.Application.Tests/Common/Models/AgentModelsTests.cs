@@ -1,4 +1,3 @@
-using Microsoft.Extensions.AI;
 using Moq;
 using PersonalBrandAssistant.Application.Common.Interfaces;
 using PersonalBrandAssistant.Application.Common.Models;
@@ -104,9 +103,8 @@ public class AgentModelsTests
             BrandProfile = brandProfile,
             Content = contentModel,
             PromptService = Mock.Of<IPromptTemplateService>(),
-            ChatClient = Mock.Of<IChatClient>(),
+            SidecarClient = Mock.Of<ISidecarClient>(),
             Parameters = new Dictionary<string, string> { ["key"] = "value" },
-            ModelTier = ModelTier.Standard,
         };
 
         Assert.Equal("Test Brand", context.BrandProfile.Name);

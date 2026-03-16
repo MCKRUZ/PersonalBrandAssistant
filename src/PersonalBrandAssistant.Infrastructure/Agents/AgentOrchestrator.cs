@@ -1,4 +1,5 @@
 using System.Collections.Frozen;
+using System.Net.WebSockets;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -7,7 +8,6 @@ using PersonalBrandAssistant.Application.Common.Interfaces;
 using PersonalBrandAssistant.Application.Common.Models;
 using PersonalBrandAssistant.Domain.Entities;
 using PersonalBrandAssistant.Domain.Enums;
-using PersonalBrandAssistant.Infrastructure.Services;
 
 namespace PersonalBrandAssistant.Infrastructure.Agents;
 
@@ -15,7 +15,7 @@ public class AgentOrchestrator : IAgentOrchestrator
 {
     private readonly FrozenDictionary<AgentCapabilityType, IAgentCapability> _capabilities;
     private readonly ITokenTracker _tokenTracker;
-    private readonly IChatClientFactory _chatClientFactory;
+    private readonly ISidecarClient _sidecarClient;
     private readonly IPromptTemplateService _promptTemplateService;
     private readonly IApplicationDbContext _dbContext;
     private readonly IWorkflowEngine _workflowEngine;
@@ -26,7 +26,7 @@ public class AgentOrchestrator : IAgentOrchestrator
     public AgentOrchestrator(
         IEnumerable<IAgentCapability> capabilities,
         ITokenTracker tokenTracker,
-        IChatClientFactory chatClientFactory,
+        ISidecarClient sidecarClient,
         IPromptTemplateService promptTemplateService,
         IApplicationDbContext dbContext,
         IWorkflowEngine workflowEngine,
@@ -36,7 +36,7 @@ public class AgentOrchestrator : IAgentOrchestrator
     {
         _capabilities = capabilities.ToFrozenDictionary(c => c.Type);
         _tokenTracker = tokenTracker;
-        _chatClientFactory = chatClientFactory;
+        _sidecarClient = sidecarClient;
         _promptTemplateService = promptTemplateService;
         _dbContext = dbContext;
         _workflowEngine = workflowEngine;
@@ -66,8 +66,7 @@ public class AgentOrchestrator : IAgentOrchestrator
                     ErrorCode.ValidationFailed, $"No capability registered for {task.Type}");
             }
 
-            var modelTier = capability.DefaultModelTier;
-            var execution = AgentExecution.Create(task.Type, modelTier, task.ContentId);
+            var execution = AgentExecution.Create(task.Type, capability.DefaultModelTier, task.ContentId);
             _dbContext.AgentExecutions.Add(execution);
             await _dbContext.SaveChangesAsync(ct);
 
@@ -82,103 +81,60 @@ public class AgentOrchestrator : IAgentOrchestrator
             execution.MarkRunning();
             await _dbContext.SaveChangesAsync(ct);
 
-            var currentTier = modelTier;
-            var maxRetries = _options.MaxRetriesPerExecution;
-            Exception? lastException = null;
-
-            for (var attempt = 0; attempt <= maxRetries; attempt++)
+            try
             {
-                try
+                var context = BuildAgentContext(execution.Id, brandProfile, content, task.Parameters);
+                var result = await ExecuteWithRetryAsync(capability, context, task.Type, timeoutCts.Token);
+
+                if (!result.IsSuccess)
                 {
-                    if (attempt > 0 && await _tokenTracker.IsOverBudgetAsync(timeoutCts.Token))
-                    {
-                        execution.Fail("Budget exceeded during retries");
-                        await _dbContext.SaveChangesAsync(ct);
-                        return Result<AgentExecutionResult>.Failure(
-                            ErrorCode.ValidationFailed, "Budget exceeded during retries");
-                    }
-
-                    AgentExecutionContext.CurrentExecutionId = execution.Id;
-
-                    var context = BuildAgentContext(execution.Id, brandProfile, content,
-                        currentTier, task.Parameters);
-
-                    var result = await capability.ExecuteAsync(context, timeoutCts.Token);
-
-                    if (!result.IsSuccess)
-                    {
-                        execution.Fail(string.Join("; ", result.Errors));
-                        await _dbContext.SaveChangesAsync(ct);
-                        return Result<AgentExecutionResult>.Failure(result.ErrorCode, result.Errors.ToArray());
-                    }
-
-                    var output = result.Value!;
-                    await RecordUsageAsync(execution, currentTier, output, ct);
-                    execution.Complete(TruncateSummary(output.GeneratedText));
+                    execution.Fail(string.Join("; ", result.Errors));
                     await _dbContext.SaveChangesAsync(ct);
+                    return Result<AgentExecutionResult>.Failure(result.ErrorCode, result.Errors.ToArray());
+                }
 
-                    Guid? createdContentId = null;
-                    if (output.CreatesContent)
-                    {
-                        createdContentId = await CreateContentFromOutputAsync(
-                            task.Type, output, task.ContentId, ct);
-                    }
+                var output = result.Value!;
+                await RecordUsageAsync(execution, output, ct);
+                execution.Complete(TruncateSummary(output.GeneratedText));
+                await _dbContext.SaveChangesAsync(ct);
 
-                    return Result<AgentExecutionResult>.Success(new AgentExecutionResult(
-                        execution.Id, AgentExecutionStatus.Completed, output, createdContentId));
-                }
-                catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !ct.IsCancellationRequested)
+                Guid? createdContentId = null;
+                if (output.CreatesContent)
                 {
-                    execution.Cancel();
-                    await _dbContext.SaveChangesAsync(ct);
-                    return Result<AgentExecutionResult>.Failure(ErrorCode.InternalError, "Execution timed out");
+                    createdContentId = await CreateContentFromOutputAsync(
+                        task.Type, output, task.ContentId, ct);
                 }
-                catch (Exception ex) when (IsTransientError(ex))
-                {
-                    lastException = ex;
-                    _logger.LogWarning(ex, "Transient error on attempt {Attempt} for {AgentType}",
-                        attempt + 1, task.Type);
 
-                    if (attempt < maxRetries)
-                    {
-                        var delay = TimeSpan.FromSeconds(Math.Pow(2, attempt));
-                        await Task.Delay(delay, ct);
-
-                        if (attempt >= 1)
-                        {
-                            var downgraded = DowngradeModelTier(currentTier);
-                            if (downgraded.HasValue)
-                            {
-                                _logger.LogInformation("Downgrading model tier from {From} to {To}",
-                                    currentTier, downgraded.Value);
-                                currentTier = downgraded.Value;
-                            }
-                        }
-                        continue;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    lastException = ex;
-                    break;
-                }
-                finally
-                {
-                    AgentExecutionContext.CurrentExecutionId = null;
-                }
+                return Result<AgentExecutionResult>.Success(new AgentExecutionResult(
+                    execution.Id, AgentExecutionStatus.Completed, output, createdContentId));
             }
+            catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !ct.IsCancellationRequested)
+            {
+                execution.Cancel();
+                await _dbContext.SaveChangesAsync(ct);
 
-            var errorMessage = lastException?.Message ?? "Unknown error";
-            execution.Fail(errorMessage);
-            await _dbContext.SaveChangesAsync(ct);
+                await _notificationService.SendAsync(
+                    NotificationType.ContentFailed,
+                    "Agent Execution Timed Out",
+                    $"Agent {task.Type} timed out after {_options.ExecutionTimeoutSeconds}s.",
+                    task.ContentId, ct);
 
-            await _notificationService.SendAsync(
-                NotificationType.ContentFailed,
-                "Agent Execution Failed",
-                $"Agent {task.Type} failed permanently.",
-                task.ContentId, ct);
+                return Result<AgentExecutionResult>.Failure(ErrorCode.InternalError, "Execution timed out");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Agent {AgentType} failed during execution", task.Type);
+                execution.Fail(ex.Message);
+                await _dbContext.SaveChangesAsync(ct);
 
-            return Result<AgentExecutionResult>.Failure(ErrorCode.InternalError, errorMessage);
+                await _notificationService.SendAsync(
+                    NotificationType.ContentFailed,
+                    "Agent Execution Failed",
+                    $"Agent {task.Type} failed permanently.",
+                    task.ContentId, ct);
+
+                return Result<AgentExecutionResult>.Failure(ErrorCode.InternalError, ex.Message);
+            }
         }
         catch (Exception ex)
         {
@@ -206,23 +162,69 @@ public class AgentOrchestrator : IAgentOrchestrator
         return Result<AgentExecution[]>.Success(executions);
     }
 
+    private async Task<Result<AgentOutput>> ExecuteWithRetryAsync(
+        IAgentCapability capability,
+        AgentContext context,
+        AgentCapabilityType type,
+        CancellationToken ct)
+    {
+        var maxAttempts = _options.MaxRetries + 1;
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            try
+            {
+                var result = await capability.ExecuteAsync(context, ct);
+
+                if (!result.IsSuccess && attempt < maxAttempts && IsTransientError(result))
+                {
+                    var delay = TimeSpan.FromSeconds(Math.Pow(2, attempt - 1));
+                    _logger.LogWarning(
+                        "Agent {AgentType} attempt {Attempt}/{Max} returned transient error, retrying in {Delay}s",
+                        type, attempt, maxAttempts, delay.TotalSeconds);
+                    await Task.Delay(delay, ct);
+                    continue;
+                }
+
+                return result;
+            }
+            catch (Exception ex) when (attempt < maxAttempts && IsTransientSidecarError(ex))
+            {
+                var delay = TimeSpan.FromSeconds(Math.Pow(2, attempt - 1));
+                _logger.LogWarning(ex,
+                    "Agent {AgentType} attempt {Attempt}/{Max} failed with transient error, retrying in {Delay}s",
+                    type, attempt, maxAttempts, delay.TotalSeconds);
+                await Task.Delay(delay, ct);
+            }
+        }
+
+        return Result<AgentOutput>.Failure(ErrorCode.InternalError,
+            $"{type} capability failed after {maxAttempts} attempts");
+    }
+
+    private static bool IsTransientSidecarError(Exception ex) =>
+        ex is WebSocketException or InvalidOperationException { Message: "Not connected to sidecar" };
+
+    private static bool IsTransientError(Result<AgentOutput> result) =>
+        result.ErrorCode == ErrorCode.InternalError
+        && result.Errors.Any(e => e.Contains("sidecar", StringComparison.OrdinalIgnoreCase));
+
     private AgentContext BuildAgentContext(
         Guid executionId,
         BrandProfilePromptModel brandProfile,
         ContentPromptModel? content,
-        ModelTier tier,
         Dictionary<string, string> parameters)
     {
-        var chatClient = _chatClientFactory.CreateClient(tier);
         return new AgentContext
         {
             ExecutionId = executionId,
             BrandProfile = brandProfile,
             Content = content,
             PromptService = _promptTemplateService,
-            ChatClient = chatClient,
+            SidecarClient = _sidecarClient,
+            // Each execution runs in a fresh sidecar session. Session reuse for
+            // multi-turn workflows (e.g., outline-then-draft) is deferred to section-04.
+            SessionId = null,
             Parameters = parameters,
-            ModelTier = tier,
         };
     }
 
@@ -275,17 +277,18 @@ public class AgentOrchestrator : IAgentOrchestrator
     }
 
     private async Task RecordUsageAsync(
-        AgentExecution execution, ModelTier actualTier, AgentOutput output, CancellationToken ct)
+        AgentExecution execution, AgentOutput output, CancellationToken ct)
     {
         if (output.InputTokens > 0 || output.OutputTokens > 0)
         {
             await _tokenTracker.RecordUsageAsync(
                 execution.Id,
-                actualTier.ToString(),
+                "sidecar",
                 output.InputTokens,
                 output.OutputTokens,
                 output.CacheReadTokens,
                 output.CacheCreationTokens,
+                output.Cost,
                 ct);
         }
     }
@@ -327,23 +330,6 @@ public class AgentOrchestrator : IAgentOrchestrator
             AgentCapabilityType.Repurpose => ContentType.Thread,
             _ => throw new ArgumentOutOfRangeException(nameof(capabilityType),
                 $"Capability type {capabilityType} does not map to a content type"),
-        };
-
-    private static bool IsTransientError(Exception ex) =>
-        ex is HttpRequestException httpEx &&
-            httpEx.StatusCode is
-                System.Net.HttpStatusCode.TooManyRequests or
-                System.Net.HttpStatusCode.InternalServerError or
-                System.Net.HttpStatusCode.BadGateway or
-                System.Net.HttpStatusCode.ServiceUnavailable or
-                System.Net.HttpStatusCode.GatewayTimeout;
-
-    private static ModelTier? DowngradeModelTier(ModelTier current) =>
-        current switch
-        {
-            ModelTier.Advanced => ModelTier.Standard,
-            ModelTier.Standard => ModelTier.Fast,
-            _ => null,
         };
 
     private static string? TruncateSummary(string? text) =>

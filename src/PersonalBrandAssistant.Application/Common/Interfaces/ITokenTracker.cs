@@ -9,6 +9,7 @@ public interface ITokenTracker
         int outputTokens,
         int cacheReadTokens,
         int cacheCreationTokens,
+        decimal cost,
         CancellationToken ct);
 
     Task<decimal> GetCostForPeriodAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken ct);

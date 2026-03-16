@@ -1,5 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -17,7 +16,7 @@ namespace PersonalBrandAssistant.Infrastructure.Tests.Agents;
 public class AgentOrchestratorTests
 {
     private readonly Mock<ITokenTracker> _tokenTracker = new();
-    private readonly Mock<IChatClientFactory> _chatClientFactory = new();
+    private readonly Mock<ISidecarClient> _sidecarClient = new();
     private readonly Mock<IPromptTemplateService> _promptTemplateService = new();
     private readonly Mock<IApplicationDbContext> _dbContext = new();
     private readonly Mock<IWorkflowEngine> _workflowEngine = new();
@@ -30,7 +29,6 @@ public class AgentOrchestratorTests
     private readonly AgentOrchestrationOptions _options = new()
     {
         ExecutionTimeoutSeconds = 30,
-        MaxRetriesPerExecution = 3,
     };
 
     private AgentOrchestrator CreateOrchestrator(
@@ -70,7 +68,7 @@ public class AgentOrchestratorTests
         return new AgentOrchestrator(
             capabilities ?? [],
             _tokenTracker.Object,
-            _chatClientFactory.Object,
+            _sidecarClient.Object,
             _promptTemplateService.Object,
             _dbContext.Object,
             _workflowEngine.Object,
@@ -299,102 +297,47 @@ public class AgentOrchestratorTests
             Times.Once);
     }
 
-    // --- Retry and Fallback Tests ---
+    // --- Token Tracking Tests ---
 
     [Fact]
-    public async Task ExecuteAsync_RetriesOnTransientError()
+    public async Task ExecuteAsync_RecordsTokenUsage_FromSidecarEvents()
     {
-        var callCount = 0;
-        var capability = new Mock<IAgentCapability>();
-        capability.Setup(x => x.Type).Returns(AgentCapabilityType.Writer);
-        capability.Setup(x => x.DefaultModelTier).Returns(ModelTier.Standard);
-        capability.Setup(x => x.ExecuteAsync(It.IsAny<AgentContext>(), It.IsAny<CancellationToken>()))
-            .Returns<AgentContext, CancellationToken>((_, _) =>
-            {
-                callCount++;
-                if (callCount == 1)
-                    throw new HttpRequestException("Service unavailable", null,
-                        System.Net.HttpStatusCode.ServiceUnavailable);
-                return Task.FromResult(Result<AgentOutput>.Success(new AgentOutput
-                {
-                    GeneratedText = "output",
-                    CreatesContent = false,
-                }));
-            });
-
+        var output = new AgentOutput
+        {
+            GeneratedText = "output",
+            CreatesContent = false,
+            InputTokens = 200,
+            OutputTokens = 75,
+        };
+        var capability = CreateCapabilityMock(AgentCapabilityType.Writer, output: output);
         var orchestrator = CreateOrchestrator([capability.Object]);
         var task = new AgentTask(AgentCapabilityType.Writer, null, new());
 
-        var result = await orchestrator.ExecuteAsync(task, CancellationToken.None);
+        await orchestrator.ExecuteAsync(task, CancellationToken.None);
 
-        Assert.True(result.IsSuccess);
-        Assert.Equal(2, callCount);
-    }
-
-    [Fact]
-    public async Task ExecuteAsync_DoesNotRetry_OnNonTransientError()
-    {
-        var capability = new Mock<IAgentCapability>();
-        capability.Setup(x => x.Type).Returns(AgentCapabilityType.Writer);
-        capability.Setup(x => x.DefaultModelTier).Returns(ModelTier.Standard);
-        capability.Setup(x => x.ExecuteAsync(It.IsAny<AgentContext>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Result<AgentOutput>.Failure(ErrorCode.ValidationFailed, "Bad prompt"));
-
-        var orchestrator = CreateOrchestrator([capability.Object]);
-        var task = new AgentTask(AgentCapabilityType.Writer, null, new());
-
-        var result = await orchestrator.ExecuteAsync(task, CancellationToken.None);
-
-        Assert.False(result.IsSuccess);
-        capability.Verify(
-            x => x.ExecuteAsync(It.IsAny<AgentContext>(), It.IsAny<CancellationToken>()),
+        _tokenTracker.Verify(
+            x => x.RecordUsageAsync(
+                It.IsAny<Guid>(),
+                "sidecar",
+                200,
+                75,
+                It.IsAny<int>(),
+                It.IsAny<int>(),
+                It.IsAny<decimal>(),
+                It.IsAny<CancellationToken>()),
             Times.Once);
     }
 
-    [Fact]
-    public async Task ExecuteAsync_DowngradesModelTier_OnSecondTransientFailure()
-    {
-        var tiers = new List<ModelTier>();
-        var callCount = 0;
-
-        var capability = new Mock<IAgentCapability>();
-        capability.Setup(x => x.Type).Returns(AgentCapabilityType.Writer);
-        capability.Setup(x => x.DefaultModelTier).Returns(ModelTier.Advanced);
-        capability.Setup(x => x.ExecuteAsync(It.IsAny<AgentContext>(), It.IsAny<CancellationToken>()))
-            .Returns<AgentContext, CancellationToken>((ctx, _) =>
-            {
-                tiers.Add(ctx.ModelTier);
-                callCount++;
-                if (callCount <= 2)
-                    throw new HttpRequestException("Rate limited", null,
-                        System.Net.HttpStatusCode.TooManyRequests);
-                return Task.FromResult(Result<AgentOutput>.Success(new AgentOutput
-                {
-                    GeneratedText = "output",
-                    CreatesContent = false,
-                }));
-            });
-
-        var orchestrator = CreateOrchestrator([capability.Object]);
-        var task = new AgentTask(AgentCapabilityType.Writer, null, new());
-
-        var result = await orchestrator.ExecuteAsync(task, CancellationToken.None);
-
-        Assert.True(result.IsSuccess);
-        Assert.Equal(ModelTier.Advanced, tiers[0]);
-        Assert.Equal(ModelTier.Advanced, tiers[1]);
-        Assert.Equal(ModelTier.Standard, tiers[2]);
-    }
+    // --- Failure Tests ---
 
     [Fact]
-    public async Task ExecuteAsync_FailsPermanently_AfterMaxRetries_SendsNotification()
+    public async Task ExecuteAsync_FailsAndNotifies_OnCapabilityException()
     {
         var capability = new Mock<IAgentCapability>();
         capability.Setup(x => x.Type).Returns(AgentCapabilityType.Writer);
         capability.Setup(x => x.DefaultModelTier).Returns(ModelTier.Standard);
         capability.Setup(x => x.ExecuteAsync(It.IsAny<AgentContext>(), It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new HttpRequestException("Server error", null,
-                System.Net.HttpStatusCode.InternalServerError));
+            .ThrowsAsync(new InvalidOperationException("Sidecar connection lost"));
 
         var orchestrator = CreateOrchestrator([capability.Object]);
         var task = new AgentTask(AgentCapabilityType.Writer, null, new());
@@ -407,6 +350,31 @@ public class AgentOrchestratorTests
                 NotificationType.ContentFailed, It.IsAny<string>(), It.IsAny<string>(),
                 It.IsAny<Guid?>(), It.IsAny<CancellationToken>()),
             Times.Once);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_PassesSidecarClient_InAgentContext()
+    {
+        AgentContext? capturedContext = null;
+        var capability = new Mock<IAgentCapability>();
+        capability.Setup(x => x.Type).Returns(AgentCapabilityType.Writer);
+        capability.Setup(x => x.DefaultModelTier).Returns(ModelTier.Standard);
+        capability.Setup(x => x.ExecuteAsync(It.IsAny<AgentContext>(), It.IsAny<CancellationToken>()))
+            .Callback<AgentContext, CancellationToken>((ctx, _) => capturedContext = ctx)
+            .ReturnsAsync(Result<AgentOutput>.Success(new AgentOutput
+            {
+                GeneratedText = "output",
+                CreatesContent = false,
+            }));
+
+        var orchestrator = CreateOrchestrator([capability.Object]);
+        var task = new AgentTask(AgentCapabilityType.Writer, null, new());
+
+        await orchestrator.ExecuteAsync(task, CancellationToken.None);
+
+        Assert.NotNull(capturedContext);
+        Assert.Same(_sidecarClient.Object, capturedContext!.SidecarClient);
+        Assert.Null(capturedContext.SessionId);
     }
 
     // --- Status Query Tests ---

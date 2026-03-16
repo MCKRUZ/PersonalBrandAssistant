@@ -11,6 +11,7 @@ public record AgentOutput
     public int OutputTokens { get; init; }
     public int CacheReadTokens { get; init; }
     public int CacheCreationTokens { get; init; }
+    public decimal Cost { get; init; }
 }
 
 public record AgentOutputItem(

@@ -27,7 +27,7 @@ public class PlatformServiceRegistrationTests : IClassFixture<PlatformServiceReg
         {
             builder.ConfigureTestServices(services =>
             {
-                services.AddSingleton<IChatClientFactory>(new MockChatClientFactory());
+                services.AddSingleton<ISidecarClient>(new MockSidecarClient());
             });
         });
         _scope = factory.Services.CreateScope();
