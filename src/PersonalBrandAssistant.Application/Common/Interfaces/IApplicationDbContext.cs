@@ -24,6 +24,14 @@ public interface IApplicationDbContext
     DbSet<AgentExecutionLog> AgentExecutionLogs { get; }
     DbSet<ContentPlatformStatus> ContentPlatformStatuses { get; }
     DbSet<OAuthState> OAuthStates { get; }
+    DbSet<InterestKeyword> InterestKeywords { get; }
+    DbSet<SavedTrendItem> SavedTrendItems { get; }
+    DbSet<TrendSettings> TrendSettings { get; }
+    DbSet<EngagementTask> EngagementTasks { get; }
+    DbSet<EngagementExecution> EngagementExecutions { get; }
+    DbSet<EngagementAction> EngagementActions { get; }
+    DbSet<SocialInboxItem> SocialInboxItems { get; }
+    DbSet<OpportunityAction> OpportunityActions { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

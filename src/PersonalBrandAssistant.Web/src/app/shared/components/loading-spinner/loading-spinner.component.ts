@@ -23,7 +23,7 @@ import { ProgressSpinner } from 'primeng/progressspinner';
 
       p {
         margin-top: 1rem;
-        color: var(--text-color-secondary);
+        color: var(--p-text-muted-color, #6b7280);
       }
     }
   `,

@@ -18,7 +18,10 @@ public class TrendItemConfiguration : IEntityTypeConfiguration<TrendItem>
         builder.Property(t => t.SourceName).IsRequired().HasMaxLength(200);
         builder.Property(t => t.SourceType).IsRequired();
         builder.Property(t => t.DetectedAt).IsRequired();
+        builder.Property(t => t.ThumbnailUrl).HasMaxLength(500);
         builder.Property(t => t.DeduplicationKey).HasMaxLength(128);
+        builder.Property(t => t.Category).HasMaxLength(50);
+        builder.Property(t => t.Summary).HasColumnType("text");
 
         builder.HasIndex(t => t.DeduplicationKey)
             .IsUnique()

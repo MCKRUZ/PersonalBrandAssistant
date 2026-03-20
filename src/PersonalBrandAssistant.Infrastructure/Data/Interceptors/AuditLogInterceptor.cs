@@ -14,6 +14,10 @@ public class AuditLogInterceptor : SaveChangesInterceptor
     private static readonly HashSet<string> ExcludedPatterns =
         ["Encrypted", "Token", "Password", "Secret"];
 
+    // High-volume entities excluded from audit logging to prevent batch timeouts
+    private static readonly HashSet<string> ExcludedEntityTypes =
+        [nameof(TrendItem), nameof(TrendSuggestion)];
+
     private readonly IDateTimeProvider _dateTimeProvider;
 
     public AuditLogInterceptor(IDateTimeProvider dateTimeProvider)
@@ -38,6 +42,7 @@ public class AuditLogInterceptor : SaveChangesInterceptor
     {
         var entries = context.ChangeTracker.Entries<EntityBase>()
             .Where(e => e.Entity is not AuditLogEntry)
+            .Where(e => !ExcludedEntityTypes.Contains(e.Metadata.ClrType.Name))
             .Where(e => e.State is EntityState.Added or EntityState.Modified or EntityState.Deleted)
             .ToList();
 

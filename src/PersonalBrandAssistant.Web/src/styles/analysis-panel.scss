@@ -1,0 +1,342 @@
+/* ==========================================================================
+   Analysis Panel — LLM Markdown Sections
+   Container class: .analysis-panel
+   Expects flat markdown HTML: h2, p, ul > li, blockquote, a, strong
+   ========================================================================== */
+
+/* ---------------------------------------------------------------------------
+   1. Container
+   --------------------------------------------------------------------------- */
+.analysis-panel {
+  background: #1e1e21;
+  border: 1px solid #3f3f46;
+  border-radius: 12px;
+  padding: 0;
+  overflow: hidden;
+  font-family: inherit;
+  color: #d4d4d8;
+  line-height: 1.6;
+  animation: analysisReveal 0.3s ease-out;
+}
+
+@keyframes analysisReveal {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   2. Section headings (h2) — shared base
+   --------------------------------------------------------------------------- */
+.analysis-panel h2 {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin: 0;
+  padding: 10px 16px 8px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border-top: 1px solid #2e2e33;
+  position: relative;
+}
+
+.analysis-panel h2::before {
+  font-family: 'primeicons';
+  font-size: 0.75rem;
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+}
+
+/* First h2 — no top divider */
+.analysis-panel h2:first-child,
+.analysis-panel h2:nth-of-type(1) {
+  border-top: none;
+  border-radius: 12px 12px 0 0;
+}
+
+/* ---------------------------------------------------------------------------
+   3. Per-section color theming via nth-of-type
+   Section order: TL;DR, Social Media POV, Business Opportunities,
+                  Coding Takeaways, Key Quotes
+   --------------------------------------------------------------------------- */
+
+/* --- Section 1: TL;DR — Blue #3b82f6 --- */
+.analysis-panel h2:nth-of-type(1) {
+  color: #93c5fd;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, transparent 70%);
+}
+
+.analysis-panel h2:nth-of-type(1)::before {
+  content: '\e9db'; /* pi-bolt */
+  color: #3b82f6;
+  background: rgba(59, 130, 246, 0.12);
+}
+
+/* --- Section 2: Social Media POV — Amber #f59e0b --- */
+.analysis-panel h2:nth-of-type(2) {
+  color: #fcd34d;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, transparent 70%);
+}
+
+.analysis-panel h2:nth-of-type(2)::before {
+  content: '\e9fb'; /* pi-megaphone */
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.12);
+}
+
+/* --- Section 3: Business Opportunities — Emerald #10b981 --- */
+.analysis-panel h2:nth-of-type(3) {
+  color: #6ee7b7;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, transparent 70%);
+}
+
+.analysis-panel h2:nth-of-type(3)::before {
+  content: '\e97d'; /* pi-briefcase */
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.12);
+}
+
+/* --- Section 4: Coding Takeaways — Violet #8b5cf6 --- */
+.analysis-panel h2:nth-of-type(4) {
+  color: #c4b5fd;
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.08) 0%, transparent 70%);
+}
+
+.analysis-panel h2:nth-of-type(4)::before {
+  content: '\e9e7'; /* pi-code */
+  color: #8b5cf6;
+  background: rgba(139, 92, 246, 0.12);
+}
+
+/* --- Section 5: Key Quotes — Rose #f43f5e --- */
+.analysis-panel h2:nth-of-type(5) {
+  color: #fda4af;
+  background: linear-gradient(135deg, rgba(244, 63, 94, 0.08) 0%, transparent 70%);
+}
+
+.analysis-panel h2:nth-of-type(5)::before {
+  content: '\e97f'; /* pi-comment */
+  color: #f43f5e;
+  background: rgba(244, 63, 94, 0.12);
+}
+
+/* ---------------------------------------------------------------------------
+   4. Content between sections — p, ul, li
+   --------------------------------------------------------------------------- */
+.analysis-panel p {
+  font-size: 0.835rem;
+  line-height: 1.65;
+  color: #d4d4d8;
+  margin: 0;
+  padding: 4px 16px 10px;
+}
+
+/* TL;DR paragraph gets slightly more prominence */
+.analysis-panel h2:nth-of-type(1) + p {
+  font-size: 0.87rem;
+  color: #e4e4e7;
+  padding-bottom: 14px;
+}
+
+.analysis-panel ul {
+  list-style: none;
+  margin: 0;
+  padding: 2px 16px 10px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.analysis-panel li {
+  font-size: 0.82rem;
+  line-height: 1.6;
+  color: #d4d4d8;
+  padding: 5px 10px 5px 12px;
+  border-radius: 6px;
+  position: relative;
+  transition: background 0.15s ease;
+}
+
+.analysis-panel li:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+/* Bullet indicator — small dot */
+.analysis-panel li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 12px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #52525b;
+}
+
+/* Color-coded bullets per section */
+.analysis-panel h2:nth-of-type(2) ~ ul > li::before {
+  background: rgba(245, 158, 11, 0.5);
+}
+
+.analysis-panel h2:nth-of-type(3) ~ ul > li::before {
+  background: rgba(16, 185, 129, 0.5);
+}
+
+/* Cascade: later h2 ~ ul selectors override earlier ones */
+.analysis-panel h2:nth-of-type(4) ~ ul > li::before {
+  background: rgba(139, 92, 246, 0.5);
+}
+
+.analysis-panel h2:nth-of-type(5) ~ ul > li::before {
+  background: rgba(244, 63, 94, 0.5);
+}
+
+/* ---------------------------------------------------------------------------
+   5. Strong / bold text inside list items
+   --------------------------------------------------------------------------- */
+.analysis-panel strong {
+  color: #f4f4f5;
+  font-weight: 600;
+}
+
+/* Bold lead-ins tinted per section */
+.analysis-panel h2:nth-of-type(2) ~ ul strong {
+  color: #fde68a;
+}
+
+.analysis-panel h2:nth-of-type(3) ~ ul strong {
+  color: #a7f3d0;
+}
+
+.analysis-panel h2:nth-of-type(4) ~ ul strong {
+  color: #ddd6fe;
+}
+
+/* ---------------------------------------------------------------------------
+   6. Blockquotes (Key Quotes section)
+   --------------------------------------------------------------------------- */
+.analysis-panel blockquote {
+  margin: 4px 16px 8px;
+  padding: 10px 14px;
+  background: rgba(244, 63, 94, 0.05);
+  border-left: 3px solid rgba(244, 63, 94, 0.4);
+  border-radius: 0 8px 8px 0;
+  font-size: 0.82rem;
+  font-style: italic;
+  color: #d4d4d8;
+  line-height: 1.6;
+}
+
+.analysis-panel blockquote p {
+  padding: 0;
+  margin: 0;
+  font-size: inherit;
+  color: inherit;
+}
+
+/* Subtle hover on blockquotes */
+.analysis-panel blockquote:hover {
+  background: rgba(244, 63, 94, 0.08);
+  border-left-color: rgba(244, 63, 94, 0.6);
+}
+
+/* ---------------------------------------------------------------------------
+   7. Links
+   --------------------------------------------------------------------------- */
+.analysis-panel a {
+  color: #93c5fd;
+  text-decoration: none;
+  border-bottom: 1px solid rgba(147, 197, 253, 0.2);
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.analysis-panel a:hover {
+  color: #bfdbfe;
+  border-bottom-color: rgba(191, 219, 254, 0.5);
+}
+
+/* Links inside coding takeaways get violet tint */
+.analysis-panel h2:nth-of-type(4) ~ * a {
+  color: #c4b5fd;
+  border-bottom-color: rgba(196, 181, 253, 0.2);
+}
+
+.analysis-panel h2:nth-of-type(4) ~ * a:hover {
+  color: #ddd6fe;
+  border-bottom-color: rgba(221, 214, 254, 0.5);
+}
+
+/* ---------------------------------------------------------------------------
+   8. Horizontal rules (---) — hide since h2 borders provide separation
+   --------------------------------------------------------------------------- */
+.analysis-panel hr {
+  display: none;
+}
+
+/* ---------------------------------------------------------------------------
+   9. Bottom padding for last element
+   --------------------------------------------------------------------------- */
+.analysis-panel > *:last-child {
+  margin-bottom: 0;
+  padding-bottom: 14px;
+}
+
+/* ---------------------------------------------------------------------------
+   9. Compact variant — add .analysis-panel--compact to container
+   --------------------------------------------------------------------------- */
+.analysis-panel--compact h2 {
+  font-size: 0.65rem;
+  padding: 8px 12px 6px;
+}
+
+.analysis-panel--compact p {
+  font-size: 0.78rem;
+  padding: 2px 12px 8px;
+}
+
+.analysis-panel--compact ul {
+  padding: 2px 12px 8px 12px;
+}
+
+.analysis-panel--compact li {
+  font-size: 0.78rem;
+  padding: 3px 8px 3px 10px;
+}
+
+.analysis-panel--compact blockquote {
+  margin: 2px 12px 6px;
+  padding: 8px 12px;
+  font-size: 0.78rem;
+}
+
+/* ---------------------------------------------------------------------------
+   10. Scrollbar styling (if panel has max-height)
+   --------------------------------------------------------------------------- */
+.analysis-panel::-webkit-scrollbar {
+  width: 4px;
+}
+
+.analysis-panel::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.analysis-panel::-webkit-scrollbar-thumb {
+  background: #3f3f46;
+  border-radius: 4px;
+}
+
+.analysis-panel::-webkit-scrollbar-thumb:hover {
+  background: #52525b;
+}

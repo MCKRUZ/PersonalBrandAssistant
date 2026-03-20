@@ -11,7 +11,7 @@ public class AutonomyConfiguration : AuditableEntityBase
         Id = Guid.Empty;
     }
 
-    public AutonomyLevel GlobalLevel { get; set; } = AutonomyLevel.Manual;
+    public AutonomyLevel GlobalLevel { get; set; } = AutonomyLevel.SemiAuto;
     public List<ContentTypeOverride> ContentTypeOverrides { get; set; } = [];
     public List<PlatformOverride> PlatformOverrides { get; set; } = [];
     public List<ContentTypePlatformOverride> ContentTypePlatformOverrides { get; set; } = [];

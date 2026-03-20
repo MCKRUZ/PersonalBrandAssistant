@@ -12,5 +12,8 @@ public class TrendItem : AuditableEntityBase
     public TrendSourceType SourceType { get; set; }
     public Guid? TrendSourceId { get; set; }
     public DateTimeOffset DetectedAt { get; set; }
+    public string? ThumbnailUrl { get; set; }
     public string? DeduplicationKey { get; set; }
+    public string? Category { get; set; }
+    public string? Summary { get; set; }
 }

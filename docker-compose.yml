@@ -26,6 +26,7 @@ services:
       SIDECAR_CONFIG_DIR: /config
     volumes:
       - ./prompts:/config/prompts:ro
+      - ./prompts/sidecar.config.json:/config/sidecar.config.json:ro
     networks:
       - internal
     restart: unless-stopped
@@ -40,8 +41,6 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      sidecar:
-        condition: service_started
     environment:
       ConnectionStrings__DefaultConnection: "Host=db;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}"
       ApiKey: ${API_KEY}
@@ -61,6 +60,8 @@ services:
   trendradar:
     image: sansan0/trendradar:0.3.0
     container_name: pba-trendradar
+    profiles:
+      - trendradar
     volumes:
       - trendradar_data:/data
     networks:

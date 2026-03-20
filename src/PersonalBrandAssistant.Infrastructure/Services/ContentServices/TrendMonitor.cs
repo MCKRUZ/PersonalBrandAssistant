@@ -49,8 +49,10 @@ public sealed class TrendMonitor : ITrendMonitor
         var suggestions = await _dbContext.TrendSuggestions
             .Where(s => s.Status == TrendSuggestionStatus.Pending)
             .OrderByDescending(s => s.RelevanceScore)
+            .ThenByDescending(s => s.CreatedAt)
             .Take(limit)
             .Include(s => s.RelatedTrends)
+                .ThenInclude(rt => rt.TrendItem)
             .ToListAsync(ct);
 
         return Result<IReadOnlyList<TrendSuggestion>>.Success(suggestions);
@@ -99,6 +101,9 @@ public sealed class TrendMonitor : ITrendMonitor
 
     public async Task<Result<MediatR.Unit>> RefreshTrendsAsync(CancellationToken ct)
     {
+        var dbSettings = await _dbContext.TrendSettings.FirstOrDefaultAsync(ct);
+        var maxSuggestions = dbSettings?.MaxSuggestionsPerCycle ?? _options.MaxSuggestionsPerCycle;
+
         var sources = await _dbContext.TrendSources
             .Where(s => s.IsEnabled)
             .ToListAsync(ct);
@@ -161,34 +166,68 @@ public sealed class TrendMonitor : ITrendMonitor
             .Where(d => d.DeduplicationKey is null || !existingKeySet.Contains(d.DeduplicationKey))
             .ToList();
 
-        // Score relevance via LLM — returns dictionary of index->score
-        var scores = await ScoreItemsAsync(newItems, ct);
+        // Score relevance via LLM — falls back to default score if sidecar unavailable
+        Dictionary<int, (float Score, string? Category)> scores;
+        try
+        {
+            scores = await ScoreItemsAsync(newItems, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "LLM scoring unavailable, using default scores");
+            scores = [];
+        }
+
+        // When no LLM scores available, assign a neutral default so items still produce suggestions
+        if (scores.Count == 0)
+        {
+            for (var i = 0; i < newItems.Count; i++)
+                scores[i] = (0.5f, null);
+        }
+
+        // Apply LLM-assigned categories to items before persistence
+        foreach (var (index, (_, category)) in scores)
+        {
+            if (index >= 0 && index < newItems.Count && category is not null)
+                newItems[index].Category = category;
+        }
 
         var suggestions = ClusterAndCreateSuggestions(newItems, scores);
 
-        foreach (var suggestion in suggestions.Take(_options.MaxSuggestionsPerCycle))
-        {
-            await _dbContext.TrendSuggestions.AddAsync(suggestion, ct);
-        }
-
+        // Add TrendItems first so FK references from TrendSuggestionItem resolve correctly
         foreach (var item in newItems)
         {
             await _dbContext.TrendItems.AddAsync(item, ct);
         }
 
-        await _dbContext.SaveChangesAsync(ct);
+        foreach (var suggestion in suggestions.Take(maxSuggestions))
+        {
+            await _dbContext.TrendSuggestions.AddAsync(suggestion, ct);
+        }
+
+        try
+        {
+            await _dbContext.SaveChangesAsync(ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to save trend items to database");
+            return Result<MediatR.Unit>.Failure(
+                Application.Common.Errors.ErrorCode.InternalError,
+                "Failed to save trend data — try again shortly");
+        }
 
         _logger.LogInformation(
             "Trend refresh complete: {ItemCount} new items, {SuggestionCount} suggestions",
-            newItems.Count, Math.Min(suggestions.Count, _options.MaxSuggestionsPerCycle));
+            newItems.Count, Math.Min(suggestions.Count, maxSuggestions));
 
         return Result<MediatR.Unit>.Success(MediatR.Unit.Value);
     }
 
-    private async Task<Dictionary<int, float>> ScoreItemsAsync(
+    private async Task<Dictionary<int, (float Score, string? Category)>> ScoreItemsAsync(
         IReadOnlyList<TrendItem> items, CancellationToken ct)
     {
-        var scores = new Dictionary<int, float>();
+        var scores = new Dictionary<int, (float Score, string? Category)>();
 
         var profile = await _dbContext.BrandProfiles
             .FirstOrDefaultAsync(p => p.IsActive, ct);
@@ -208,10 +247,10 @@ public sealed class TrendMonitor : ITrendMonitor
             return scores;
         }
 
-        foreach (var (index, score) in ParseRelevanceScores(responseText ?? ""))
+        foreach (var (index, score, category) in ParseRelevanceScores(responseText ?? ""))
         {
             if (index >= 0 && index < items.Count)
-                scores[index] = score;
+                scores[index] = (score, category);
         }
 
         return scores;
@@ -224,7 +263,7 @@ public sealed class TrendMonitor : ITrendMonitor
             $"{i}. {item.Title} - {(item.Description?.Length > 200 ? item.Description[..200] : item.Description ?? "")}"));
 
         return $$"""
-            You are a brand relevance scorer. Score each item's relevance to the brand profile.
+            You are a brand relevance scorer. Score each item's relevance to the brand profile and assign a category.
             Return ONLY valid JSON array, no markdown fencing.
 
             Brand Profile:
@@ -234,8 +273,11 @@ public sealed class TrendMonitor : ITrendMonitor
             Items to score:
             {{itemLines}}
 
-            Expected JSON: [{"index": 0, "score": 0.0}, ...]
+            Categories (pick the best fit): AI/ML, .NET/C#, Angular/Frontend, Azure/Cloud, Security, Docker/Infra, General Tech
+
+            Expected JSON: [{"index": 0, "score": 0.0, "category": "AI/ML"}, ...]
             Score is 0.0-1.0 where 1.0 is highly relevant.
+            Category must be one of the listed categories.
             """;
     }
 
@@ -244,6 +286,9 @@ public sealed class TrendMonitor : ITrendMonitor
     {
         try
         {
+            if (!_sidecar.IsConnected)
+                await _sidecar.ConnectAsync(ct);
+
             var textParts = new List<string>();
             await foreach (var evt in _sidecar.SendTaskAsync(prompt, null, null, ct))
             {
@@ -266,7 +311,7 @@ public sealed class TrendMonitor : ITrendMonitor
         }
     }
 
-    internal static List<(int Index, float Score)> ParseRelevanceScores(string text)
+    internal static List<(int Index, float Score, string? Category)> ParseRelevanceScores(string text)
     {
         var cleaned = text.Trim();
         if (cleaned.StartsWith("```"))
@@ -282,7 +327,7 @@ public sealed class TrendMonitor : ITrendMonitor
         try
         {
             var items = JsonSerializer.Deserialize<List<RelevanceScoreDto>>(cleaned, JsonOptions);
-            return items?.Select(i => (i.Index, i.Score)).ToList() ?? [];
+            return items?.Select(i => (i.Index, i.Score, i.Category)).ToList() ?? [];
         }
         catch (JsonException)
         {
@@ -291,11 +336,10 @@ public sealed class TrendMonitor : ITrendMonitor
     }
 
     private List<TrendSuggestion> ClusterAndCreateSuggestions(
-        IReadOnlyList<TrendItem> items, Dictionary<int, float> scores)
+        IReadOnlyList<TrendItem> items, Dictionary<int, (float Score, string? Category)> scores)
     {
         var scoredItems = items
-            .Select((item, index) => (Item: item, Score: scores.GetValueOrDefault(index, 0f)))
-            .Where(x => x.Score >= _options.RelevanceScoreThreshold)
+            .Select((item, index) => (Item: item, Score: scores.GetValueOrDefault(index, (0f, null)).Score))
             .OrderByDescending(x => x.Score)
             .ToList();
 
@@ -360,5 +404,8 @@ public sealed class TrendMonitor : ITrendMonitor
 
         [JsonPropertyName("score")]
         public float Score { get; set; }
+
+        [JsonPropertyName("category")]
+        public string? Category { get; set; }
     }
 }

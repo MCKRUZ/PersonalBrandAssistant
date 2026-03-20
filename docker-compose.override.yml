@@ -1,11 +1,13 @@
 services:
   db:
     ports:
-      - "5432:5432"
+      - "5433:5432"
 
   sidecar:
     ports:
       - "3001:3001"
+    volumes:
+      - ~/.claude/.credentials.json:/root/.claude/.credentials.json:ro
     networks:
       - default
       - internal
@@ -22,6 +24,7 @@ services:
       - ./src:/src
     environment:
       ASPNETCORE_ENVIRONMENT: Development
+      ApiKey: pba-dev-key
     command: ["dotnet", "watch", "run", "--project", "/src/PersonalBrandAssistant.Api/PersonalBrandAssistant.Api.csproj", "--urls", "http://+:8080"]
 
   web:
@@ -32,4 +35,4 @@ services:
       - ./src/PersonalBrandAssistant.Web:/app
       - /app/node_modules
     ports:
-      - "4200:4200"
+      - "4201:4200"

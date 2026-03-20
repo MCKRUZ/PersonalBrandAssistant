@@ -28,6 +28,14 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<AgentExecutionLog> AgentExecutionLogs => Set<AgentExecutionLog>();
     public DbSet<ContentPlatformStatus> ContentPlatformStatuses => Set<ContentPlatformStatus>();
     public DbSet<OAuthState> OAuthStates => Set<OAuthState>();
+    public DbSet<InterestKeyword> InterestKeywords => Set<InterestKeyword>();
+    public DbSet<SavedTrendItem> SavedTrendItems => Set<SavedTrendItem>();
+    public DbSet<TrendSettings> TrendSettings => Set<TrendSettings>();
+    public DbSet<EngagementTask> EngagementTasks => Set<EngagementTask>();
+    public DbSet<EngagementExecution> EngagementExecutions => Set<EngagementExecution>();
+    public DbSet<EngagementAction> EngagementActions => Set<EngagementAction>();
+    public DbSet<SocialInboxItem> SocialInboxItems => Set<SocialInboxItem>();
+    public DbSet<OpportunityAction> OpportunityActions => Set<OpportunityAction>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

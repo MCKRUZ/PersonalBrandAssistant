@@ -26,6 +26,8 @@
     <PackageReference Include="Serilog.Sinks.Console" Version="6.1.1" />
     <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
     <PackageReference Include="Stateless" Version="5.20.1" />
+    <PackageReference Include="NCrontab" Version="3.3.3" />
+    <PackageReference Include="System.ServiceModel.Syndication" Version="10.0.5" />
   </ItemGroup>
 
 </Project>

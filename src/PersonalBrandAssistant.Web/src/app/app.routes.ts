@@ -10,6 +10,13 @@ export const routes: Routes = [
       ),
   },
   {
+    path: 'news',
+    loadChildren: () =>
+      import('./features/news/news.routes').then(
+        (m) => m.NEWS_ROUTES
+      ),
+  },
+  {
     path: 'content',
     loadChildren: () =>
       import('./features/content/content.routes').then(
@@ -38,10 +45,24 @@ export const routes: Routes = [
       ),
   },
   {
+    path: 'social',
+    loadChildren: () =>
+      import('./features/social/social.routes').then(
+        (m) => m.SOCIAL_ROUTES
+      ),
+  },
+  {
     path: 'settings',
     loadChildren: () =>
       import('./features/settings/settings.routes').then(
         (m) => m.SETTINGS_ROUTES
+      ),
+  },
+  {
+    path: 'oauth/callback',
+    loadComponent: () =>
+      import('./features/platforms/components/oauth-callback.component').then(
+        (m) => m.OAuthCallbackComponent
       ),
   },
   { path: '**', redirectTo: 'dashboard' },

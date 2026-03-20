@@ -15,7 +15,9 @@ using PersonalBrandAssistant.Infrastructure.Services.ContentServices;
 using PersonalBrandAssistant.Infrastructure.Services.MediaServices;
 using PersonalBrandAssistant.Infrastructure.Services.PlatformServices;
 using PersonalBrandAssistant.Infrastructure.Services.PlatformServices.Adapters;
+using PersonalBrandAssistant.Infrastructure.Services.ContentServices.TrendPollers;
 using PersonalBrandAssistant.Infrastructure.Services.PlatformServices.Formatters;
+using PersonalBrandAssistant.Infrastructure.Services.SocialServices;
 
 namespace PersonalBrandAssistant.Infrastructure;
 
@@ -82,6 +84,8 @@ public static class DependencyInjection
             configuration.GetSection(ContentEngineOptions.SectionName));
         services.Configure<TrendMonitoringOptions>(
             configuration.GetSection(TrendMonitoringOptions.SectionName));
+        services.Configure<FirecrawlOptions>(
+            configuration.GetSection(FirecrawlOptions.SectionName));
 
         // Content engine services
         services.AddScoped<IBrandVoiceService, BrandVoiceService>();
@@ -90,6 +94,34 @@ public static class DependencyInjection
         services.AddScoped<IContentCalendarService, ContentCalendarService>();
         services.AddScoped<ITrendMonitor, TrendMonitor>();
         services.AddScoped<IEngagementAggregator, EngagementAggregator>();
+
+        // Trend source pollers
+        services.AddScoped<ITrendSourcePoller, FreshRssPoller>();
+        services.AddScoped<ITrendSourcePoller, HackerNewsPoller>();
+        services.AddScoped<ITrendSourcePoller, RedditPoller>();
+        services.AddScoped<ITrendSourcePoller, TrendRadarPoller>();
+        services.AddScoped<ITrendSourcePoller, RssFeedPoller>();
+
+        services.AddHttpClient("RssFeed", client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(10);
+            client.DefaultRequestHeaders.UserAgent.ParseAdd(
+                "PersonalBrandAssistant/1.0 (+https://github.com/MCKRUZ/personal-brand-assistant)");
+        });
+
+        services.AddHttpClient("Firecrawl", (sp, client) =>
+        {
+            var opts = sp.GetRequiredService<IOptions<FirecrawlOptions>>().Value;
+            var baseUrl = opts.BaseUrl.TrimEnd('/') + "/";
+            client.BaseAddress = new Uri(baseUrl);
+            client.Timeout = TimeSpan.FromSeconds(opts.TimeoutSeconds);
+            var apiKey = configuration["Firecrawl:ApiKey"];
+            if (!string.IsNullOrEmpty(apiKey))
+                client.DefaultRequestHeaders.Authorization =
+                    new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiKey);
+        });
+        services.AddScoped<IArticleScraper, FirecrawlScraper>();
+        services.AddScoped<IArticleAnalyzer, ArticleAnalyzer>();
 
         // Platform integration options
         services.Configure<PlatformIntegrationOptions>(configuration.GetSection(PlatformIntegrationOptions.SectionName));
@@ -120,6 +152,14 @@ public static class DependencyInjection
                 configuration["PlatformIntegrations:Instagram:BaseUrl"] ?? "https://graph.facebook.com/v19.0");
         });
         services.AddHttpClient<YouTubePlatformAdapter>();
+        services.AddHttpClient<RedditPlatformAdapter>(client =>
+        {
+            client.BaseAddress = new Uri(
+                configuration["PlatformIntegrations:Reddit:BaseUrl"] ?? "https://oauth.reddit.com");
+            client.DefaultRequestHeaders.UserAgent.ParseAdd(
+                configuration["PlatformIntegrations:Reddit:UserAgent"]
+                ?? "PersonalBrandAssistant/1.0 (by /u/personal-brand-bot)");
+        });
 
         // Scoped services
         services.AddScoped<IPublishingPipeline, PublishingPipeline>();
@@ -131,12 +171,38 @@ public static class DependencyInjection
         services.AddScoped<ISocialPlatform>(sp => sp.GetRequiredService<LinkedInPlatformAdapter>());
         services.AddScoped<ISocialPlatform>(sp => sp.GetRequiredService<InstagramPlatformAdapter>());
         services.AddScoped<ISocialPlatform>(sp => sp.GetRequiredService<YouTubePlatformAdapter>());
+        services.AddScoped<ISocialPlatform>(sp => sp.GetRequiredService<RedditPlatformAdapter>());
 
         // Content formatters (multi-registration)
         services.AddScoped<IPlatformContentFormatter, TwitterContentFormatter>();
         services.AddScoped<IPlatformContentFormatter, LinkedInContentFormatter>();
         services.AddScoped<IPlatformContentFormatter, InstagramContentFormatter>();
         services.AddScoped<IPlatformContentFormatter, YouTubeContentFormatter>();
+        services.AddScoped<IPlatformContentFormatter, RedditContentFormatter>();
+
+        // Social engagement adapters
+        services.AddScoped<ISocialEngagementAdapter>(sp => sp.GetRequiredService<RedditPlatformAdapter>());
+        services.AddHttpClient<TwitterEngagementAdapter>(client =>
+        {
+            client.BaseAddress = new Uri(
+                configuration["PlatformIntegrations:Twitter:BaseUrl"] ?? "https://api.x.com/2");
+        });
+        services.AddScoped<ISocialEngagementAdapter>(sp => sp.GetRequiredService<TwitterEngagementAdapter>());
+        services.AddHttpClient<LinkedInEngagementAdapter>(client =>
+        {
+            client.BaseAddress = new Uri(
+                configuration["PlatformIntegrations:LinkedIn:BaseUrl"] ?? "https://api.linkedin.com/rest");
+        });
+        services.AddScoped<ISocialEngagementAdapter>(sp => sp.GetRequiredService<LinkedInEngagementAdapter>());
+        services.AddHttpClient<InstagramEngagementAdapter>(client =>
+        {
+            client.BaseAddress = new Uri(
+                configuration["PlatformIntegrations:Instagram:BaseUrl"] ?? "https://graph.facebook.com/v19.0");
+        });
+        services.AddScoped<ISocialEngagementAdapter>(sp => sp.GetRequiredService<InstagramEngagementAdapter>());
+        services.AddScoped<IHumanScheduler, HumanScheduler>();
+        services.AddScoped<ISocialEngagementService, SocialEngagementService>();
+        services.AddScoped<ISocialInboxService, SocialInboxService>();
 
         // Background services
         services.AddHostedService<DataSeeder>();
@@ -154,6 +220,10 @@ public static class DependencyInjection
         services.AddHostedService<TrendAggregationProcessor>();
         services.AddHostedService<EngagementAggregationProcessor>();
         services.AddHostedService<CalendarSlotProcessor>();
+
+        // Social engagement background services
+        services.AddHostedService<EngagementScheduler>();
+        services.AddHostedService<InboxPoller>();
 
         services.AddHealthChecks()
             .AddDbContextCheck<ApplicationDbContext>();

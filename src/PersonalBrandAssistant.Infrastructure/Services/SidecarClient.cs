@@ -50,10 +50,13 @@ public sealed class SidecarClient : ISidecarClient, IDisposable
 
         await SendMessageAsync(new { type = "new-session" }, timeoutCts.Token);
 
-        // Wait for session-update response
-        var (eventType, payload) = await ReceiveFrameAsync(timeoutCts.Token);
-        if (eventType != "session-update")
-            throw new InvalidOperationException($"Expected session-update, got {eventType}");
+        // Wait for session-update response, skipping non-session events (e.g. config)
+        string eventType;
+        JsonElement payload;
+        do
+        {
+            (eventType, payload) = await ReceiveFrameAsync(timeoutCts.Token);
+        } while (eventType != "session-update");
 
         _currentSessionId = payload.GetProperty("sessionId").GetString()
             ?? throw new InvalidOperationException("session-update missing sessionId");
@@ -96,8 +99,8 @@ public sealed class SidecarClient : ISidecarClient, IDisposable
                 {
                     case "chat-event":
                         yield return new ChatEvent(
-                            payload.TryGetProperty("eventType", out var et) ? et.GetString() ?? "" : "",
-                            payload.TryGetProperty("text", out var txt) ? txt.GetString() : null,
+                            payload.TryGetProperty("type", out var et) ? et.GetString() ?? "" : "",
+                            payload.TryGetProperty("content", out var txt) ? txt.GetString() : null,
                             payload.TryGetProperty("filePath", out var fp) ? fp.GetString() : null,
                             payload.TryGetProperty("toolName", out var tn) ? tn.GetString() : null);
                         break;

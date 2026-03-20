@@ -12,7 +12,7 @@ public class TrendSuggestionItemConfiguration : IEntityTypeConfiguration<TrendSu
 
         builder.HasKey(si => new { si.TrendSuggestionId, si.TrendItemId });
 
-        builder.HasOne<TrendItem>()
+        builder.HasOne(si => si.TrendItem)
             .WithMany()
             .HasForeignKey(si => si.TrendItemId)
             .OnDelete(DeleteBehavior.Cascade);

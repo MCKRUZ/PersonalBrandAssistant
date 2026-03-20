@@ -28,7 +28,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAngularDev", policy =>
     {
-        policy.WithOrigins("http://localhost:4200")
+        policy.WithOrigins("http://localhost:4200", "http://localhost:4201")
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();
@@ -66,6 +66,7 @@ app.MapCalendarEndpoints();
 app.MapBrandVoiceEndpoints();
 app.MapTrendEndpoints();
 app.MapAnalyticsEndpoints();
+app.MapSocialEndpoints();
 
 app.Run();
 

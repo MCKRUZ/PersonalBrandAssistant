@@ -1,0 +1,6 @@
+{
+  "projectDir": "/config/prompts",
+  "port": 3001,
+  "startCommand": "echo 'ready'",
+  "ignorePatterns": ["node_modules", ".git", "dist"]
+}
