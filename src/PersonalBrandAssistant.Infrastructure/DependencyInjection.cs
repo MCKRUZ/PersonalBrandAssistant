@@ -17,6 +17,7 @@ using PersonalBrandAssistant.Infrastructure.Services.PlatformServices;
 using PersonalBrandAssistant.Infrastructure.Services.PlatformServices.Adapters;
 using PersonalBrandAssistant.Infrastructure.Services.ContentServices.TrendPollers;
 using PersonalBrandAssistant.Infrastructure.Services.PlatformServices.Formatters;
+using PersonalBrandAssistant.Infrastructure.Services.IntegrationServices;
 using PersonalBrandAssistant.Infrastructure.Services.SocialServices;
 
 namespace PersonalBrandAssistant.Infrastructure;
@@ -45,10 +46,13 @@ public static class DependencyInjection
         services.AddScoped<IApplicationDbContext>(sp =>
             sp.GetRequiredService<ApplicationDbContext>());
 
-        services.AddDataProtection()
-            .PersistKeysToFileSystem(new DirectoryInfo(
-                configuration["DataProtection:KeyPath"] ?? "data-protection-keys"))
+        var dpBuilder = services.AddDataProtection()
             .SetApplicationName("PersonalBrandAssistant");
+
+        var keyPath = configuration["DataProtection:KeyPath"];
+        if (!string.IsNullOrWhiteSpace(keyPath) && IsDirectoryWritable(keyPath))
+            dpBuilder.PersistKeysToFileSystem(new DirectoryInfo(keyPath));
+        // else: ephemeral (in-memory) keys — fine for dev/single-instance
 
         services.AddSingleton<IEncryptionService, EncryptionService>();
 
@@ -122,6 +126,7 @@ public static class DependencyInjection
         });
         services.AddScoped<IArticleScraper, FirecrawlScraper>();
         services.AddScoped<IArticleAnalyzer, ArticleAnalyzer>();
+        services.AddScoped<IContentIdeaService, ContentIdeaService>();
 
         // Platform integration options
         services.Configure<PlatformIntegrationOptions>(configuration.GetSection(PlatformIntegrationOptions.SectionName));
@@ -203,6 +208,7 @@ public static class DependencyInjection
         services.AddScoped<IHumanScheduler, HumanScheduler>();
         services.AddScoped<ISocialEngagementService, SocialEngagementService>();
         services.AddScoped<ISocialInboxService, SocialInboxService>();
+        services.AddScoped<IIntegrationMonitorService, IntegrationMonitorService>();
 
         // Background services
         services.AddHostedService<DataSeeder>();
@@ -229,5 +235,18 @@ public static class DependencyInjection
             .AddDbContextCheck<ApplicationDbContext>();
 
         return services;
+    }
+
+    private static bool IsDirectoryWritable(string path)
+    {
+        try
+        {
+            Directory.CreateDirectory(path);
+            var probe = System.IO.Path.Combine(path, ".write-test");
+            File.WriteAllText(probe, "");
+            File.Delete(probe);
+            return true;
+        }
+        catch { return false; }
     }
 }

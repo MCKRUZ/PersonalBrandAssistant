@@ -67,6 +67,8 @@ app.MapBrandVoiceEndpoints();
 app.MapTrendEndpoints();
 app.MapAnalyticsEndpoints();
 app.MapSocialEndpoints();
+app.MapContentIdeaEndpoints();
+app.MapIntegrationEndpoints();
 
 app.Run();
 
