@@ -209,6 +209,7 @@ public static class DependencyInjection
         services.AddScoped<ISocialEngagementService, SocialEngagementService>();
         services.AddScoped<ISocialInboxService, SocialInboxService>();
         services.AddScoped<IIntegrationMonitorService, IntegrationMonitorService>();
+        services.AddSingleton<IPipelineEventBroadcaster, PipelineEventBroadcaster>();
 
         // Background services
         services.AddHostedService<DataSeeder>();

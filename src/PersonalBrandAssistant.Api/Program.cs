@@ -69,6 +69,7 @@ app.MapAnalyticsEndpoints();
 app.MapSocialEndpoints();
 app.MapContentIdeaEndpoints();
 app.MapIntegrationEndpoints();
+app.MapEventEndpoints();
 
 app.Run();
 

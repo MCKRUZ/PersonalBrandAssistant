@@ -16,6 +16,7 @@ public sealed class ContentPipeline : IContentPipeline
     private readonly ISidecarClient _sidecarClient;
     private readonly IBrandVoiceService _brandVoiceService;
     private readonly IWorkflowEngine _workflowEngine;
+    private readonly IPipelineEventBroadcaster _broadcaster;
     private readonly ILogger<ContentPipeline> _logger;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -28,12 +29,14 @@ public sealed class ContentPipeline : IContentPipeline
         ISidecarClient sidecarClient,
         IBrandVoiceService brandVoiceService,
         IWorkflowEngine workflowEngine,
+        IPipelineEventBroadcaster broadcaster,
         ILogger<ContentPipeline> logger)
     {
         _dbContext = dbContext;
         _sidecarClient = sidecarClient;
         _brandVoiceService = brandVoiceService;
         _workflowEngine = workflowEngine;
+        _broadcaster = broadcaster;
         _logger = logger;
     }
 
@@ -64,6 +67,17 @@ public sealed class ContentPipeline : IContentPipeline
 
         _dbContext.Contents.Add(content);
         await _dbContext.SaveChangesAsync(ct);
+
+        _ = _broadcaster.BroadcastAsync(new PipelineEvent(
+            "pipeline:created",
+            JsonSerializer.Serialize(new
+            {
+                contentId = content.Id,
+                title = content.Title,
+                platform = content.TargetPlatforms.Length > 0 ? content.TargetPlatforms[0].ToString() : "Unknown",
+                contentType = content.ContentType.ToString(),
+                timestamp = DateTimeOffset.UtcNow
+            }, JsonOptions)));
 
         return Result<Guid>.Success(content.Id);
     }
@@ -194,7 +208,10 @@ public sealed class ContentPipeline : IContentPipeline
     private async Task<(string? Text, string? FilePath, int InputTokens, int OutputTokens, string? Error)>
         ConsumeEventStreamAsync(string prompt, CancellationToken ct)
     {
-        var textBuilder = new StringBuilder();
+        // Track the last summary event — the sidecar may emit multiple summary events
+        // (e.g. a session-start summary and then the actual AI response).
+        // Overwriting ensures we only capture the final, complete text.
+        string? lastSummary = null;
         string? filePath = null;
         int inputTokens = 0, outputTokens = 0;
 
@@ -202,8 +219,8 @@ public sealed class ContentPipeline : IContentPipeline
         {
             switch (evt)
             {
-                case ChatEvent { Text: not null } chat:
-                    textBuilder.Append(chat.Text);
+                case ChatEvent { EventType: "summary", Text: not null } chat:
+                    lastSummary = chat.Text;
                     break;
                 case FileChangeEvent file:
                     filePath = file.FilePath;
@@ -218,8 +235,7 @@ public sealed class ContentPipeline : IContentPipeline
             }
         }
 
-        var text = textBuilder.Length > 0 ? textBuilder.ToString() : null;
-        return (text, filePath, inputTokens, outputTokens, null);
+        return (lastSummary, filePath, inputTokens, outputTokens, null);
     }
 
     private static (string? Topic, string? Outline) ParseGenerationContext(string? json)
