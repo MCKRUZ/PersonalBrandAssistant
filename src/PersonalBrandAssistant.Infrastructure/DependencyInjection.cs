@@ -247,7 +247,7 @@ public static class DependencyInjection
         services.AddScoped<IImageGenerationService, ImageGenerationService>();
         services.AddScoped<IImagePromptService, ImagePromptService>();
         services.AddSingleton<IImageResizer, ImageResizer>();
-        services.AddHostedService<DailyContentProcessorStub>();
+        services.AddHostedService<DailyContentProcessor>();
 
         services.AddHealthChecks()
             .AddDbContextCheck<ApplicationDbContext>();
