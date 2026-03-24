@@ -50,31 +50,67 @@ public sealed class LinkedInPlatformAdapter : PlatformAdapterBase
     protected override async Task<Result<PublishResult>> ExecutePublishAsync(
         string accessToken, PlatformContent content, CancellationToken ct)
     {
-        // Get user URN for post authorship
         var profileResult = await ExecuteGetProfileAsync(accessToken, ct);
         if (!profileResult.IsSuccess)
             return Result.Failure<PublishResult>(ErrorCode.InternalError, "Failed to get LinkedIn profile for post authorship");
 
         var authorUrn = $"urn:li:person:{profileResult.Value!.PlatformUserId}";
 
+        // Upload image if media is present
+        string? imageUrn = null;
+        string? altText = null;
+        if (content.Media.Count > 0)
+        {
+            var mediaFile = content.Media[0];
+            altText = mediaFile.AltText;
+            var imageBytes = await LoadMediaBytesAsync(mediaFile.FileId, ct);
+            var uploadResult = await UploadImageAsync(imageBytes, authorUrn, accessToken, ct);
+            if (!uploadResult.IsSuccess)
+                return Result.Failure<PublishResult>(uploadResult.ErrorCode, uploadResult.Errors.ToArray());
+            imageUrn = uploadResult.Value;
+        }
+
         using var request = new HttpRequestMessage(HttpMethod.Post, "/posts");
         request.Headers.Authorization = new("Bearer", accessToken);
         request.Headers.Add("X-Restli-Protocol-Version", "2.0.0");
         request.Headers.Add("Linkedin-Version", _options.ApiVersion ?? "202401");
 
-        request.Content = JsonContent.Create(new
+        if (imageUrn is not null)
         {
-            author = authorUrn,
-            commentary = content.Text,
-            visibility = "PUBLIC",
-            distribution = new
+            request.Content = JsonContent.Create(new
             {
-                feedDistribution = "MAIN_FEED",
-                targetEntities = Array.Empty<object>(),
-                thirdPartyDistributionChannels = Array.Empty<object>(),
-            },
-            lifecycleState = "PUBLISHED",
-        });
+                author = authorUrn,
+                commentary = content.Text,
+                visibility = "PUBLIC",
+                distribution = new
+                {
+                    feedDistribution = "MAIN_FEED",
+                    targetEntities = Array.Empty<object>(),
+                    thirdPartyDistributionChannels = Array.Empty<object>(),
+                },
+                content = new
+                {
+                    media = new { altText = altText ?? "", id = imageUrn },
+                },
+                lifecycleState = "PUBLISHED",
+            });
+        }
+        else
+        {
+            request.Content = JsonContent.Create(new
+            {
+                author = authorUrn,
+                commentary = content.Text,
+                visibility = "PUBLIC",
+                distribution = new
+                {
+                    feedDistribution = "MAIN_FEED",
+                    targetEntities = Array.Empty<object>(),
+                    thirdPartyDistributionChannels = Array.Empty<object>(),
+                },
+                lifecycleState = "PUBLISHED",
+            });
+        }
 
         var response = await _httpClient.SendAsync(request, ct);
 
@@ -83,7 +119,6 @@ public sealed class LinkedInPlatformAdapter : PlatformAdapterBase
 
         await RecordRateLimitAsync(response, "publish", ct);
 
-        // LinkedIn returns the post URN in the x-restli-id header
         if (!response.Headers.TryGetValues("x-restli-id", out var idValues) ||
             string.IsNullOrEmpty(idValues.FirstOrDefault()))
         {
@@ -95,6 +130,76 @@ public sealed class LinkedInPlatformAdapter : PlatformAdapterBase
 
         return Result.Success(new PublishResult(
             postId, $"https://www.linkedin.com/feed/update/{postId}", DateTimeOffset.UtcNow));
+    }
+
+    private async Task<byte[]> LoadMediaBytesAsync(string fileId, CancellationToken ct)
+    {
+        await using var stream = await MediaStorage.GetStreamAsync(fileId, ct);
+        using var ms = new MemoryStream();
+        await stream.CopyToAsync(ms, ct);
+        return ms.ToArray();
+    }
+
+    private async Task<Result<string>> UploadImageAsync(
+        byte[] imageData, string authorUrn, string accessToken, CancellationToken ct)
+    {
+        // Step 1: Initialize upload
+        using var initRequest = new HttpRequestMessage(HttpMethod.Post, "/rest/images?action=initializeUpload");
+        initRequest.Headers.Authorization = new("Bearer", accessToken);
+        initRequest.Headers.Add("X-Restli-Protocol-Version", "2.0.0");
+        initRequest.Headers.Add("Linkedin-Version", _options.ApiVersion ?? "202401");
+        initRequest.Content = JsonContent.Create(new
+        {
+            initializeUploadRequest = new { owner = authorUrn },
+        });
+
+        var initResponse = await _httpClient.SendAsync(initRequest, ct);
+        if (!initResponse.IsSuccessStatusCode)
+            return HandleHttpError<string>(initResponse, "LinkedIn image initializeUpload");
+
+        var initJson = await initResponse.Content.ReadFromJsonAsync<JsonElement>(ct);
+        var uploadUrl = initJson.GetProperty("value").GetProperty("uploadUrl").GetString()!;
+        var imageUrn = initJson.GetProperty("value").GetProperty("image").GetString()!;
+
+        // Step 2: Upload binary
+        using var uploadRequest = new HttpRequestMessage(HttpMethod.Put, uploadUrl);
+        uploadRequest.Headers.Authorization = new("Bearer", accessToken);
+        uploadRequest.Content = new ByteArrayContent(imageData);
+        uploadRequest.Content.Headers.ContentType = new("application/octet-stream");
+
+        var uploadResponse = await _httpClient.SendAsync(uploadRequest, ct);
+        if (!uploadResponse.IsSuccessStatusCode)
+            return HandleHttpError<string>(uploadResponse, "LinkedIn image upload");
+
+        // Step 3: Poll until available
+        const int maxPollSeconds = 30;
+        const int pollIntervalSeconds = 2;
+        var deadline = DateTimeOffset.UtcNow.AddSeconds(maxPollSeconds);
+
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            using var statusRequest = new HttpRequestMessage(HttpMethod.Get,
+                $"/rest/images/{Uri.EscapeDataString(imageUrn)}");
+            statusRequest.Headers.Authorization = new("Bearer", accessToken);
+            statusRequest.Headers.Add("X-Restli-Protocol-Version", "2.0.0");
+            statusRequest.Headers.Add("Linkedin-Version", _options.ApiVersion ?? "202401");
+
+            var statusResponse = await _httpClient.SendAsync(statusRequest, ct);
+            if (statusResponse.IsSuccessStatusCode)
+            {
+                var statusJson = await statusResponse.Content.ReadFromJsonAsync<JsonElement>(ct);
+                if (statusJson.TryGetProperty("status", out var statusProp) &&
+                    statusProp.GetString() == "AVAILABLE")
+                {
+                    return Result.Success(imageUrn);
+                }
+            }
+
+            await Task.Delay(TimeSpan.FromSeconds(pollIntervalSeconds), ct);
+        }
+
+        return Result.Failure<string>(ErrorCode.InternalError,
+            "LinkedIn image processing timed out after 30s");
     }
 
     protected override async Task<Result<Unit>> ExecuteDeletePostAsync(
