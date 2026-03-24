@@ -63,6 +63,12 @@ public sealed class DailyContentOrchestrator : IDailyContentOrchestrator
 
         try
         {
+            // Ensure sidecar is connected
+            if (!_sidecarClient.IsConnected)
+            {
+                await _sidecarClient.ConnectAsync(ct);
+            }
+
             // Step 1: AI-curated trend selection
             var (suggestionId, reasoning, contentType) = await SelectTrendAsync(options, ct);
             run.SelectedSuggestionId = suggestionId;
