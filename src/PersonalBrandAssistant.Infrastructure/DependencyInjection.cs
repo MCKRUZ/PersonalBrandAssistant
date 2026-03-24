@@ -236,7 +236,7 @@ public static class DependencyInjection
         // Content automation
         services.Configure<ContentAutomationOptions>(
             configuration.GetSection(ContentAutomationOptions.SectionName));
-        services.AddScoped<IDailyContentOrchestrator, DailyContentOrchestratorStub>();
+        services.AddScoped<IDailyContentOrchestrator, DailyContentOrchestrator>();
         services.AddHttpClient("ComfyUI", (sp, client) =>
         {
             var opts = sp.GetRequiredService<IOptions<ContentAutomationOptions>>().Value.ImageGeneration;
