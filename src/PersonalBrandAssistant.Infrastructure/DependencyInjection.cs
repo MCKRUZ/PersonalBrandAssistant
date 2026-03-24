@@ -246,7 +246,7 @@ public static class DependencyInjection
         services.AddSingleton<IComfyUiClient, ComfyUiClient>();
         services.AddScoped<IImageGenerationService, ImageGenerationService>();
         services.AddScoped<IImagePromptService, ImagePromptService>();
-        services.AddSingleton<IImageResizer, ImageResizerStub>();
+        services.AddSingleton<IImageResizer, ImageResizer>();
         services.AddHostedService<DailyContentProcessorStub>();
 
         services.AddHealthChecks()
