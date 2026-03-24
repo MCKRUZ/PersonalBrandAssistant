@@ -244,8 +244,8 @@ public static class DependencyInjection
             client.Timeout = TimeSpan.FromSeconds(opts.TimeoutSeconds);
         });
         services.AddSingleton<IComfyUiClient, ComfyUiClient>();
-        services.AddScoped<IImageGenerationService, ImageGenerationServiceStub>();
-        services.AddScoped<IImagePromptService, ImagePromptServiceStub>();
+        services.AddScoped<IImageGenerationService, ImageGenerationService>();
+        services.AddScoped<IImagePromptService, ImagePromptService>();
         services.AddSingleton<IImageResizer, ImageResizerStub>();
         services.AddHostedService<DailyContentProcessorStub>();
 
