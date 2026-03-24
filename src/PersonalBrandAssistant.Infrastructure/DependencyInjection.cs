@@ -237,7 +237,13 @@ public static class DependencyInjection
         services.Configure<ContentAutomationOptions>(
             configuration.GetSection(ContentAutomationOptions.SectionName));
         services.AddScoped<IDailyContentOrchestrator, DailyContentOrchestratorStub>();
-        services.AddSingleton<IComfyUiClient, ComfyUiClientStub>();
+        services.AddHttpClient("ComfyUI", (sp, client) =>
+        {
+            var opts = sp.GetRequiredService<IOptions<ContentAutomationOptions>>().Value.ImageGeneration;
+            client.BaseAddress = new Uri(opts.ComfyUiBaseUrl);
+            client.Timeout = TimeSpan.FromSeconds(opts.TimeoutSeconds);
+        });
+        services.AddSingleton<IComfyUiClient, ComfyUiClient>();
         services.AddScoped<IImageGenerationService, ImageGenerationServiceStub>();
         services.AddScoped<IImagePromptService, ImagePromptServiceStub>();
         services.AddSingleton<IImageResizer, ImageResizerStub>();
