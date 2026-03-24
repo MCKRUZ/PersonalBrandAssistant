@@ -150,6 +150,56 @@ public sealed class ContentPipeline : IContentPipeline
         return Result<string>.Success(text);
     }
 
+    public async Task<Result<string>> GeneratePlatformDraftAsync(
+        Guid contentId, PlatformType platform, string parentBody, CancellationToken ct)
+    {
+        var content = await _dbContext.Contents.FindAsync([contentId], ct);
+        if (content is null)
+        {
+            return Result<string>.NotFound($"Content {contentId} not found");
+        }
+
+        var brandContext = await LoadBrandContextAsync(ct);
+        var systemPrompt = GetPlatformSystemPrompt(platform);
+
+        var promptBuilder = new StringBuilder();
+        promptBuilder.AppendLine("Rewrite the following content for the target platform.");
+        promptBuilder.AppendLine($"\nOriginal content:\n{parentBody}");
+        if (brandContext is not null)
+            promptBuilder.AppendLine($"\nBrand voice: {brandContext}");
+
+        var prompt = promptBuilder.ToString();
+        var (text, _, inputTokens, outputTokens, error) = await ConsumeEventStreamAsync(prompt, ct, systemPrompt);
+
+        if (text is null)
+        {
+            return Result<string>.Failure(ErrorCode.InternalError, error ?? "Sidecar returned no text");
+        }
+
+        content.Body = text;
+        content.Metadata.TokensUsed = inputTokens + outputTokens;
+        await _dbContext.SaveChangesAsync(ct);
+
+        return Result<string>.Success(text);
+    }
+
+    private static string GetPlatformSystemPrompt(PlatformType platform) => platform switch
+    {
+        PlatformType.LinkedIn => "You are a professional LinkedIn content writer for a tech thought leader. " +
+            "Rewrite the provided content as a LinkedIn post. Use an authoritative, insightful tone. " +
+            "Structure for readability with short paragraphs and line breaks. Include 3-5 relevant hashtags at the end. " +
+            "Maximum 3000 characters. Write in a humanized, conversational style. Never use em-dashes.",
+        PlatformType.TwitterX => "You are a sharp, opinionated tech Twitter writer. " +
+            "Rewrite the provided content as a single tweet (max 280 characters) or a thread if needed. " +
+            "Be punchy, direct, and credible to the dev community. No fluff, no corporate-speak. " +
+            "Write in a humanized, natural voice. Never use em-dashes.",
+        PlatformType.PersonalBlog => "You are a blog content writer. " +
+            "Rewrite the provided content as a blog teaser/excerpt that drives readers to the full article. " +
+            "Include a compelling hook, key takeaways preview, and a call-to-action. " +
+            "Be SEO-conscious with natural keyword placement. Never use em-dashes.",
+        _ => "Rewrite the provided content for social media. Keep it concise and engaging. Never use em-dashes.",
+    };
+
     public async Task<Result<BrandVoiceScore>> ValidateVoiceAsync(Guid contentId, CancellationToken ct)
     {
         var content = await _dbContext.Contents.FindAsync([contentId], ct);
@@ -206,16 +256,13 @@ public sealed class ContentPipeline : IContentPipeline
     }
 
     private async Task<(string? Text, string? FilePath, int InputTokens, int OutputTokens, string? Error)>
-        ConsumeEventStreamAsync(string prompt, CancellationToken ct)
+        ConsumeEventStreamAsync(string prompt, CancellationToken ct, string? systemPrompt = null)
     {
-        // Track the last summary event — the sidecar may emit multiple summary events
-        // (e.g. a session-start summary and then the actual AI response).
-        // Overwriting ensures we only capture the final, complete text.
         string? lastSummary = null;
         string? filePath = null;
         int inputTokens = 0, outputTokens = 0;
 
-        await foreach (var evt in _sidecarClient.SendTaskAsync(prompt, null, null, ct))
+        await foreach (var evt in _sidecarClient.SendTaskAsync(prompt, systemPrompt, null, ct))
         {
             switch (evt)
             {

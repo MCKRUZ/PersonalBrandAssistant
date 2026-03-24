@@ -74,7 +74,7 @@ public sealed class TrendMonitor : ITrendMonitor
     }
 
     public async Task<Result<Guid>> AcceptSuggestionAsync(
-        Guid suggestionId, CancellationToken ct)
+        Guid suggestionId, CancellationToken ct, ContentType? contentTypeOverride = null)
     {
         var suggestion = await _dbContext.TrendSuggestions
             .FindAsync([suggestionId], ct);
@@ -88,7 +88,7 @@ public sealed class TrendMonitor : ITrendMonitor
         suggestion.Status = TrendSuggestionStatus.Accepted;
 
         var content = Content.Create(
-            suggestion.SuggestedContentType,
+            contentTypeOverride ?? suggestion.SuggestedContentType,
             body: "",
             title: suggestion.Topic,
             targetPlatforms: suggestion.SuggestedPlatforms);
