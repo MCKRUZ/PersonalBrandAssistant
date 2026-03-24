@@ -99,6 +99,7 @@ else
     app.MapContentIdeaEndpoints();
     app.MapIntegrationEndpoints();
     app.MapEventEndpoints();
+    app.MapAutomationEndpoints();
 
     app.Run();
 }
