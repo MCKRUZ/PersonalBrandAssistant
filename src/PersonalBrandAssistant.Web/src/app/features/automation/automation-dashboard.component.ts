@@ -1,11 +1,13 @@
 import { Component, inject, OnInit } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
-import { MessageService } from 'primeng/api';
+import { MessageService, ConfirmationService } from 'primeng/api';
 import { TableModule } from 'primeng/table';
 import { ButtonModule } from 'primeng/button';
 import { Tag } from 'primeng/tag';
 import { Card } from 'primeng/card';
 import { Dialog } from 'primeng/dialog';
+import { ConfirmDialog } from 'primeng/confirmdialog';
+import { Tooltip } from 'primeng/tooltip';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { LoadingSpinnerComponent } from '../../shared/components/loading-spinner/loading-spinner.component';
 import { AutomationStore } from './store/automation.store';
@@ -16,10 +18,12 @@ import { AutomationRun, AutomationRunStatus } from '../../shared/models';
   standalone: true,
   imports: [
     CommonModule, DatePipe, TableModule, ButtonModule, Tag, Card, Dialog,
-    PageHeaderComponent, LoadingSpinnerComponent,
+    ConfirmDialog, Tooltip, PageHeaderComponent, LoadingSpinnerComponent,
   ],
+  providers: [ConfirmationService],
   template: `
     <app-page-header title="Content Automation" />
+    <p-confirmDialog />
 
     @if (store.loading()) {
       <app-loading-spinner message="Loading automation data..." />
@@ -31,7 +35,7 @@ import { AutomationRun, AutomationRunStatus } from '../../shared/models';
             <div class="flex align-items-center gap-2">
               <i class="pi pi-clock text-primary"></i>
               <span class="font-semibold">Schedule:</span>
-              <span>{{ config.cronExpression }} ({{ config.timeZone }})</span>
+              <span [pTooltip]="config.cronExpression">{{ cronToHuman(config.cronExpression, config.timeZone) }}</span>
             </div>
             <div class="flex align-items-center gap-2">
               <i class="pi pi-shield text-primary"></i>
@@ -49,7 +53,15 @@ import { AutomationRun, AutomationRunStatus } from '../../shared/models';
               <span class="font-semibold">Platforms:</span>
               <span>{{ config.targetPlatforms.join(', ') }}</span>
             </div>
-            <div class="ml-auto">
+            <div class="ml-auto flex gap-2">
+              <p-button
+                label="Clear History"
+                icon="pi pi-trash"
+                [text]="true" size="small"
+                severity="danger"
+                [disabled]="store.runs().length === 0"
+                (click)="onClearRuns($event)"
+              />
               <p-button
                 label="Trigger Now"
                 icon="pi pi-play"
@@ -81,6 +93,7 @@ import { AutomationRun, AutomationRunStatus } from '../../shared/models';
             <th>Duration</th>
             <th>Platforms</th>
             <th>Error</th>
+            <th style="width: 3rem;"></th>
           </tr>
         </ng-template>
         <ng-template #body let-run>
@@ -92,10 +105,21 @@ import { AutomationRun, AutomationRunStatus } from '../../shared/models';
             <td>{{ run.durationMs > 0 ? (run.durationMs / 1000).toFixed(1) + 's' : '-' }}</td>
             <td>{{ run.platformVersionCount }}</td>
             <td class="text-overflow-ellipsis max-w-20rem">{{ run.errorDetails || '-' }}</td>
+            <td>
+              @if (run.status !== 'Running') {
+                <p-button
+                  icon="pi pi-times"
+                  [text]="true" [rounded]="true" size="small"
+                  severity="danger"
+                  pTooltip="Delete run"
+                  (click)="onDeleteRun($event, run)"
+                />
+              }
+            </td>
           </tr>
         </ng-template>
         <ng-template #emptymessage>
-          <tr><td colspan="5" class="text-center p-4 text-color-secondary">No automation runs yet. Click "Trigger Now" to start.</td></tr>
+          <tr><td colspan="6" class="text-center p-4 text-color-secondary">No automation runs yet. Click "Trigger Now" to start.</td></tr>
         </ng-template>
       </p-table>
 
@@ -127,6 +151,7 @@ import { AutomationRun, AutomationRunStatus } from '../../shared/models';
 export class AutomationDashboardComponent implements OnInit {
   readonly store = inject(AutomationStore);
   private readonly messageService = inject(MessageService);
+  private readonly confirmationService = inject(ConfirmationService);
 
   selectedRun: AutomationRun | null = null;
   showDialog = false;
@@ -152,8 +177,41 @@ export class AutomationDashboardComponent implements OnInit {
       summary: 'Pipeline Triggered',
       detail: 'Automation pipeline is running...',
     });
-    // Reload runs after a delay to show the new run
     setTimeout(() => this.store.loadRuns(), 3000);
+  }
+
+  onDeleteRun(event: Event, run: AutomationRun) {
+    event.stopPropagation();
+    this.store.deleteRun(run.id);
+  }
+
+  onClearRuns(event: Event) {
+    event.stopPropagation();
+    this.confirmationService.confirm({
+      message: 'Delete all completed and failed runs?',
+      header: 'Clear Run History',
+      icon: 'pi pi-trash',
+      acceptButtonStyleClass: 'p-button-danger',
+      accept: () => {
+        this.store.clearRuns();
+        this.messageService.add({
+          severity: 'info',
+          summary: 'History Cleared',
+          detail: 'Old runs have been removed.',
+        });
+      },
+    });
+  }
+
+  cronToHuman(cron: string, timeZone: string): string {
+    const parts = cron.split(' ');
+    if (parts.length !== 5) return `${cron} (${timeZone})`;
+
+    const [minute, hour, dom, month, dow] = parts;
+    const timePart = this.formatTime(hour, minute);
+    const dayPart = this.formatDays(dow, dom, month);
+
+    return `${dayPart} at ${timePart} (${this.formatTimeZone(timeZone)})`;
   }
 
   statusSeverity(status: AutomationRunStatus): 'success' | 'info' | 'warn' | 'danger' | 'secondary' {
@@ -164,5 +222,58 @@ export class AutomationDashboardComponent implements OnInit {
       case 'Failed': return 'danger';
       default: return 'secondary';
     }
+  }
+
+  private formatTime(hour: string, minute: string): string {
+    if (hour === '*') return `every hour at :${minute.padStart(2, '0')}`;
+    const h = parseInt(hour, 10);
+    const m = minute.padStart(2, '0');
+    const period = h >= 12 ? 'PM' : 'AM';
+    const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+    return `${h12}:${m} ${period}`;
+  }
+
+  private formatDays(dow: string, dom: string, month: string): string {
+    if (dow === '*' && dom === '*') return 'Every day';
+    if (dow === '*') return `Day ${dom}`;
+
+    const dayMap: Record<string, string> = {
+      '0': 'Sun', '1': 'Mon', '2': 'Tue', '3': 'Wed',
+      '4': 'Thu', '5': 'Fri', '6': 'Sat', '7': 'Sun',
+    };
+
+    const rangeMap: Record<string, string> = {
+      '1-5': 'Weekdays',
+      '0,6': 'Weekends',
+      '6,0': 'Weekends',
+      '*': 'Every day',
+    };
+
+    if (rangeMap[dow]) return rangeMap[dow];
+
+    // Handle ranges like "1-3"
+    if (dow.includes('-')) {
+      const [start, end] = dow.split('-');
+      return `${dayMap[start] ?? start} - ${dayMap[end] ?? end}`;
+    }
+
+    // Handle lists like "1,3,5"
+    if (dow.includes(',')) {
+      return dow.split(',').map(d => dayMap[d.trim()] ?? d).join(', ');
+    }
+
+    return dayMap[dow] ?? dow;
+  }
+
+  private formatTimeZone(tz: string): string {
+    // Shorten common IANA timezone names
+    const short: Record<string, string> = {
+      'America/New_York': 'ET',
+      'America/Chicago': 'CT',
+      'America/Denver': 'MT',
+      'America/Los_Angeles': 'PT',
+      'UTC': 'UTC',
+    };
+    return short[tz] ?? tz;
   }
 }

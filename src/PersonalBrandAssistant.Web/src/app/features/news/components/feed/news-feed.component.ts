@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, ViewEncapsulation } from '@angular/core';
+import { Component, inject, OnInit, signal, ViewEncapsulation, ElementRef, Injector, afterNextRender } from '@angular/core';
 import { ButtonModule } from 'primeng/button';
 import { SkeletonModule } from 'primeng/skeleton';
 import { Tooltip } from 'primeng/tooltip';
@@ -6,14 +6,29 @@ import { NewsStore } from '../../store/news.store';
 import { NewsFeedFiltersComponent } from './news-feed-filters.component';
 import { NewsFeedItemComponent } from './news-feed-item.component';
 import { NewsFeedVideoCardComponent } from './news-feed-video-card.component';
-import { CATEGORY_COLORS, CATEGORY_ICONS, SOURCE_COLORS, SOURCE_ICONS } from '../../models/news.model';
+import { CATEGORY_COLORS, CATEGORY_ICONS, NewsFeedItem, SOURCE_COLORS, SOURCE_ICONS } from '../../models/news.model';
+import { ContentIdeaWizardComponent } from '../../../content/components/content-idea-wizard.component';
+import { ContentPipelineDialogComponent } from '../../../content/components/content-pipeline-dialog.component';
+import { ContentType, PlatformFormatOption, PlatformType } from '../../../../shared/models';
 
 @Component({
   selector: 'app-news-feed',
   standalone: true,
   encapsulation: ViewEncapsulation.None,
-  imports: [ButtonModule, SkeletonModule, Tooltip, NewsFeedFiltersComponent, NewsFeedItemComponent, NewsFeedVideoCardComponent],
+  imports: [ButtonModule, SkeletonModule, Tooltip, NewsFeedFiltersComponent, NewsFeedItemComponent, NewsFeedVideoCardComponent, ContentIdeaWizardComponent, ContentPipelineDialogComponent],
   template: `
+    <app-content-idea-wizard
+      [(visible)]="wizardVisible"
+      [storyContext]="wizardContext()"
+      (contentRequested)="onContentRequested($event)"
+    />
+    @if (pipelineIdea()) {
+      <app-content-pipeline-dialog
+        [initialIdea]="pipelineIdea()!"
+        (closed)="pipelineIdea.set(null)"
+      />
+    }
+
     <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.25rem;">
       <app-news-feed-filters style="flex: 1;" />
       <p-button
@@ -84,7 +99,7 @@ import { CATEGORY_COLORS, CATEGORY_ICONS, SOURCE_COLORS, SOURCE_ICONS } from '..
     } @else {
       <div style="display: flex; flex-direction: column; gap: 1.5rem;">
         @for (group of store.groupedByCategory(); track group.category) {
-          <div class="category-section">
+          <div class="category-section" [attr.data-category]="group.category">
             <div class="category-section__header" (click)="store.toggleCategoryCollapse(group.category)">
               <i class="category-section__chevron pi"
                  [class.pi-chevron-down]="!isCollapsed(group.category)"
@@ -114,7 +129,7 @@ import { CATEGORY_COLORS, CATEGORY_ICONS, SOURCE_COLORS, SOURCE_ICONS } from '..
                                 [item]="item"
                                 [analyzing]="store.analyzingIds().has(item.trendItemId)"
                                 (bookmarked)="store.toggleSaved(item.trendItemId)"
-                                (dismissed)="store.dismiss(item.suggestionId)"
+                                (dismissed)="onDismiss(item.id, group.category)"
                                 (analyzed)="store.analyzeItem(item.trendItemId)"
                               />
                             } @else {
@@ -122,8 +137,9 @@ import { CATEGORY_COLORS, CATEGORY_ICONS, SOURCE_COLORS, SOURCE_ICONS } from '..
                                 [item]="item"
                                 [analyzing]="store.analyzingIds().has(item.trendItemId)"
                                 (bookmarked)="store.toggleSaved(item.trendItemId)"
-                                (dismissed)="store.dismiss(item.suggestionId)"
+                                (dismissed)="onDismiss(item.id, group.category)"
                                 (analyzed)="store.analyzeItem(item.trendItemId)"
+                                (newIdea)="openIdeaWizard($event)"
                               />
                             }
                           }
@@ -137,15 +153,16 @@ import { CATEGORY_COLORS, CATEGORY_ICONS, SOURCE_COLORS, SOURCE_ICONS } from '..
                           [item]="item"
                           [analyzing]="store.analyzingIds().has(item.trendItemId)"
                           (bookmarked)="store.toggleSaved(item.trendItemId)"
-                          (dismissed)="store.dismiss(item.suggestionId)"
+                          (dismissed)="onDismiss(item.id, group.category)"
                           (analyzed)="store.analyzeItem(item.trendItemId)"
+                          (newIdea)="openIdeaWizard($event)"
                         />
                       } @else {
                         <app-news-feed-item
                           [item]="item"
                           [analyzing]="store.analyzingIds().has(item.trendItemId)"
                           (bookmarked)="store.toggleSaved(item.trendItemId)"
-                          (dismissed)="store.dismiss(item.suggestionId)"
+                          (dismissed)="onDismiss(item.id, group.category)"
                           (analyzed)="store.analyzeItem(item.trendItemId)"
                         />
                       }
@@ -265,7 +282,32 @@ import { CATEGORY_COLORS, CATEGORY_ICONS, SOURCE_COLORS, SOURCE_ICONS } from '..
 })
 export class NewsFeedComponent implements OnInit {
   readonly store = inject(NewsStore);
+  private readonly el = inject(ElementRef);
+  private readonly injector = inject(Injector);
   readonly skeletonItems = Array.from({ length: 5 }, (_, i) => i);
+
+  wizardVisible = false;
+  readonly wizardContext = signal<{ title: string; text: string; sourceUrl?: string } | null>(null);
+  readonly pipelineIdea = signal<{ topic: string; type: ContentType; platform: PlatformType } | null>(null);
+
+  openIdeaWizard(item: NewsFeedItem): void {
+    this.wizardContext.set({
+      title: item.title,
+      text: item.summary!,
+      sourceUrl: item.url,
+    });
+    this.wizardVisible = true;
+  }
+
+  onContentRequested(event: { options: PlatformFormatOption[]; storyText: string }): void {
+    if (event.options.length === 0) return;
+    const top = event.options[0];
+    this.pipelineIdea.set({
+      topic: top.suggestedAngle,
+      type: top.format,
+      platform: top.platform,
+    });
+  }
 
   readonly categoryStats = [
     { name: 'AI/ML', icon: CATEGORY_ICONS['AI/ML'], color: CATEGORY_COLORS['AI/ML'], status: 'Monitoring' },
@@ -318,5 +360,30 @@ export class NewsFeedComponent implements OnInit {
     } else {
       this.store.collapseAll();
     }
+  }
+
+  onDismiss(itemId: string, category: string): void {
+    const section: HTMLElement | null = this.el.nativeElement.querySelector(
+      `[data-category="${CSS.escape(category)}"]`
+    );
+    if (!section) {
+      this.store.dismiss(itemId);
+      return;
+    }
+
+    const topBefore = section.getBoundingClientRect().top;
+    this.store.dismiss(itemId);
+
+    afterNextRender(() => {
+      const sameSection: HTMLElement | null = this.el.nativeElement.querySelector(
+        `[data-category="${CSS.escape(category)}"]`
+      );
+      if (!sameSection) return;
+      const topAfter = sameSection.getBoundingClientRect().top;
+      const diff = topAfter - topBefore;
+      if (diff !== 0) {
+        window.scrollBy(0, diff);
+      }
+    }, { injector: this.injector });
   }
 }

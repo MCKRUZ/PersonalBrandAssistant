@@ -1,7 +1,7 @@
 import { computed, inject } from '@angular/core';
 import { signalStore, withState, withMethods, withComputed, patchState } from '@ngrx/signals';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
-import { pipe, mergeMap, switchMap, tap } from 'rxjs';
+import { pipe, mergeMap, switchMap, tap, of } from 'rxjs';
 import { tapResponse } from '@ngrx/operators';
 import { TrendSuggestion } from '../../../shared/models';
 import { NewsService } from '../services/news.service';
@@ -49,6 +49,8 @@ const initialState: NewsState = {
     maxAgeHours: loadMaxAgeHours(),
     minRelevance: 0,
     searchQuery: '',
+    showSavedOnly: false,
+    showAnalyzedOnly: false,
   },
   loading: false,
   refreshing: false,
@@ -133,6 +135,12 @@ export const NewsStore = signalStore(
         if (item.relevanceScore < filters.minRelevance / 100) {
           return false;
         }
+        if (filters.showSavedOnly && !item.saved) {
+          return false;
+        }
+        if (filters.showAnalyzedOnly && !item.summary) {
+          return false;
+        }
         if (filters.searchQuery) {
           const q = filters.searchQuery.toLowerCase();
           return (
@@ -198,7 +206,7 @@ export const NewsStore = signalStore(
       pipe(
         tap(() => patchState(store, { loading: true })),
         switchMap(() =>
-          newsService.getSuggestions(100).pipe(
+          newsService.getSuggestions(1000).pipe(
             tapResponse({
               next: (suggestions) => patchState(store, { suggestions, loading: false }),
               error: () => patchState(store, { loading: false }),
@@ -218,7 +226,7 @@ export const NewsStore = signalStore(
           }),
           switchMap(() =>
             newsService.refreshTrends().pipe(
-              switchMap(() => newsService.getSuggestions(100)),
+              switchMap(() => newsService.getSuggestions(1000)),
               tapResponse({
                 next: (suggestions) => {
                   patchState(store, { suggestions, refreshing: false });
@@ -235,17 +243,48 @@ export const NewsStore = signalStore(
 
     dismiss: rxMethod<string>(
       pipe(
-        switchMap((suggestionId) =>
-          newsService.dismissSuggestion(suggestionId).pipe(
-            tapResponse({
-              next: () =>
-                patchState(store, {
-                  suggestions: store.suggestions().filter((s) => s.id !== suggestionId),
-                }),
-              error: () => {},
-            })
-          )
-        )
+        switchMap((feedItemId) => {
+          const [suggestionId, idxStr] = feedItemId.split('-').reduce(
+            (acc, part, i, arr) => {
+              if (i < arr.length - 1) {
+                acc[0] = acc[0] ? `${acc[0]}-${part}` : part;
+              } else {
+                acc[1] = part;
+              }
+              return acc;
+            },
+            ['', ''] as [string, string]
+          );
+          const idx = parseInt(idxStr, 10);
+
+          const suggestion = store.suggestions().find((s) => s.id === suggestionId);
+          if (!suggestion) return of(undefined);
+
+          const updatedTrends = suggestion.relatedTrends.filter((_, i) => i !== idx);
+
+          if (updatedTrends.length === 0) {
+            // Optimistic: remove from state immediately to avoid scroll jump
+            const prev = store.suggestions();
+            patchState(store, {
+              suggestions: prev.filter((s) => s.id !== suggestionId),
+            });
+            return newsService.dismissSuggestion(suggestionId).pipe(
+              tapResponse({
+                next: () => {},
+                error: () => patchState(store, { suggestions: prev }),
+              })
+            );
+          }
+
+          patchState(store, {
+            suggestions: store.suggestions().map((s) =>
+              s.id === suggestionId
+                ? { ...s, relatedTrends: updatedTrends }
+                : s
+            ),
+          });
+          return of(undefined);
+        })
       )
     ),
 

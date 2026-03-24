@@ -14,6 +14,8 @@ public static class AutomationEndpoints
 
         group.MapGet("/runs", ListRuns);
         group.MapGet("/runs/{id:guid}", GetRun);
+        group.MapDelete("/runs/{id:guid}", DeleteRun);
+        group.MapDelete("/runs", ClearRuns);
         group.MapPost("/trigger", TriggerRun);
         group.MapGet("/config", GetConfig);
     }
@@ -67,6 +69,33 @@ public static class AutomationEndpoints
         });
     }
 
+    private static async Task<IResult> DeleteRun(
+        Guid id, IApplicationDbContext db, CancellationToken ct)
+    {
+        var run = await db.AutomationRuns.FindAsync([id], ct);
+        if (run is null)
+            return Results.NotFound();
+
+        if (run.Status == AutomationRunStatus.Running)
+            return Results.Problem(statusCode: 409, detail: "Cannot delete a running pipeline.");
+
+        db.AutomationRuns.Remove(run);
+        await db.SaveChangesAsync(ct);
+        return Results.NoContent();
+    }
+
+    private static async Task<IResult> ClearRuns(
+        IApplicationDbContext db, CancellationToken ct)
+    {
+        var completed = await db.AutomationRuns
+            .Where(r => r.Status != AutomationRunStatus.Running)
+            .ToListAsync(ct);
+
+        db.AutomationRuns.RemoveRange(completed);
+        await db.SaveChangesAsync(ct);
+        return Results.Ok(new { deleted = completed.Count });
+    }
+
     private static async Task<IResult> TriggerRun(
         IApplicationDbContext db,
         IDailyContentOrchestrator orchestrator,
@@ -111,7 +140,7 @@ public static class AutomationEndpoints
             opts.Enabled,
             opts.AutonomyLevel,
             opts.TopTrendsToConsider,
-            opts.TargetPlatforms,
+            TargetPlatforms = opts.TargetPlatforms.Distinct().ToArray(),
             imageGeneration = new
             {
                 opts.ImageGeneration.Enabled,

@@ -24,4 +24,12 @@ export class AutomationService {
   getConfig(): Observable<AutomationConfig> {
     return this.api.get<AutomationConfig>('automation/config');
   }
+
+  deleteRun(id: string): Observable<void> {
+    return this.api.delete<void>(`automation/runs/${id}`);
+  }
+
+  clearRuns(): Observable<{ deleted: number }> {
+    return this.api.delete<{ deleted: number }>('automation/runs');
+  }
 }

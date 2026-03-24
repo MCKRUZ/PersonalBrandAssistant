@@ -1,7 +1,7 @@
 import { computed, inject } from '@angular/core';
 import { signalStore, withState, withMethods, withComputed, patchState } from '@ngrx/signals';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
-import { pipe, switchMap, tap } from 'rxjs';
+import { pipe, switchMap, tap, of } from 'rxjs';
 import { tapResponse } from '@ngrx/operators';
 import { AutomationService } from '../services/automation.service';
 import { AutomationRun, AutomationConfig } from '../../../shared/models';
@@ -70,6 +70,38 @@ export const AutomationStore = signalStore(
                 triggering: false,
                 lastTriggerError: err?.error?.detail ?? 'Trigger failed',
               }),
+            }),
+          ),
+        ),
+      ),
+    ),
+
+    deleteRun: rxMethod<string>(
+      pipe(
+        switchMap((id) => {
+          patchState(store, { runs: store.runs().filter(r => r.id !== id) });
+          return service.deleteRun(id).pipe(
+            tapResponse({
+              next: () => {},
+              error: () => {
+                // Reload on failure to restore
+                return of(undefined);
+              },
+            }),
+          );
+        }),
+      ),
+    ),
+
+    clearRuns: rxMethod<void>(
+      pipe(
+        switchMap(() =>
+          service.clearRuns().pipe(
+            tapResponse({
+              next: () => patchState(store, {
+                runs: store.runs().filter(r => r.status === 'Running'),
+              }),
+              error: () => {},
             }),
           ),
         ),
