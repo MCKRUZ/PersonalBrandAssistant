@@ -275,9 +275,14 @@ public sealed class DailyContentOrchestrator : IDailyContentOrchestrator
             Return ONLY a JSON object with this format: {jsonFormat}
             """;
 
-        var systemPrompt = "You are a content strategist. Pick the best topic and respond with ONLY valid JSON.";
+        var systemPrompt = """
+            You are a JSON-only content strategist API. You MUST respond with ONLY a valid JSON object.
+            No explanations. No markdown. No code fences. No text before or after the JSON.
+            Your entire response must be parseable by JSON.parse().
+            """;
 
         var responseText = await ConsumeSidecarResponseAsync(task, systemPrompt, ct);
+        responseText = ExtractJson(responseText);
 
         try
         {
@@ -295,6 +300,7 @@ public sealed class DailyContentOrchestrator : IDailyContentOrchestrator
             _logger.LogWarning("Failed to parse trend curation response, retrying");
             var retryTask = task + "\n\nIMPORTANT: Your previous response was not valid JSON. Respond with ONLY a JSON object, no other text.";
             var retryText = await ConsumeSidecarResponseAsync(retryTask, systemPrompt, ct);
+            retryText = ExtractJson(retryText);
 
             var response = JsonSerializer.Deserialize<TrendCurationResponse>(retryText, JsonOptions)
                 ?? throw new InvalidOperationException("Failed to parse trend curation response after retry");
@@ -327,6 +333,29 @@ public sealed class DailyContentOrchestrator : IDailyContentOrchestrator
             throw new InvalidOperationException("Sidecar returned empty response");
 
         return result;
+    }
+
+    private static string ExtractJson(string text)
+    {
+        // Strip markdown code fences
+        text = text.Trim();
+        if (text.StartsWith("```"))
+        {
+            var firstNewline = text.IndexOf('\n');
+            if (firstNewline > 0) text = text[(firstNewline + 1)..];
+            if (text.EndsWith("```")) text = text[..^3];
+            text = text.Trim();
+        }
+
+        // Find first { and last } to extract JSON object
+        var start = text.IndexOf('{');
+        var end = text.LastIndexOf('}');
+        if (start >= 0 && end > start)
+        {
+            text = text[start..(end + 1)];
+        }
+
+        return text;
     }
 
     private async Task CheckCircuitBreakerAsync(ContentAutomationOptions options, CancellationToken ct)
