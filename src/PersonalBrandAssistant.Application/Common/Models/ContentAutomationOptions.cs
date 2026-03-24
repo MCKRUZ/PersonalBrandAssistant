@@ -5,7 +5,7 @@ public class ContentAutomationOptions
     public const string SectionName = "ContentAutomation";
 
     public string CronExpression { get; set; } = "0 9 * * 1-5";
-    public string TimeZone { get; set; } = "Eastern Standard Time";
+    public string TimeZone { get; set; } = "America/New_York";
     public bool Enabled { get; set; } = true;
     public string AutonomyLevel { get; set; } = "SemiAuto";
     public int TopTrendsToConsider { get; set; } = 5;
