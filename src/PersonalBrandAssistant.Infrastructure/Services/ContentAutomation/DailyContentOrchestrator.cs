@@ -337,8 +337,9 @@ public sealed class DailyContentOrchestrator : IDailyContentOrchestrator
 
     private static string ExtractJson(string text)
     {
-        // Strip markdown code fences
         text = text.Trim();
+
+        // Strip markdown code fences
         if (text.StartsWith("```"))
         {
             var firstNewline = text.IndexOf('\n');
@@ -347,15 +348,27 @@ public sealed class DailyContentOrchestrator : IDailyContentOrchestrator
             text = text.Trim();
         }
 
-        // Find first { and last } to extract JSON object
+        // Find the first balanced {...} JSON object using brace counting
         var start = text.IndexOf('{');
-        var end = text.LastIndexOf('}');
-        if (start >= 0 && end > start)
+        if (start < 0) return text;
+
+        var depth = 0;
+        var inString = false;
+        var escape = false;
+        for (var i = start; i < text.Length; i++)
         {
-            text = text[start..(end + 1)];
+            var c = text[i];
+            if (escape) { escape = false; continue; }
+            if (c == '\\' && inString) { escape = true; continue; }
+            if (c == '"') { inString = !inString; continue; }
+            if (inString) continue;
+            if (c == '{') depth++;
+            if (c == '}') { depth--; if (depth == 0) return text[start..(i + 1)]; }
         }
 
-        return text;
+        // Fallback: first { to last }
+        var end = text.LastIndexOf('}');
+        return end > start ? text[start..(end + 1)] : text;
     }
 
     private async Task CheckCircuitBreakerAsync(ContentAutomationOptions options, CancellationToken ct)
