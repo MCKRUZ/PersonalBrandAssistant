@@ -78,6 +78,14 @@ import { NewsFeedItem, CATEGORY_COLORS, CATEGORY_ICONS } from '../../models/news
               <i class="pi pi-sparkles"></i> {{ showSummary() ? 'Hide' : 'Analysis' }}
             </button>
           }
+          @if (item().summary) {
+            <button class="video-card__action video-card__action--idea" (click)="newIdea.emit(item())">
+              <i class="pi pi-lightbulb"></i> New Idea
+            </button>
+            <button class="video-card__action video-card__action--copy" (click)="copyPrompt()">
+              <i [class]="copied() ? 'pi pi-check' : 'pi pi-copy'"></i> {{ copied() ? 'Copied' : 'Copy Prompt' }}
+            </button>
+          }
           <button class="video-card__action video-card__action--dismiss" (click)="dismissed.emit()">
             <i class="pi pi-times"></i> Dismiss
           </button>
@@ -292,6 +300,20 @@ import { NewsFeedItem, CATEGORY_COLORS, CATEGORY_ICONS } from '../../models/news
       color: #c4b5fd;
       border-color: rgba(167, 139, 250, 0.2);
     }
+    .video-card__action--idea {
+      color: #fb923c;
+    }
+    .video-card__action--idea:hover {
+      color: #fdba74;
+      border-color: rgba(251, 146, 60, 0.2);
+    }
+    .video-card__action--copy {
+      color: #60a5fa;
+    }
+    .video-card__action--copy:hover {
+      color: #93c5fd;
+      border-color: rgba(96, 165, 250, 0.2);
+    }
     .video-card__action i {
       font-size: 0.85rem;
     }
@@ -306,9 +328,11 @@ export class NewsFeedVideoCardComponent {
   bookmarked = output<void>();
   dismissed = output<void>();
   analyzed = output<void>();
+  newIdea = output<NewsFeedItem>();
 
   readonly thumbError = signal(false);
   readonly showSummary = signal(false);
+  readonly copied = signal(false);
   readonly categoryColor = computed(() => CATEGORY_COLORS[this.item().sourceCategory ?? ''] ?? '#6b7280');
   readonly categoryIcon = computed(() => CATEGORY_ICONS[this.item().sourceCategory ?? ''] ?? 'pi pi-th-large');
   readonly scoreLevel = computed(() => {
@@ -329,5 +353,24 @@ export class NewsFeedVideoCardComponent {
   openLink() {
     const url = this.item().url;
     if (url) window.open(url, '_blank', 'noopener,noreferrer');
+  }
+
+  copyPrompt() {
+    const i = this.item();
+    const prompt = [
+      `# ${i.title}`,
+      '',
+      `**Source:** ${i.sourceName ?? i.source} (${i.sourceCategory ?? 'Uncategorized'})`,
+      `**Topic:** ${i.topic}`,
+      `**Relevance:** ${Math.round(i.relevanceScore * 100)}%`,
+      i.url ? `**URL:** ${i.url}` : '',
+      '',
+      '## Analysis',
+      i.summary ?? '',
+    ].filter(Boolean).join('\n');
+
+    navigator.clipboard.writeText(prompt);
+    this.copied.set(true);
+    setTimeout(() => this.copied.set(false), 2000);
   }
 }
