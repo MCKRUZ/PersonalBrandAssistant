@@ -8,3 +8,4 @@ export * from './workflow.model';
 export * from './agent.model';
 export * from './notification.model';
 export * from './sidecar.model';
+export * from './automation.model';

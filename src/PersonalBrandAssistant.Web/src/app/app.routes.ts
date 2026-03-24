@@ -59,10 +59,10 @@ export const routes: Routes = [
       ),
   },
   {
-    path: 'oauth/callback',
-    loadComponent: () =>
-      import('./features/platforms/components/oauth-callback.component').then(
-        (m) => m.OAuthCallbackComponent
+    path: 'automation',
+    loadChildren: () =>
+      import('./features/automation/automation.routes').then(
+        (m) => m.AUTOMATION_ROUTES
       ),
   },
   { path: '**', redirectTo: 'dashboard' },
