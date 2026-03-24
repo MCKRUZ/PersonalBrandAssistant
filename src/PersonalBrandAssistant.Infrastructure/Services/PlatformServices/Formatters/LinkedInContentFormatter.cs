@@ -18,6 +18,12 @@ public sealed class LinkedInContentFormatter : IPlatformContentFormatter
             return Result.ValidationFailure<PlatformContent>(["LinkedIn post body cannot be empty"]);
         }
 
+        var imageError = FormatterHelpers.ValidateImageRequirement(content);
+        if (imageError is not null)
+        {
+            return Result.ValidationFailure<PlatformContent>([imageError]);
+        }
+
         var text = content.Body.Trim();
 
         // Append tags not already present inline
@@ -41,6 +47,6 @@ public sealed class LinkedInContentFormatter : IPlatformContentFormatter
 
         return Result.Success(new PlatformContent(
             text, content.Title, content.ContentType,
-            Array.Empty<MediaFile>(), FormatterHelpers.EmptyMetadata));
+            FormatterHelpers.BuildMediaList(content), FormatterHelpers.EmptyMetadata));
     }
 }

@@ -24,6 +24,12 @@ public sealed class YouTubeContentFormatter : IPlatformContentFormatter
             return Result.ValidationFailure<PlatformContent>(["YouTube video requires a description"]);
         }
 
+        var imageError = FormatterHelpers.ValidateImageRequirement(content);
+        if (imageError is not null)
+        {
+            return Result.ValidationFailure<PlatformContent>([imageError]);
+        }
+
         var title = FormatterHelpers.SafeTruncate(content.Title.Trim(), MaxTitleLength);
         var description = FormatterHelpers.SafeTruncate(content.Body.Trim(), MaxDescriptionLength);
 
@@ -36,6 +42,6 @@ public sealed class YouTubeContentFormatter : IPlatformContentFormatter
 
         return Result.Success(new PlatformContent(
             description, title, content.ContentType,
-            Array.Empty<MediaFile>(), FormatterHelpers.ToReadOnly(metadata)));
+            FormatterHelpers.BuildMediaList(content), FormatterHelpers.ToReadOnly(metadata)));
     }
 }

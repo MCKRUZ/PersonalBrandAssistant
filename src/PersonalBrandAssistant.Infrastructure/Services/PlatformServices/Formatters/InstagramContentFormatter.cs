@@ -20,7 +20,13 @@ public sealed class InstagramContentFormatter : IPlatformContentFormatter
             return Result.ValidationFailure<PlatformContent>(["Instagram caption cannot be empty"]);
         }
 
-        if (!HasMedia(content))
+        var imageError = FormatterHelpers.ValidateImageRequirement(content);
+        if (imageError is not null)
+        {
+            return Result.ValidationFailure<PlatformContent>([imageError]);
+        }
+
+        if (!HasMedia(content) && string.IsNullOrWhiteSpace(content.ImageFileId))
         {
             return Result.ValidationFailure<PlatformContent>(
                 ["Instagram requires at least one media attachment"]);
@@ -54,7 +60,7 @@ public sealed class InstagramContentFormatter : IPlatformContentFormatter
 
         return Result.Success(new PlatformContent(
             caption, content.Title, content.ContentType,
-            Array.Empty<MediaFile>(), FormatterHelpers.EmptyMetadata));
+            FormatterHelpers.BuildMediaList(content), FormatterHelpers.EmptyMetadata));
     }
 
     private static bool HasMedia(Content content) =>

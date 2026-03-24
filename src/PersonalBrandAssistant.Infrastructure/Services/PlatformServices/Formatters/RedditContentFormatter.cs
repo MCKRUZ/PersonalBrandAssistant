@@ -18,6 +18,12 @@ public sealed class RedditContentFormatter : IPlatformContentFormatter
             return Result.ValidationFailure<PlatformContent>(["Post body cannot be empty"]);
         }
 
+        var imageError = FormatterHelpers.ValidateImageRequirement(content);
+        if (imageError is not null)
+        {
+            return Result.ValidationFailure<PlatformContent>([imageError]);
+        }
+
         var title = content.Title?.Trim();
         if (title is not null && title.Length > MaxTitleLength)
         {
@@ -34,6 +40,6 @@ public sealed class RedditContentFormatter : IPlatformContentFormatter
 
         return Result.Success(new PlatformContent(
             text, title, content.ContentType,
-            Array.Empty<MediaFile>(), FormatterHelpers.EmptyMetadata));
+            FormatterHelpers.BuildMediaList(content), FormatterHelpers.EmptyMetadata));
     }
 }

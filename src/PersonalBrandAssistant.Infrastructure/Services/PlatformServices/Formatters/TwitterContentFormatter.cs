@@ -18,6 +18,12 @@ public sealed class TwitterContentFormatter : IPlatformContentFormatter
             return Result.ValidationFailure<PlatformContent>(["Tweet body cannot be empty"]);
         }
 
+        var imageError = FormatterHelpers.ValidateImageRequirement(content);
+        if (imageError is not null)
+        {
+            return Result.ValidationFailure<PlatformContent>([imageError]);
+        }
+
         var text = content.Body.Trim();
         var hashtags = FormatHashtags(content.Metadata.Tags);
 
@@ -26,7 +32,7 @@ public sealed class TwitterContentFormatter : IPlatformContentFormatter
             var single = AppendHashtags(text, hashtags);
             return Result.Success(new PlatformContent(
                 single, content.Title, content.ContentType,
-                Array.Empty<MediaFile>(), FormatterHelpers.EmptyMetadata));
+                FormatterHelpers.BuildMediaList(content), FormatterHelpers.EmptyMetadata));
         }
 
         return BuildThread(text, hashtags, content);
@@ -117,7 +123,7 @@ public sealed class TwitterContentFormatter : IPlatformContentFormatter
 
         return Result.Success(new PlatformContent(
             parts[0], content.Title, content.ContentType,
-            Array.Empty<MediaFile>(), FormatterHelpers.ToReadOnly(metadata)));
+            FormatterHelpers.BuildMediaList(content), FormatterHelpers.ToReadOnly(metadata)));
     }
 
     private static int EstimatePartCount(List<string> sentences)

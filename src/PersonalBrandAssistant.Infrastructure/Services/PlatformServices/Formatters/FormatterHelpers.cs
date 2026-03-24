@@ -1,9 +1,30 @@
 using System.Collections.ObjectModel;
+using PersonalBrandAssistant.Application.Common.Models;
+using PersonalBrandAssistant.Domain.Entities;
 
 namespace PersonalBrandAssistant.Infrastructure.Services.PlatformServices.Formatters;
 
 internal static class FormatterHelpers
 {
+    internal static IReadOnlyList<MediaFile> BuildMediaList(Content content)
+    {
+        if (string.IsNullOrWhiteSpace(content.ImageFileId))
+            return Array.Empty<MediaFile>();
+
+        var altText = content.Metadata.PlatformSpecificData
+            .GetValueOrDefault("imageAltText");
+
+        return [new MediaFile(content.ImageFileId, "image/png", altText)];
+    }
+
+    internal static string? ValidateImageRequirement(Content content)
+    {
+        if (content.ImageRequired && string.IsNullOrWhiteSpace(content.ImageFileId))
+            return "Post requires an image but none is attached";
+
+        return null;
+    }
+
     /// <summary>
     /// Truncates text to maxLength, avoiding mid-surrogate splits.
     /// Appends "..." if truncation occurred.
