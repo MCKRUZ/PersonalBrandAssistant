@@ -55,6 +55,9 @@ public class ContentConfiguration : IEntityTypeConfiguration<Content>
             .IsUnique()
             .HasFilter("\"ParentContentId\" IS NOT NULL");
 
+        builder.Property(c => c.ImageFileId).HasMaxLength(500);
+        builder.Property(c => c.ImageRequired).IsRequired().HasDefaultValue(false);
+
         builder.Ignore(c => c.DomainEvents);
     }
 }

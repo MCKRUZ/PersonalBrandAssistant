@@ -42,6 +42,8 @@ public class Content : AuditableEntityBase
     public int TreeDepth { get; set; }
     public PlatformType? RepurposeSourcePlatform { get; set; }
     public uint Version { get; set; }
+    public string? ImageFileId { get; set; }
+    public bool ImageRequired { get; set; }
 
     public static Content Create(
         ContentType type,

@@ -9,5 +9,9 @@ public enum NotificationType
     ContentFailed,
     PlatformDisconnected,
     PlatformTokenExpiring,
-    PlatformScopeMismatch
+    PlatformScopeMismatch,
+    AutomationImageFailed,
+    AutomationPipelineCompleted,
+    AutomationNoTrends,
+    AutomationConsecutiveFailure,
 }

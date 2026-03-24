@@ -179,4 +179,20 @@ public static class TestEntityFactory
             stepType,
             content,
             tokensUsed);
+
+    public static AutomationRun CreateAutomationRun() => AutomationRun.Create();
+
+    public static AutomationRun CreateCompletedAutomationRun(long durationMs = 5000)
+    {
+        var run = AutomationRun.Create();
+        run.Complete(durationMs);
+        return run;
+    }
+
+    public static AutomationRun CreateFailedAutomationRun(string error = "Test error", long durationMs = 1000)
+    {
+        var run = AutomationRun.Create();
+        run.Fail(error, durationMs);
+        return run;
+    }
 }

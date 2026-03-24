@@ -18,6 +18,7 @@ using PersonalBrandAssistant.Infrastructure.Services.PlatformServices.Adapters;
 using PersonalBrandAssistant.Infrastructure.Services.ContentServices.TrendPollers;
 using PersonalBrandAssistant.Infrastructure.Services.PlatformServices.Formatters;
 using PersonalBrandAssistant.Infrastructure.Services.IntegrationServices;
+using PersonalBrandAssistant.Infrastructure.Services.ContentAutomation;
 using PersonalBrandAssistant.Infrastructure.Services.SocialServices;
 
 namespace PersonalBrandAssistant.Infrastructure;
@@ -231,6 +232,16 @@ public static class DependencyInjection
         // Social engagement background services
         services.AddHostedService<EngagementScheduler>();
         services.AddHostedService<InboxPoller>();
+
+        // Content automation
+        services.Configure<ContentAutomationOptions>(
+            configuration.GetSection(ContentAutomationOptions.SectionName));
+        services.AddScoped<IDailyContentOrchestrator, DailyContentOrchestratorStub>();
+        services.AddSingleton<IComfyUiClient, ComfyUiClientStub>();
+        services.AddScoped<IImageGenerationService, ImageGenerationServiceStub>();
+        services.AddScoped<IImagePromptService, ImagePromptServiceStub>();
+        services.AddSingleton<IImageResizer, ImageResizerStub>();
+        services.AddHostedService<DailyContentProcessorStub>();
 
         services.AddHealthChecks()
             .AddDbContextCheck<ApplicationDbContext>();

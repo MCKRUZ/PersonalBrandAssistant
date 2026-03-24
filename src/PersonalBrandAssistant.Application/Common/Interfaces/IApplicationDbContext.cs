@@ -32,6 +32,7 @@ public interface IApplicationDbContext
     DbSet<EngagementAction> EngagementActions { get; }
     DbSet<SocialInboxItem> SocialInboxItems { get; }
     DbSet<OpportunityAction> OpportunityActions { get; }
+    DbSet<AutomationRun> AutomationRuns { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

@@ -36,6 +36,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<EngagementAction> EngagementActions => Set<EngagementAction>();
     public DbSet<SocialInboxItem> SocialInboxItems => Set<SocialInboxItem>();
     public DbSet<OpportunityAction> OpportunityActions => Set<OpportunityAction>();
+    public DbSet<AutomationRun> AutomationRuns => Set<AutomationRun>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
