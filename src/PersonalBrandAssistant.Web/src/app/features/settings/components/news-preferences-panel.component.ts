@@ -59,7 +59,7 @@ import { NewsService } from '../../news/services/news.service';
             <span style="font-size: 0.85rem;">Max articles per refresh</span>
             <span style="font-size: 0.85rem; color: rgba(255,255,255,0.5);">{{ maxSuggestionsPerCycle }}</span>
           </div>
-          <p-slider [(ngModel)]="maxSuggestionsPerCycle" [min]="1" [max]="100" [step]="1" />
+          <p-slider [(ngModel)]="maxSuggestionsPerCycle" [min]="1" [max]="1000" [step]="10" />
         </div>
 
         <p-button

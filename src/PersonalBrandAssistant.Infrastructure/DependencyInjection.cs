@@ -1,8 +1,13 @@
+using System.Net;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Http.Resilience;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Polly;
 using PersonalBrandAssistant.Application.Common.Interfaces;
 using PersonalBrandAssistant.Application.Common.Models;
 using PersonalBrandAssistant.Infrastructure.Agents;
@@ -137,6 +142,14 @@ public static class DependencyInjection
         // Singleton services
         services.AddSingleton(TimeProvider.System);
         services.AddMemoryCache();
+        services.AddHybridCache(options =>
+        {
+            options.DefaultEntryOptions = new HybridCacheEntryOptions
+            {
+                Expiration = TimeSpan.FromMinutes(30),
+                LocalCacheExpiration = TimeSpan.FromMinutes(5)
+            };
+        });
         services.AddSingleton<IMediaStorage, LocalMediaStorage>();
 
         // Platform adapters with typed HttpClients
@@ -239,9 +252,28 @@ public static class DependencyInjection
             configuration.GetSection(SubstackOptions.SectionName));
         services.AddHttpClient<ISubstackService, SubstackService>(client =>
         {
-            client.Timeout = TimeSpan.FromSeconds(10);
+            client.Timeout = Timeout.InfiniteTimeSpan; // Polly handles timeouts
             client.DefaultRequestHeaders.UserAgent.ParseAdd(
                 "PersonalBrandAssistant/1.0 (+https://github.com/MCKRUZ/personal-brand-assistant)");
+        })
+        .AddStandardResilienceHandler(options =>
+        {
+            options.Retry.MaxRetryAttempts = 2;
+            options.Retry.UseJitter = true;
+            options.Retry.BackoffType = DelayBackoffType.Exponential;
+            options.Retry.ShouldHandle = args => ValueTask.FromResult(
+                args.Outcome.Result?.StatusCode is HttpStatusCode.TooManyRequests
+                or HttpStatusCode.ServiceUnavailable
+                or HttpStatusCode.InternalServerError
+                or HttpStatusCode.BadGateway
+                or HttpStatusCode.GatewayTimeout
+                || args.Outcome.Exception is HttpRequestException or TaskCanceledException);
+            options.CircuitBreaker.FailureRatio = 1.0;
+            options.CircuitBreaker.SamplingDuration = TimeSpan.FromSeconds(30);
+            options.CircuitBreaker.MinimumThroughput = 3;
+            options.CircuitBreaker.BreakDuration = TimeSpan.FromSeconds(30);
+            options.AttemptTimeout.Timeout = TimeSpan.FromSeconds(10);
+            options.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(30);
         });
 
         // Google Analytics / Search Console
@@ -276,7 +308,19 @@ public static class DependencyInjection
             return new SearchConsoleClientWrapper(service);
         });
         services.AddScoped<IGoogleAnalyticsService, GoogleAnalyticsService>();
-        services.AddScoped<IDashboardAggregator, DashboardAggregator>();
+        services.AddSingleton<DashboardRefreshLimiter>();
+        services.AddScoped<DashboardAggregator>();
+        services.AddScoped<CachedDashboardAggregator>(sp =>
+            new CachedDashboardAggregator(
+                sp.GetRequiredService<DashboardAggregator>(),
+                sp.GetRequiredService<Microsoft.Extensions.Caching.Hybrid.HybridCache>(),
+                sp.GetRequiredService<DashboardRefreshLimiter>(),
+                sp.GetRequiredService<ILogger<CachedDashboardAggregator>>(),
+                sp.GetRequiredService<TimeProvider>()));
+        services.AddScoped<IDashboardAggregator>(sp =>
+            sp.GetRequiredService<CachedDashboardAggregator>());
+        services.AddScoped<IDashboardCacheInvalidator>(sp =>
+            sp.GetRequiredService<CachedDashboardAggregator>());
 
         // Content automation
         services.Configure<ContentAutomationOptions>(

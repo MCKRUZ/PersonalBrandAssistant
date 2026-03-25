@@ -40,16 +40,28 @@ public sealed class ArticleAnalyzer : IArticleAnalyzer
                 "TrendItem has no URL to analyze");
 
         var scrapeResult = await _scraper.ScrapeAsync(trendItem.Url, ct);
-        if (!scrapeResult.IsSuccess)
-            return Result<AnalysisResult>.Failure(scrapeResult.ErrorCode, scrapeResult.Errors.ToArray());
+        string scrapedContent;
+        if (scrapeResult.IsSuccess)
+        {
+            var scrape = scrapeResult.Value!;
+            scrapedContent = scrape.Markdown;
 
-        var scrape = scrapeResult.Value!;
+            // Backfill thumbnail from OG image if not already set
+            if (string.IsNullOrEmpty(trendItem.ThumbnailUrl) && !string.IsNullOrEmpty(scrape.ImageUrl))
+                trendItem.ThumbnailUrl = scrape.ImageUrl.Length <= 500 ? scrape.ImageUrl : scrape.ImageUrl[..500];
+        }
+        else
+        {
+            // Scrape failed (timeout, JS-heavy page, blocked, etc.) — fall back to metadata-only analysis
+            _logger.LogInformation(
+                "Scrape failed for TrendItem {Id} ({Url}), falling back to metadata: {Error}",
+                trendItemId, trendItem.Url, scrapeResult.Errors.FirstOrDefault());
 
-        // Backfill thumbnail from OG image if not already set
-        if (string.IsNullOrEmpty(trendItem.ThumbnailUrl) && !string.IsNullOrEmpty(scrape.ImageUrl))
-            trendItem.ThumbnailUrl = scrape.ImageUrl.Length <= 500 ? scrape.ImageUrl : scrape.ImageUrl[..500];
+            scrapedContent = $"[Full article could not be retrieved: {scrapeResult.Errors.FirstOrDefault()}]\n\n" +
+                             $"Description: {trendItem.Description ?? "(none available)"}";
+        }
 
-        var prompt = BuildAnalysisPrompt(trendItem.Title, trendItem.SourceName, scrape.Markdown);
+        var prompt = BuildAnalysisPrompt(trendItem.Title, trendItem.SourceName, scrapedContent);
 
         var (analysis, error) = await ConsumeEventStreamAsync(prompt, ct);
         if (error is not null)

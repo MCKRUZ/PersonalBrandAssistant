@@ -278,53 +278,96 @@ public sealed class SocialEngagementService : ISocialEngagementService
     public async Task<Result<IReadOnlyList<DiscoveredOpportunity>>> DiscoverOpportunitiesAsync(
         CancellationToken ct)
     {
-        var enabledTasks = await _db.EngagementTasks
-            .Where(t => t.IsEnabled)
-            .ToListAsync(ct);
+        // Time-based subreddit rotation matching the Jarvis run cadence (Eastern time)
+        // Use UTC-5 offset to approximate Eastern time (±1h for DST — close enough for rotation)
+        var hour = (int)((_dateTime.UtcNow.Hour - 5 + 24) % 24);
 
-        if (enabledTasks.Count == 0)
-            return Result.Success<IReadOnlyList<DiscoveredOpportunity>>(Array.Empty<DiscoveredOpportunity>());
+        var subreddits = hour switch
+        {
+            >= 7  and < 10 => new[] { "dotnet", "csharp", "ClaudeCode", "selfhosted" },
+            >= 10 and < 14 => new[] { "azure", "ClaudeCode", "comfyui", "homelab" },
+            >= 14 and < 18 => new[] { "csharp", "semantickernel", "ClaudeCode", "selfhosted" },
+            >= 18 and < 21 => new[] { "azure", "MicrosoftAI", "comfyui", "homelab" },
+            _              => new[] { "ClaudeCode", "csharp", "selfhosted", "comfyui" },
+        };
 
-        var keywords = await _db.InterestKeywords.ToListAsync(ct);
+        var redditAdapter = _adapters.FirstOrDefault(a => a.Platform == PlatformType.Reddit);
+        if (redditAdapter is null)
+            return Result.Failure<IReadOnlyList<DiscoveredOpportunity>>(
+                ErrorCode.InternalError, "Reddit adapter not registered");
+
+        var criteriaJson = JsonSerializer.Serialize(new
+        {
+            subreddits,
+            sort = "new",
+            keywords = Array.Empty<string>(), // we filter ourselves below
+        });
+
+        var postsResult = await redditAdapter.FindRelevantPostsAsync(criteriaJson, 80, ct);
+        if (!postsResult.IsSuccess)
+            return Result.Failure<IReadOnlyList<DiscoveredOpportunity>>(
+                postsResult.ErrorCode, postsResult.Errors.ToArray());
 
         var excludedUrls = await _db.OpportunityActions
             .Where(oa => oa.Status == OpportunityStatus.Dismissed || oa.Status == OpportunityStatus.Engaged)
             .Select(oa => oa.PostUrl)
-            .ToListAsync(ct);
-        var excludedSet = excludedUrls.ToHashSet();
+            .ToHashSetAsync(ct);
 
+        var keywords = await _db.InterestKeywords.ToListAsync(ct);
+        var cutoff = _dateTime.UtcNow.AddHours(-4);
         var opportunities = new List<DiscoveredOpportunity>();
-        var seenUrls = new HashSet<string>();
 
-        foreach (var task in enabledTasks)
+        foreach (var post in postsResult.Value!)
         {
-            var adapter = _adapters.FirstOrDefault(a => a.Platform == task.Platform);
-            if (adapter is null) continue;
+            // Must be fresh (under 4 hours)
+            if (post.CreatedAt < cutoff) continue;
 
-            var postsResult = await adapter.FindRelevantPostsAsync(task.TargetCriteria, 10, ct);
-            if (!postsResult.IsSuccess) continue;
+            // Low-saturation threads only (0-8 comments)
+            if (post.CommentsCount > 8) continue;
 
-            foreach (var target in postsResult.Value!)
-            {
-                if (excludedSet.Contains(target.PostUrl) || !seenUrls.Add(target.PostUrl))
-                    continue;
+            // Must be a question or help request
+            if (!IsQuestion(post.Title, post.Content)) continue;
 
-                var (impactScore, category) = ScoreOpportunity(target.Title, target.Content, keywords);
+            // Not already acted on
+            if (excludedUrls.Contains(post.PostUrl)) continue;
 
-                opportunities.Add(new DiscoveredOpportunity(
-                    target.PostId,
-                    target.PostUrl,
-                    target.Title.Length > 100 ? target.Title[..100] : target.Title,
-                    target.Content.Length > 200 ? target.Content[..200] : target.Content,
-                    target.Community,
-                    task.Platform.ToString(),
-                    _dateTime.UtcNow,
-                    impactScore,
-                    category));
-            }
+            var (impactScore, category) = ScoreOpportunity(post.Title, post.Content, keywords);
+
+            opportunities.Add(new DiscoveredOpportunity(
+                PostId: post.PostId,
+                PostUrl: post.PostUrl,
+                Title: post.Title.Length > 100 ? post.Title[..100] : post.Title,
+                ContentPreview: post.Content.Length > 200 ? post.Content[..200] : post.Content,
+                Community: $"r/{post.Community}",
+                Platform: "Reddit",
+                DiscoveredAt: post.CreatedAt,
+                ImpactScore: impactScore,
+                Category: category));
         }
 
-        return Result.Success<IReadOnlyList<DiscoveredOpportunity>>(opportunities.AsReadOnly());
+        var sorted = opportunities
+            .OrderByDescending(o => o.ImpactScore == "High" ? 1 : 0)
+            .ThenByDescending(o => o.DiscoveredAt)
+            .ToList();
+
+        return Result.Success<IReadOnlyList<DiscoveredOpportunity>>(sorted.AsReadOnly());
+    }
+
+    private static bool IsQuestion(string title, string content)
+    {
+        if (title.TrimEnd().EndsWith('?')) return true;
+
+        var lower = title.ToLowerInvariant();
+        string[] questionPrefixes = ["how ", "why ", "what ", "when ", "is it ", "is there ",
+            "can i ", "can you ", "should i ", "does ", "do i ", "am i ", "help with ",
+            "help me ", "struggling ", "anyone ", "has anyone ", "anyone know"];
+
+        if (questionPrefixes.Any(p => lower.StartsWith(p))) return true;
+
+        // Body has a question
+        if (content.Contains('?')) return true;
+
+        return false;
     }
 
     public async Task<Result<EngagementAction>> EngageSingleAsync(

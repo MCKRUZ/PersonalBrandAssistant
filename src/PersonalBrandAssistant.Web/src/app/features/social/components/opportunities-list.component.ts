@@ -29,7 +29,7 @@ import { LoadingSpinnerComponent } from '../../../shared/components/loading-spin
         icon="pi pi-search"
         [loading]="store.discovering()"
         (onClick)="discover()"
-        pTooltip="Scan all platforms for engagement opportunities"
+        pTooltip="Find engagement opportunities from your monitored sources"
       />
       <p-select
         [options]="platformOptions"
@@ -106,13 +106,13 @@ import { LoadingSpinnerComponent } from '../../../shared/components/loading-spin
         <app-empty-state
           icon="pi pi-info-circle"
           title="No opportunities found"
-          message="No posts matched your criteria. Make sure at least one engagement task is enabled in the Automation tab, then try again."
+          message="No recent trend items matched your interest keywords. Make sure the trend monitor has sources configured."
         />
       } @else {
         <app-empty-state
           icon="pi pi-compass"
           title="No opportunities yet"
-          message="Click Discover to find engagement opportunities across your enabled platforms."
+          message="Click Discover to surface engagement opportunities from your monitored sources."
         />
       }
     } @else {

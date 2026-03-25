@@ -25,6 +25,10 @@ public class ContentPlatformStatusConfiguration : IEntityTypeConfiguration<Conte
         builder.HasIndex(c => new { c.ContentId, c.Platform });
         builder.HasIndex(c => c.IdempotencyKey).IsUnique();
 
+        // Dashboard query index: count published content per platform in a date range
+        builder.HasIndex(c => new { c.PublishedAt, c.Platform })
+            .HasFilter("\"PublishedAt\" IS NOT NULL");
+
         builder.HasOne<Content>()
             .WithMany()
             .HasForeignKey(c => c.ContentId)

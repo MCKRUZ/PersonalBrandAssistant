@@ -24,7 +24,16 @@ services:
       - ./src:/src
     environment:
       ASPNETCORE_ENVIRONMENT: Development
-      ApiKey: pba-dev-key
+      ApiKey: pba-dev-write-key
+      ApiKeys__ReadonlyKey: pba-dev-readonly-key
+      ApiKeys__WriteKey: pba-dev-write-key
+      PlatformIntegrations__Reddit__ClientId: ${REDDIT_CLIENT_ID:-}
+      PlatformIntegrations__Reddit__ClientSecret: ${REDDIT_CLIENT_SECRET:-}
+      PlatformIntegrations__Reddit__Username: ${REDDIT_USERNAME:-}
+      PlatformIntegrations__Reddit__Password: ${REDDIT_PASSWORD:-}
+      PlatformIntegrations__Reddit__UserAgent: ${REDDIT_USER_AGENT:-pba/1.0}
+      PlatformIntegrations__LinkedIn__ClientId: ${LINKEDIN_CLIENT_ID:-}
+      PlatformIntegrations__LinkedIn__ClientSecret: ${LINKEDIN_CLIENT_SECRET:-}
     command: ["dotnet", "watch", "run", "--project", "/src/PersonalBrandAssistant.Api/PersonalBrandAssistant.Api.csproj", "--urls", "http://+:8080"]
 
   web:

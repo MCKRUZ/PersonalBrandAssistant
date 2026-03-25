@@ -53,7 +53,11 @@ export const SidecarStore = signalStore(
         timeline: [...store.timeline(), userEntry],
         lastError: null,
       });
-      wsService.send({ type: 'send-message', payload: { message: trimmed } });
+      const sid = store.activeSessionId();
+      wsService.send({
+        type: 'send-message',
+        payload: sid ? { message: trimmed, sessionId: sid } : { message: trimmed },
+      });
     },
 
     newSession(): void {
@@ -73,11 +77,18 @@ export const SidecarStore = signalStore(
       pipe(
         tap((msg) => {
           switch (msg.type) {
-            case 'chat-event':
-              patchState(store, {
-                timeline: [...store.timeline(), { kind: 'event', event: msg.payload }],
-              });
+            case 'chat-event': {
+              // Suppress background LLM task output (scoring JSON, etc.)
+              // that bleeds through the shared sidecar broadcast bus.
+              const c = msg.payload.content?.trim() ?? '';
+              const isBackgroundJson = c.startsWith('[{') && c.includes('"score"');
+              if (!isBackgroundJson) {
+                patchState(store, {
+                  timeline: [...store.timeline(), { kind: 'event', event: msg.payload }],
+                });
+              }
               break;
+            }
             case 'status':
               patchState(store, {
                 isRunning: msg.payload.isRunning,
@@ -88,7 +99,7 @@ export const SidecarStore = signalStore(
               patchState(store, { activeSessionId: msg.payload.sessionId });
               break;
             case 'session-update':
-              patchState(store, { activeSessionId: msg.payload.id });
+              patchState(store, { activeSessionId: msg.payload.sessionId });
               break;
             case 'error':
               patchState(store, { lastError: msg.payload.message });

@@ -18,7 +18,9 @@ public record EngagementTarget(
     string PostUrl,
     string Title,
     string Content,
-    string Community);
+    string Community,
+    int CommentsCount = 0,
+    DateTimeOffset CreatedAt = default);
 
 public record InboxEntry(
     string PlatformItemId,

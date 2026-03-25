@@ -2,7 +2,7 @@ export type ContentStatus = 'Draft' | 'Review' | 'Approved' | 'Scheduled' | 'Pub
 
 export type ContentType = 'BlogPost' | 'SocialPost' | 'Thread' | 'VideoDescription';
 
-export type PlatformType = 'TwitterX' | 'LinkedIn' | 'Instagram' | 'YouTube' | 'Reddit';
+export type PlatformType = 'TwitterX' | 'LinkedIn' | 'Instagram' | 'YouTube' | 'Reddit' | 'PersonalBlog' | 'Substack';
 
 export type AutonomyLevel = 'Manual' | 'Assisted' | 'SemiAuto' | 'Autonomous';
 

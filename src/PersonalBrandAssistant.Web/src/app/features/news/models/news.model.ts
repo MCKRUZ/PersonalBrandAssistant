@@ -117,6 +117,8 @@ export interface NewsFeedFilters {
   readonly maxAgeHours: number;
   readonly minRelevance: number;
   readonly searchQuery: string;
+  readonly showSavedOnly: boolean;
+  readonly showAnalyzedOnly: boolean;
 }
 
 export const SOURCE_COLORS: Record<string, string> = {

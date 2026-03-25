@@ -12,15 +12,19 @@ import { LoadingSpinnerComponent } from '../../shared/components/loading-spinner
 import { StatusBadgeComponent } from '../../shared/components/status-badge/status-badge.component';
 import { PlatformChipComponent } from '../../shared/components/platform-chip/platform-chip.component';
 import { RelativeTimePipe } from '../../shared/pipes/relative-time.pipe';
+import { ConfirmationService, MessageService } from 'primeng/api';
+import { ConfirmDialog } from 'primeng/confirmdialog';
+import { Toast } from 'primeng/toast';
 import { ContentPipelineDialogComponent } from './components/content-pipeline-dialog.component';
 import { ContentStore } from './store/content.store';
+import { ContentService } from './services/content.service';
 import { ContentStatus, ContentType, Content } from '../../shared/models';
 
 @Component({
   selector: 'app-content-list',
   standalone: true,
   imports: [
-    CommonModule, FormsModule, TableModule, ButtonModule, Select, Tag,
+    CommonModule, FormsModule, TableModule, ButtonModule, Select, Tag, ConfirmDialog, Toast,
     PageHeaderComponent, EmptyStateComponent, LoadingSpinnerComponent,
     StatusBadgeComponent, PlatformChipComponent, RelativeTimePipe,
     ContentPipelineDialogComponent,
@@ -84,6 +88,7 @@ import { ContentStatus, ContentType, Content } from '../../shared/models';
             <td>
               <p-button icon="pi pi-eye" [text]="true" (onClick)="viewContent(item); $event.stopPropagation()" />
               <p-button icon="pi pi-pencil" [text]="true" (onClick)="editContent(item); $event.stopPropagation()" />
+              <p-button icon="pi pi-trash" [text]="true" severity="danger" (onClick)="deleteContent(item); $event.stopPropagation()" />
             </td>
           </tr>
         </ng-template>
@@ -95,11 +100,17 @@ import { ContentStatus, ContentType, Content } from '../../shared/models';
         </div>
       }
     }
+    <p-confirmDialog />
+    <p-toast />
   `,
   styles: `.cursor-pointer { cursor: pointer; }`,
+  providers: [ConfirmationService, MessageService],
 })
 export class ContentListComponent implements OnInit {
   private readonly router = inject(Router);
+  private readonly contentService = inject(ContentService);
+  private readonly confirmationService = inject(ConfirmationService);
+  private readonly messageService = inject(MessageService);
   readonly store = inject(ContentStore);
 
   @ViewChild('pipelineDialog') pipelineDialog!: ContentPipelineDialogComponent;
@@ -143,5 +154,25 @@ export class ContentListComponent implements OnInit {
 
   editContent(item: Content) {
     this.router.navigate(['/content', item.id, 'edit']);
+  }
+
+  deleteContent(item: Content) {
+    this.confirmationService.confirm({
+      message: `Delete "${item.title || 'Untitled'}"? This cannot be undone.`,
+      header: 'Delete Content',
+      icon: 'pi pi-trash',
+      acceptButtonStyleClass: 'p-button-danger',
+      accept: () => {
+        this.contentService.remove(item.id).subscribe({
+          next: () => {
+            this.messageService.add({ severity: 'success', summary: 'Deleted' });
+            this.store.loadContent({ status: this.statusFilter, contentType: this.typeFilter });
+          },
+          error: () => {
+            this.messageService.add({ severity: 'error', summary: 'Failed to delete content' });
+          },
+        });
+      },
+    });
   }
 }

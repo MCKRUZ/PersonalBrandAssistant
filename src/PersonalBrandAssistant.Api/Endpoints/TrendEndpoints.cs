@@ -42,7 +42,7 @@ public static class TrendEndpoints
         int limit = 20,
         CancellationToken ct = default)
     {
-        var clampedLimit = Math.Clamp(limit, 1, 100);
+        var clampedLimit = Math.Clamp(limit, 1, 1000);
         var result = await monitor.GetSuggestionsAsync(clampedLimit, ct);
         if (!result.IsSuccess)
             return result.ToHttpResult();
@@ -317,8 +317,8 @@ public static class TrendEndpoints
         if (request.RelevanceScoreThreshold < 0f || request.RelevanceScoreThreshold > 1f)
             return Results.BadRequest("RelevanceScoreThreshold must be between 0.0 and 1.0.");
 
-        if (request.MaxSuggestionsPerCycle < 1 || request.MaxSuggestionsPerCycle > 100)
-            return Results.BadRequest("MaxSuggestionsPerCycle must be between 1 and 100.");
+        if (request.MaxSuggestionsPerCycle < 1 || request.MaxSuggestionsPerCycle > 1000)
+            return Results.BadRequest("MaxSuggestionsPerCycle must be between 1 and 1000.");
 
         var settings = await db.TrendSettings.FirstOrDefaultAsync(ct);
         if (settings is null)

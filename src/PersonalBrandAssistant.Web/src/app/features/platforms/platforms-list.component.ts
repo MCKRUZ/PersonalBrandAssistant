@@ -69,7 +69,14 @@ export class PlatformsListComponent implements OnInit {
         this.store.setConnecting(false);
         window.location.href = response.authUrl;
       },
-      error: () => this.store.setConnecting(false),
+      error: () => {
+        this.store.setConnecting(false);
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Connection Failed',
+          detail: `Could not connect to ${platform.displayName}. Check that OAuth credentials are configured.`,
+        });
+      },
     });
   }
 

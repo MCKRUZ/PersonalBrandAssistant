@@ -172,16 +172,19 @@ public sealed class RedditPlatformAdapter : PlatformAdapterBase, ISocialEngageme
 
         var targets = new List<EngagementTarget>();
 
+        var tokenResult = await GetAccessTokenAsync(ct);
+        if (!tokenResult.IsSuccess)
+            return Result.Failure<IReadOnlyList<EngagementTarget>>(ErrorCode.Unauthorized, "Reddit not authenticated");
+        var accessToken = tokenResult.Value!;
+
         foreach (var subreddit in criteria.Subreddits)
         {
             if (targets.Count >= maxResults) break;
 
-            var sort = criteria.Sort ?? "hot";
+            var sort = criteria.Sort ?? "new";
             using var request = new HttpRequestMessage(HttpMethod.Get,
-                $"/r/{subreddit}/{sort}?limit={Math.Min(maxResults - targets.Count, 10)}&raw_json=1");
-
-            var tokenResult = await GetProfileAsync(ct);
-            if (!tokenResult.IsSuccess) continue;
+                $"/r/{subreddit}/{sort}?limit=20&raw_json=1");
+            request.Headers.Authorization = new("Bearer", accessToken);
 
             var response = await _httpClient.SendAsync(request, ct);
             if (!response.IsSuccessStatusCode) continue;
@@ -205,12 +208,19 @@ public sealed class RedditPlatformAdapter : PlatformAdapterBase, ISocialEngageme
                     continue;
                 }
 
+                var numComments = post.TryGetProperty("num_comments", out var nc) ? nc.GetInt32() : 0;
+                var createdUtc = post.TryGetProperty("created_utc", out var cu)
+                    ? DateTimeOffset.FromUnixTimeSeconds((long)cu.GetDouble())
+                    : DateTimeOffset.UtcNow;
+
                 targets.Add(new EngagementTarget(
                     PostId: $"t3_{post.GetProperty("id").GetString()}",
                     PostUrl: $"https://reddit.com{post.GetProperty("permalink").GetString()}",
                     Title: title,
                     Content: selftext.Length > 500 ? selftext[..500] : selftext,
-                    Community: subreddit));
+                    Community: subreddit,
+                    CommentsCount: numComments,
+                    CreatedAt: createdUtc));
             }
         }
 
@@ -219,7 +229,12 @@ public sealed class RedditPlatformAdapter : PlatformAdapterBase, ISocialEngageme
 
     public async Task<Result<string>> PostCommentAsync(string postId, string text, CancellationToken ct)
     {
+        var tokenResult = await GetAccessTokenAsync(ct);
+        if (!tokenResult.IsSuccess)
+            return Result.Failure<string>(ErrorCode.Unauthorized, "Reddit not authenticated");
+
         using var request = new HttpRequestMessage(HttpMethod.Post, "/api/comment");
+        request.Headers.Authorization = new("Bearer", tokenResult.Value!);
         request.Content = new FormUrlEncodedContent(new Dictionary<string, string>
         {
             ["thing_id"] = postId,
@@ -243,7 +258,12 @@ public sealed class RedditPlatformAdapter : PlatformAdapterBase, ISocialEngageme
     public async Task<Result<IReadOnlyList<InboxEntry>>> PollInboxAsync(
         DateTimeOffset? since, CancellationToken ct)
     {
+        var tokenResult = await GetAccessTokenAsync(ct);
+        if (!tokenResult.IsSuccess)
+            return Result.Failure<IReadOnlyList<InboxEntry>>(ErrorCode.Unauthorized, "Reddit not authenticated");
+
         using var request = new HttpRequestMessage(HttpMethod.Get, "/message/inbox?limit=25&raw_json=1");
+        request.Headers.Authorization = new("Bearer", tokenResult.Value!);
 
         var response = await _httpClient.SendAsync(request, ct);
 

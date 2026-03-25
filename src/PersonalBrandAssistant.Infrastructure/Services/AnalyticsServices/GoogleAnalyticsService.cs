@@ -7,15 +7,28 @@ using Microsoft.Extensions.Options;
 using PersonalBrandAssistant.Application.Common.Errors;
 using PersonalBrandAssistant.Application.Common.Interfaces;
 using PersonalBrandAssistant.Application.Common.Models;
+using Polly;
+using Polly.CircuitBreaker;
+using Polly.Retry;
+using Polly.Timeout;
 
 namespace PersonalBrandAssistant.Infrastructure.Services.AnalyticsServices;
 
 internal sealed class GoogleAnalyticsService : IGoogleAnalyticsService
 {
+    private static readonly PredicateBuilder<object> TransientExceptionPredicate = new PredicateBuilder()
+        .Handle<RpcException>(ex =>
+            ex.StatusCode is StatusCode.Unavailable
+            or StatusCode.DeadlineExceeded
+            or StatusCode.ResourceExhausted)
+        .Handle<Google.GoogleApiException>()
+        .Handle<HttpRequestException>();
+
     private readonly IGa4Client _ga4Client;
     private readonly ISearchConsoleClient _searchConsoleClient;
     private readonly GoogleAnalyticsOptions _options;
     private readonly ILogger<GoogleAnalyticsService> _logger;
+    private readonly ResiliencePipeline _resiliencePipeline;
 
     public GoogleAnalyticsService(
         IGa4Client ga4Client,
@@ -27,6 +40,26 @@ internal sealed class GoogleAnalyticsService : IGoogleAnalyticsService
         _searchConsoleClient = searchConsoleClient;
         _options = options.Value;
         _logger = logger;
+
+        // 15s total timeout caps the entire operation including retries (intentional for single-user dashboard)
+        _resiliencePipeline = new ResiliencePipelineBuilder()
+            .AddTimeout(TimeSpan.FromSeconds(15))
+            .AddRetry(new RetryStrategyOptions
+            {
+                MaxRetryAttempts = 2,
+                BackoffType = DelayBackoffType.Exponential,
+                UseJitter = true,
+                ShouldHandle = TransientExceptionPredicate
+            })
+            .AddCircuitBreaker(new CircuitBreakerStrategyOptions
+            {
+                FailureRatio = 1.0,
+                SamplingDuration = TimeSpan.FromSeconds(30),
+                MinimumThroughput = 3,
+                BreakDuration = TimeSpan.FromSeconds(30),
+                ShouldHandle = TransientExceptionPredicate
+            })
+            .Build();
     }
 
     public async Task<Result<WebsiteOverview>> GetOverviewAsync(
@@ -56,7 +89,8 @@ internal sealed class GoogleAnalyticsService : IGoogleAnalyticsService
                 }
             };
 
-            var response = await _ga4Client.RunReportAsync(request, ct);
+            var response = await _resiliencePipeline.ExecuteAsync(
+                async token => await _ga4Client.RunReportAsync(request, token), ct);
 
             if (response.Rows is null || response.Rows.Count == 0)
             {
@@ -74,6 +108,18 @@ internal sealed class GoogleAnalyticsService : IGoogleAnalyticsService
                 NewUsers: ParseInt(row.MetricValues[5].Value));
 
             return Result<WebsiteOverview>.Success(overview);
+        }
+        catch (BrokenCircuitException ex)
+        {
+            _logger.LogWarning(ex, "GA4 circuit breaker is open — overview request rejected");
+            return Result<WebsiteOverview>.Failure(
+                ErrorCode.InternalError, "GA4 service temporarily unavailable");
+        }
+        catch (TimeoutRejectedException ex)
+        {
+            _logger.LogWarning(ex, "GA4 overview request timed out after retries");
+            return Result<WebsiteOverview>.Failure(
+                ErrorCode.InternalError, "GA4 request timed out");
         }
         catch (RpcException ex)
         {
@@ -122,7 +168,8 @@ internal sealed class GoogleAnalyticsService : IGoogleAnalyticsService
                 Limit = limit
             };
 
-            var response = await _ga4Client.RunReportAsync(request, ct);
+            var response = await _resiliencePipeline.ExecuteAsync(
+                async token => await _ga4Client.RunReportAsync(request, token), ct);
 
             var pages = (response.Rows ?? Enumerable.Empty<Row>())
                 .Select(row => new PageViewEntry(
@@ -132,6 +179,18 @@ internal sealed class GoogleAnalyticsService : IGoogleAnalyticsService
                 .ToList();
 
             return Result<IReadOnlyList<PageViewEntry>>.Success(pages);
+        }
+        catch (BrokenCircuitException ex)
+        {
+            _logger.LogWarning(ex, "GA4 circuit breaker is open — top pages request rejected");
+            return Result<IReadOnlyList<PageViewEntry>>.Failure(
+                ErrorCode.InternalError, "GA4 service temporarily unavailable");
+        }
+        catch (TimeoutRejectedException ex)
+        {
+            _logger.LogWarning(ex, "GA4 top pages request timed out after retries");
+            return Result<IReadOnlyList<PageViewEntry>>.Failure(
+                ErrorCode.InternalError, "GA4 request timed out");
         }
         catch (RpcException ex)
         {
@@ -171,7 +230,8 @@ internal sealed class GoogleAnalyticsService : IGoogleAnalyticsService
                 }
             };
 
-            var response = await _ga4Client.RunReportAsync(request, ct);
+            var response = await _resiliencePipeline.ExecuteAsync(
+                async token => await _ga4Client.RunReportAsync(request, token), ct);
 
             var sources = (response.Rows ?? Enumerable.Empty<Row>())
                 .Select(row => new TrafficSourceEntry(
@@ -181,6 +241,18 @@ internal sealed class GoogleAnalyticsService : IGoogleAnalyticsService
                 .ToList();
 
             return Result<IReadOnlyList<TrafficSourceEntry>>.Success(sources);
+        }
+        catch (BrokenCircuitException ex)
+        {
+            _logger.LogWarning(ex, "GA4 circuit breaker is open — traffic sources request rejected");
+            return Result<IReadOnlyList<TrafficSourceEntry>>.Failure(
+                ErrorCode.InternalError, "GA4 service temporarily unavailable");
+        }
+        catch (TimeoutRejectedException ex)
+        {
+            _logger.LogWarning(ex, "GA4 traffic sources request timed out after retries");
+            return Result<IReadOnlyList<TrafficSourceEntry>>.Failure(
+                ErrorCode.InternalError, "GA4 request timed out");
         }
         catch (RpcException ex)
         {
@@ -209,8 +281,9 @@ internal sealed class GoogleAnalyticsService : IGoogleAnalyticsService
                 RowLimit = limit
             };
 
-            var response = await _searchConsoleClient.QueryAsync(
-                _options.SiteUrl, request, ct);
+            var response = await _resiliencePipeline.ExecuteAsync(
+                async token => await _searchConsoleClient.QueryAsync(
+                    _options.SiteUrl, request, token), ct);
 
             var queries = (response.Rows ?? Enumerable.Empty<ApiDataRow>())
                 .Select(row => new SearchQueryEntry(
@@ -222,6 +295,18 @@ internal sealed class GoogleAnalyticsService : IGoogleAnalyticsService
                 .ToList();
 
             return Result<IReadOnlyList<SearchQueryEntry>>.Success(queries);
+        }
+        catch (BrokenCircuitException ex)
+        {
+            _logger.LogWarning(ex, "Search Console circuit breaker is open — query request rejected");
+            return Result<IReadOnlyList<SearchQueryEntry>>.Failure(
+                ErrorCode.InternalError, "Search Console service temporarily unavailable");
+        }
+        catch (TimeoutRejectedException ex)
+        {
+            _logger.LogWarning(ex, "Search Console query request timed out after retries");
+            return Result<IReadOnlyList<SearchQueryEntry>>.Failure(
+                ErrorCode.InternalError, "Search Console request timed out");
         }
         catch (Google.GoogleApiException ex)
         {

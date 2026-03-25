@@ -18,10 +18,11 @@ export class OAuthCallbackComponent implements OnInit {
   private readonly messageService = inject(MessageService);
 
   ngOnInit() {
-    const params = this.route.snapshot.queryParams;
-    const code = params['code'];
-    const state = params['state'];
-    const platformType = params['platform'] as PlatformType;
+    const queryParams = this.route.snapshot.queryParams;
+    const code = queryParams['code'];
+    const state = queryParams['state'];
+    const platformType = this.route.snapshot.params['type'] as PlatformType
+      ?? queryParams['platform'] as PlatformType;
 
     if (!code || !state || !platformType) {
       this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Invalid OAuth callback' });

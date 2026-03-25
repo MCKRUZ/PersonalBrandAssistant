@@ -62,3 +62,19 @@ export interface PagedResult<T> {
   readonly cursor?: string;
   readonly hasMore: boolean;
 }
+
+export interface PlatformFormatOption {
+  readonly platform: PlatformType;
+  readonly format: ContentType;
+  readonly suggestedAngle: string;
+  readonly rationale: string;
+  readonly confidenceScore: number;
+}
+
+export interface ContentIdeaRecommendation {
+  readonly storyTitle: string;
+  readonly storySummary: string;
+  readonly sourceUrl?: string;
+  readonly angles: readonly string[];
+  readonly recommendations: readonly PlatformFormatOption[];
+}

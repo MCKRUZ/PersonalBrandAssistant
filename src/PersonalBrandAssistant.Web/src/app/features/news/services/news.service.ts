@@ -9,7 +9,7 @@ import { InterestKeyword, NewsSource, SavedNewsItem, TrendSettings } from '../mo
 export class NewsService {
   private readonly api = inject(ApiService);
 
-  getSuggestions(limit = 100): Observable<TrendSuggestion[]> {
+  getSuggestions(limit = 1000): Observable<TrendSuggestion[]> {
     const params = new HttpParams().set('limit', limit.toString());
     return this.api.get<TrendSuggestion[]>('trends/suggestions', params);
   }

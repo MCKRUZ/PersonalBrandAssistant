@@ -1,4 +1,5 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web"><PropertyGroup>  <UserSecretsId>37a75b0d-ffb5-4296-94a9-8c4631f0d269</UserSecretsId>
+  </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\PersonalBrandAssistant.Application\PersonalBrandAssistant.Application.csproj" />

@@ -129,6 +129,9 @@ public abstract class PlatformAdapterBase : ISocialPlatform
         return result;
     }
 
+    protected Task<Result<string>> GetAccessTokenAsync(CancellationToken ct) =>
+        LoadAccessTokenAsync(ct);
+
     private async Task<Result<string>> LoadAccessTokenAsync(CancellationToken ct)
     {
         var platform = await _dbContext.Platforms

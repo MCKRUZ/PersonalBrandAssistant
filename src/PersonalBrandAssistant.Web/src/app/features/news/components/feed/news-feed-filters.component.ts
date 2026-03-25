@@ -33,6 +33,30 @@ import { CATEGORY_COLORS, CATEGORY_ICONS, TIME_WINDOW_OPTIONS, FeedTimeWindow } 
 
       <div class="filter-bar__divider"></div>
 
+      <button
+        class="source-chip"
+        [class.active]="store.filters().showSavedOnly"
+        style="--chip-color: #f59e0b;"
+        (click)="toggleSavedOnly()"
+      >
+        <span class="source-chip__dot"></span>
+        <i class="pi pi-bookmark-fill"></i>
+        <span>Saved</span>
+      </button>
+
+      <button
+        class="source-chip"
+        [class.active]="store.filters().showAnalyzedOnly"
+        style="--chip-color: #22c55e;"
+        (click)="toggleAnalyzedOnly()"
+      >
+        <span class="source-chip__dot"></span>
+        <i class="pi pi-sparkles"></i>
+        <span>Analyzed</span>
+      </button>
+
+      <div class="filter-bar__divider"></div>
+
       <p-select
         [options]="timeWindowOptions"
         [(ngModel)]="selectedTimeWindow"
@@ -161,7 +185,7 @@ import { CATEGORY_COLORS, CATEGORY_ICONS, TIME_WINDOW_OPTIONS, FeedTimeWindow } 
   `,
 })
 export class NewsFeedFiltersComponent {
-  private readonly store = inject(NewsStore);
+  readonly store = inject(NewsStore);
 
   readonly timeWindowOptions = [...TIME_WINDOW_OPTIONS];
   selectedTimeWindow: FeedTimeWindow = TIME_WINDOW_OPTIONS.find(
@@ -189,8 +213,18 @@ export class NewsFeedFiltersComponent {
     if (f.maxAgeHours > 0 && f.maxAgeHours !== 24) count++;
     if (f.minRelevance > 0) count++;
     if (f.searchQuery) count++;
+    if (f.showSavedOnly) count++;
+    if (f.showAnalyzedOnly) count++;
     return count;
   });
+
+  toggleSavedOnly() {
+    this.store.updateFilters({ showSavedOnly: !this.store.filters().showSavedOnly });
+  }
+
+  toggleAnalyzedOnly() {
+    this.store.updateFilters({ showAnalyzedOnly: !this.store.filters().showAnalyzedOnly });
+  }
 
   toggleCategory(category: string) {
     const current = this.store.filters().categories;

@@ -21,7 +21,44 @@
     "section-12-jarvis-hud-panels-page",
     "section-13-openclaw-persona-config"
   ],
-  "sections_state": {},
+  "sections_state": {
+    "section-01-pba-monitor-endpoints": {
+      "status": "complete",
+      "commit_hash": "98eb43c"
+    },
+    "section-02-sse-broadcaster": {
+      "status": "complete",
+      "commit_hash": "a29c8a2"
+    },
+    "section-03-scoped-api-keys": {
+      "status": "complete",
+      "commit_hash": "0221aa8"
+    },
+    "section-04-mcp-server-infrastructure": {
+      "status": "complete",
+      "commit_hash": "7311200"
+    },
+    "section-05-mcp-content-pipeline-tools": {
+      "status": "complete",
+      "commit_hash": "c6b9eb7"
+    },
+    "section-06-mcp-calendar-tools": {
+      "status": "complete",
+      "commit_hash": "78ea1f1"
+    },
+    "section-07-mcp-analytics-tools": {
+      "status": "complete",
+      "commit_hash": "78ea1f1"
+    },
+    "section-08-mcp-social-tools": {
+      "status": "complete",
+      "commit_hash": "78ea1f1"
+    },
+    "section-09-mcp-idempotency-audit": {
+      "status": "complete",
+      "commit_hash": "af9ccee"
+    }
+  },
   "pre_commit": {
     "present": false,
     "type": "none",

@@ -27,7 +27,7 @@ export interface SidecarConfig {
 }
 
 export interface SidecarSession {
-  readonly id: string;
+  readonly sessionId: string;
   readonly startedAt: string;
 }
 
@@ -45,7 +45,7 @@ export type SidecarServerMessage =
   | { readonly type: 'error'; readonly payload: { readonly message: string } };
 
 export type SidecarClientMessage =
-  | { readonly type: 'send-message'; readonly payload: { readonly message: string } }
+  | { readonly type: 'send-message'; readonly payload: { readonly message: string; readonly sessionId?: string } }
   | { readonly type: 'new-session' }
   | { readonly type: 'abort' };
 

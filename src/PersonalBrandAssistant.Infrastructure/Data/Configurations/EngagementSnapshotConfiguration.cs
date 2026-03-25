@@ -21,6 +21,9 @@ public class EngagementSnapshotConfiguration : IEntityTypeConfiguration<Engageme
         builder.HasIndex(e => new { e.ContentPlatformStatusId, e.FetchedAt })
             .IsDescending(false, true);
 
+        // Reverse-order index for dashboard timeline queries that filter by FetchedAt first
+        builder.HasIndex(e => new { e.FetchedAt, e.ContentPlatformStatusId });
+
         builder.HasOne<ContentPlatformStatus>()
             .WithMany()
             .HasForeignKey(e => e.ContentPlatformStatusId)

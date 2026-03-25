@@ -5,7 +5,7 @@ import { ApiService } from '../../../core/services/api.service';
 import {
   Content, CreateContentRequest, UpdateContentRequest, ContentCreationRequest,
   PagedResult, ContentStatus, ContentType, BrandVoiceScore, WorkflowTransitionLog,
-  TransitionRequest, RepurposingSuggestion, PlatformType,
+  TransitionRequest, RepurposingSuggestion, PlatformType, ContentIdeaRecommendation,
 } from '../../../shared/models';
 
 @Injectable({ providedIn: 'root' })
@@ -38,16 +38,16 @@ export class ContentService {
   }
 
   // Content Pipeline
-  createViaPipeline(request: ContentCreationRequest): Observable<Content> {
-    return this.api.post<Content>('content-pipeline/create', request);
+  createViaPipeline(request: ContentCreationRequest): Observable<string> {
+    return this.api.post<string>('content-pipeline/create', request);
   }
 
-  generateOutline(id: string): Observable<Content> {
-    return this.api.post<Content>(`content-pipeline/${id}/outline`, {});
+  generateOutline(id: string): Observable<string> {
+    return this.api.post<string>(`content-pipeline/${id}/outline`, {});
   }
 
-  generateDraft(id: string): Observable<Content> {
-    return this.api.post<Content>(`content-pipeline/${id}/draft`, {});
+  generateDraft(id: string): Observable<string> {
+    return this.api.post<string>(`content-pipeline/${id}/draft`, {});
   }
 
   submitForReview(id: string): Observable<void> {
@@ -107,5 +107,10 @@ export class ContentService {
 
   getRepurposeSuggestions(id: string): Observable<RepurposingSuggestion[]> {
     return this.api.get<RepurposingSuggestion[]>(`repurposing/${id}/repurpose-suggestions`);
+  }
+
+  // Content Ideas
+  analyzeStory(storyText: string, sourceUrl?: string): Observable<ContentIdeaRecommendation> {
+    return this.api.post<ContentIdeaRecommendation>('content-ideas/analyze-story', { storyText, sourceUrl });
   }
 }

@@ -1,8 +1,12 @@
+using System.Net.Http.Json;
+using System.Text;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using PersonalBrandAssistant.Application.Common.Interfaces;
 using PersonalBrandAssistant.Domain.Entities;
 using PersonalBrandAssistant.Domain.Enums;
 using PersonalBrandAssistant.Infrastructure.Data;
@@ -155,6 +159,87 @@ public class DataSeeder : IHostedService
         }, cancellationToken);
 
         await context.SaveChangesAsync(cancellationToken);
+
+        await TryAutoConnectRedditAsync(scope.ServiceProvider, context, cancellationToken);
+    }
+
+    private async Task TryAutoConnectRedditAsync(
+        IServiceProvider services, ApplicationDbContext context, CancellationToken ct)
+    {
+        var clientId     = _configuration["PlatformIntegrations:Reddit:ClientId"];
+        var clientSecret = _configuration["PlatformIntegrations:Reddit:ClientSecret"];
+        var username     = _configuration["PlatformIntegrations:Reddit:Username"];
+        var password     = _configuration["PlatformIntegrations:Reddit:Password"];
+        var userAgent    = _configuration["PlatformIntegrations:Reddit:UserAgent"] ?? "pba/1.0";
+
+        if (string.IsNullOrWhiteSpace(clientId) || string.IsNullOrWhiteSpace(clientSecret) ||
+            string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
+            return;
+
+        var platform = await context.Platforms.FirstOrDefaultAsync(p => p.Type == PlatformType.Reddit, ct);
+        if (platform is null) return;
+
+        if (platform.IsConnected && platform.EncryptedAccessToken is not null)
+        {
+            // Verify the token is still decryptable (ephemeral keys change on every container restart)
+            try
+            {
+                var enc = services.GetRequiredService<IEncryptionService>();
+                enc.Decrypt(platform.EncryptedAccessToken);
+                _logger.LogDebug("Reddit already connected with valid token, skipping auto-connect");
+                return;
+            }
+            catch
+            {
+                _logger.LogInformation("Reddit token unreadable (key rotation), re-authenticating");
+            }
+        }
+
+        try
+        {
+            using var http = new HttpClient();
+            http.DefaultRequestHeaders.UserAgent.ParseAdd(userAgent);
+            var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{clientId}:{clientSecret}"));
+            http.DefaultRequestHeaders.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", credentials);
+
+            var response = await http.PostAsync(
+                "https://www.reddit.com/api/v1/access_token",
+                new FormUrlEncodedContent(new Dictionary<string, string>
+                {
+                    ["grant_type"] = "password",
+                    ["username"]   = username,
+                    ["password"]   = password,
+                    ["scope"]      = "identity read submit privatemessages history",
+                }), ct);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("Reddit password grant failed: {Status}", response.StatusCode);
+                return;
+            }
+
+            var json = await response.Content.ReadFromJsonAsync<JsonElement>(ct);
+            if (!json.TryGetProperty("access_token", out var tokenProp))
+            {
+                _logger.LogWarning("Reddit password grant response missing access_token");
+                return;
+            }
+
+            var accessToken = tokenProp.GetString()!;
+            var encryption  = services.GetRequiredService<IEncryptionService>();
+
+            platform.EncryptedAccessToken = encryption.Encrypt(accessToken);
+            platform.IsConnected = true;
+            platform.DisplayName = $"Reddit (u/{username})";
+
+            await context.SaveChangesAsync(ct);
+            _logger.LogInformation("Reddit auto-connected via password grant for u/{Username}", username);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Reddit auto-connect failed");
+        }
     }
 
     private static List<TrendSource> GetDefaultRssFeeds() =>
@@ -219,8 +304,8 @@ public class DataSeeder : IHostedService
         Feed("The Rundown AI", "https://rss.beehiiv.com/feeds/2R3C6Bt5wj.xml", "AI/ML"),
         Feed("Latent Space", "https://www.latent.space/feed", "AI/ML"),
 
-        // TLDR Newsletters (via community RSS mirror)
-        Feed("TLDR Tech", "https://bullrich.dev/tldr-rss/tech.rss", "General Tech"),
+        // TLDR Newsletters (via kill-the-newsletter — AI/DevOps/Data URLs need updating per env)
+        Feed("TLDR Tech", "https://kill-the-newsletter.com/feeds/rlzmozqqblwaphdn9wb0.xml", "General Tech"),
         Feed("TLDR AI", "https://bullrich.dev/tldr-rss/ai.rss", "AI/ML"),
         Feed("TLDR DevOps", "https://bullrich.dev/tldr-rss/devops.rss", "Docker/Infra"),
         Feed("TLDR Data", "https://bullrich.dev/tldr-rss/data.rss", "AI/ML"),
