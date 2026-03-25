@@ -280,34 +280,41 @@ public static class DependencyInjection
         // Google Analytics / Search Console
         services.Configure<GoogleAnalyticsOptions>(
             configuration.GetSection(GoogleAnalyticsOptions.SectionName));
-        services.AddSingleton<Google.Apis.Auth.OAuth2.GoogleCredential>(sp =>
+
+        var gaCredentialsPath = configuration
+            .GetSection(GoogleAnalyticsOptions.SectionName)
+            .GetValue<string>("CredentialsPath") ?? "secrets/google-analytics-sa.json";
+
+        if (File.Exists(gaCredentialsPath))
         {
-            var opts = sp.GetRequiredService<IOptions<GoogleAnalyticsOptions>>().Value;
 #pragma warning disable CS0618 // GoogleCredential.FromFile deprecated; CredentialFactory not available in this version
-            return Google.Apis.Auth.OAuth2.GoogleCredential.FromFile(opts.CredentialsPath);
+            var credential = Google.Apis.Auth.OAuth2.GoogleCredential.FromFile(gaCredentialsPath);
 #pragma warning restore CS0618
-        });
-        services.AddSingleton<IGa4Client>(sp =>
-        {
-            var credential = sp.GetRequiredService<Google.Apis.Auth.OAuth2.GoogleCredential>();
-            var builder = new Google.Analytics.Data.V1Beta.BetaAnalyticsDataClientBuilder
+            services.AddSingleton<IGa4Client>(sp =>
             {
-                GoogleCredential = credential
-            };
-            return new Ga4ClientWrapper(builder.Build());
-        });
-        services.AddSingleton<ISearchConsoleClient>(sp =>
-        {
-            var credential = sp.GetRequiredService<Google.Apis.Auth.OAuth2.GoogleCredential>()
-                .CreateScoped(Google.Apis.SearchConsole.v1.SearchConsoleService.Scope.WebmastersReadonly);
-            var service = new Google.Apis.SearchConsole.v1.SearchConsoleService(
-                new Google.Apis.Services.BaseClientService.Initializer
+                var builder = new Google.Analytics.Data.V1Beta.BetaAnalyticsDataClientBuilder
                 {
-                    HttpClientInitializer = credential,
-                    ApplicationName = "PersonalBrandAssistant"
-                });
-            return new SearchConsoleClientWrapper(service);
-        });
+                    GoogleCredential = credential
+                };
+                return new Ga4ClientWrapper(builder.Build());
+            });
+            services.AddSingleton<ISearchConsoleClient>(sp =>
+            {
+                var scoped = credential.CreateScoped(Google.Apis.SearchConsole.v1.SearchConsoleService.Scope.WebmastersReadonly);
+                var service = new Google.Apis.SearchConsole.v1.SearchConsoleService(
+                    new Google.Apis.Services.BaseClientService.Initializer
+                    {
+                        HttpClientInitializer = scoped,
+                        ApplicationName = "PersonalBrandAssistant"
+                    });
+                return new SearchConsoleClientWrapper(service);
+            });
+        }
+        else
+        {
+            services.AddSingleton<IGa4Client>(new NullGa4Client());
+            services.AddSingleton<ISearchConsoleClient>(new NullSearchConsoleClient());
+        }
         services.AddScoped<IGoogleAnalyticsService, GoogleAnalyticsService>();
         services.AddSingleton<DashboardRefreshLimiter>();
         services.AddScoped<DashboardAggregator>();
