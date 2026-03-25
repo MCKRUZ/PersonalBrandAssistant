@@ -28,4 +28,6 @@ export interface TopPerformingContent {
   readonly totalEngagement: number;
   readonly platforms: readonly PlatformType[];
   readonly publishedAt?: string;
+  readonly impressions?: number;
+  readonly engagementRate?: number;
 }
