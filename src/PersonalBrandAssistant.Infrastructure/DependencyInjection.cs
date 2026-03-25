@@ -285,11 +285,25 @@ public static class DependencyInjection
             .GetSection(GoogleAnalyticsOptions.SectionName)
             .GetValue<string>("CredentialsPath") ?? "secrets/google-analytics-sa.json";
 
+        Google.Apis.Auth.OAuth2.GoogleCredential? gaCredential = null;
         if (File.Exists(gaCredentialsPath))
         {
+            try
+            {
 #pragma warning disable CS0618 // GoogleCredential.FromFile deprecated; CredentialFactory not available in this version
-            var credential = Google.Apis.Auth.OAuth2.GoogleCredential.FromFile(gaCredentialsPath);
+                gaCredential = Google.Apis.Auth.OAuth2.GoogleCredential.FromFile(gaCredentialsPath);
 #pragma warning restore CS0618
+            }
+            catch (Exception ex)
+            {
+                var logger = LoggerFactory.Create(b => b.AddConsole()).CreateLogger("GoogleAnalytics");
+                logger.LogWarning(ex, "Failed to load GA4 credentials from {Path}. GA4 features disabled", gaCredentialsPath);
+            }
+        }
+
+        if (gaCredential is not null)
+        {
+            var credential = gaCredential;
             services.AddSingleton<IGa4Client>(sp =>
             {
                 var builder = new Google.Analytics.Data.V1Beta.BetaAnalyticsDataClientBuilder

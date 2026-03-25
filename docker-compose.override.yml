@@ -22,6 +22,7 @@ services:
       dockerfile: src/PersonalBrandAssistant.Api/Dockerfile
     volumes:
       - ./src:/src
+      - ./secrets:/app/secrets:ro
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ApiKey: pba-dev-write-key
@@ -34,6 +35,7 @@ services:
       PlatformIntegrations__Reddit__UserAgent: ${REDDIT_USER_AGENT:-pba/1.0}
       PlatformIntegrations__LinkedIn__ClientId: ${LINKEDIN_CLIENT_ID:-}
       PlatformIntegrations__LinkedIn__ClientSecret: ${LINKEDIN_CLIENT_SECRET:-}
+      GoogleAnalytics__CredentialsPath: /app/secrets/google-analytics-sa.json
     command: ["dotnet", "watch", "run", "--project", "/src/PersonalBrandAssistant.Api/PersonalBrandAssistant.Api.csproj", "--urls", "http://+:8080"]
 
   web:
