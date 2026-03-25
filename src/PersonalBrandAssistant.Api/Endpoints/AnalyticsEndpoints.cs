@@ -1,7 +1,11 @@
+using Microsoft.EntityFrameworkCore;
 using PersonalBrandAssistant.Api.Extensions;
 using PersonalBrandAssistant.Application.Common.Errors;
 using PersonalBrandAssistant.Application.Common.Interfaces;
 using PersonalBrandAssistant.Application.Common.Models;
+using PersonalBrandAssistant.Domain.Entities;
+using PersonalBrandAssistant.Domain.Enums;
+using PersonalBrandAssistant.Infrastructure.Services.PlatformServices.Adapters;
 
 namespace PersonalBrandAssistant.Api.Endpoints;
 
@@ -25,6 +29,7 @@ public static class AnalyticsEndpoints
         group.MapGet("/website", GetWebsiteAnalytics);
         group.MapGet("/substack", GetSubstackPosts);
         group.MapGet("/health", GetAnalyticsHealth);
+        group.MapPost("/discover-posts", DiscoverPosts);
     }
 
     private static async Task<IResult> GetPerformance(
@@ -206,6 +211,70 @@ public static class AnalyticsEndpoints
         catch { /* connectivity failed */ }
 
         return Results.Ok(new { ga4, searchConsole, substack });
+    }
+
+    private static async Task<IResult> DiscoverPosts(
+        RedditPlatformAdapter redditAdapter,
+        IApplicationDbContext db,
+        int limit = 25,
+        CancellationToken ct = default)
+    {
+        var clampedLimit = Math.Clamp(limit, 1, 100);
+        var discoveryResult = await redditAdapter.DiscoverUserPostsAsync(clampedLimit, ct);
+
+        if (!discoveryResult.IsSuccess)
+            return discoveryResult.ToHttpResult();
+
+        var discovered = discoveryResult.Value!;
+
+        // Find existing platform post IDs to avoid duplicates
+        var existingPostIds = await db.ContentPlatformStatuses
+            .Where(cps => cps.Platform == PlatformType.Reddit)
+            .Select(cps => cps.PlatformPostId)
+            .ToHashSetAsync(ct);
+
+        var imported = 0;
+        foreach (var post in discovered)
+        {
+            if (existingPostIds.Contains(post.PlatformPostId))
+                continue;
+
+            // Create Content record as externally discovered
+            var content = Content.Create(
+                ContentType.SocialPost,
+                post.Body,
+                post.Title,
+                [PlatformType.Reddit]);
+            content.TransitionTo(ContentStatus.Review);
+            content.TransitionTo(ContentStatus.Approved);
+            content.TransitionTo(ContentStatus.Scheduled);
+            content.TransitionTo(ContentStatus.Publishing);
+            content.TransitionTo(ContentStatus.Published);
+            content.PublishedAt = post.PublishedAt;
+
+            db.Contents.Add(content);
+
+            db.ContentPlatformStatuses.Add(new ContentPlatformStatus
+            {
+                ContentId = content.Id,
+                Platform = PlatformType.Reddit,
+                Status = PlatformPublishStatus.Published,
+                PlatformPostId = post.PlatformPostId,
+                PostUrl = post.Url,
+                PublishedAt = post.PublishedAt,
+            });
+
+            imported++;
+        }
+
+        await db.SaveChangesAsync(ct);
+
+        return Results.Ok(new
+        {
+            discovered = discovered.Count,
+            imported,
+            skippedDuplicates = discovered.Count - imported,
+        });
     }
 
     private static Result<(DateTimeOffset From, DateTimeOffset To)> ParseDateRange(

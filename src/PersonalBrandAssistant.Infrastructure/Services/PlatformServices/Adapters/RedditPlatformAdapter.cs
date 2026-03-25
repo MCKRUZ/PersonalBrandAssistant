@@ -309,6 +309,56 @@ public sealed class RedditPlatformAdapter : PlatformAdapterBase, ISocialEngageme
         return await PostCommentAsync(platformItemId, text, ct);
     }
 
+    public async Task<Result<IReadOnlyList<DiscoveredPost>>> DiscoverUserPostsAsync(
+        int limit, CancellationToken ct)
+    {
+        var tokenResult = await GetAccessTokenAsync(ct);
+        if (!tokenResult.IsSuccess)
+            return Result.Failure<IReadOnlyList<DiscoveredPost>>(ErrorCode.Unauthorized, "Reddit not authenticated");
+
+        // Get username first
+        var profileResult = await ExecuteGetProfileAsync(tokenResult.Value!, ct);
+        if (!profileResult.IsSuccess)
+            return Result.Failure<IReadOnlyList<DiscoveredPost>>(ErrorCode.InternalError, "Could not fetch Reddit profile");
+
+        var username = profileResult.Value!.DisplayName;
+
+        using var request = new HttpRequestMessage(HttpMethod.Get,
+            $"/user/{username}/submitted?limit={limit}&sort=new&raw_json=1&type=links");
+        request.Headers.Authorization = new("Bearer", tokenResult.Value!);
+
+        var response = await _httpClient.SendAsync(request, ct);
+        if (!response.IsSuccessStatusCode)
+            return HandleHttpError<IReadOnlyList<DiscoveredPost>>(response, "Reddit user posts");
+
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>(ct);
+        var children = json.GetProperty("data").GetProperty("children");
+        var posts = new List<DiscoveredPost>();
+
+        foreach (var child in children.EnumerateArray())
+        {
+            var post = child.GetProperty("data");
+            var createdUtc = DateTimeOffset.FromUnixTimeSeconds(
+                (long)post.GetProperty("created_utc").GetDouble());
+
+            posts.Add(new DiscoveredPost(
+                PlatformPostId: post.GetProperty("id").GetString()!,
+                Title: post.GetProperty("title").GetString() ?? "",
+                Body: post.TryGetProperty("selftext", out var st) ? st.GetString() ?? "" : "",
+                Url: $"https://reddit.com{post.GetProperty("permalink").GetString()}",
+                Subreddit: post.GetProperty("subreddit").GetString() ?? "",
+                PublishedAt: createdUtc,
+                Score: post.GetProperty("score").GetInt32(),
+                NumComments: post.TryGetProperty("num_comments", out var nc) ? nc.GetInt32() : 0));
+        }
+
+        return Result.Success<IReadOnlyList<DiscoveredPost>>(posts.AsReadOnly());
+    }
+
+    public record DiscoveredPost(
+        string PlatformPostId, string Title, string Body, string Url,
+        string Subreddit, DateTimeOffset PublishedAt, int Score, int NumComments);
+
     private record RedditTargetCriteria
     {
         public List<string> Subreddits { get; init; } = [];
