@@ -281,7 +281,6 @@ export class ContentPipelineDialogComponent implements OnInit {
         targetPlatforms: [idea.platform],
       });
     }
-    this.visible = true;
   }
 
   stepHeader(): string {
