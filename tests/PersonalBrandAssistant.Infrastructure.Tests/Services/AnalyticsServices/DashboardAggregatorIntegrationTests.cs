@@ -18,6 +18,7 @@ public class DashboardAggregatorIntegrationTests : IAsyncLifetime
     private readonly PostgresFixture _fixture;
     private readonly string _connectionString;
     private readonly Mock<IGoogleAnalyticsService> _mockGa = new();
+    private ApplicationDbContext _dbContext = null!;
     private DashboardAggregator _sut = null!;
 
     // Test date range: 7-day window
@@ -35,6 +36,7 @@ public class DashboardAggregatorIntegrationTests : IAsyncLifetime
     {
         await using var masterCtx = _fixture.CreateDbContext(connectionString: _fixture.ConnectionString);
         var dbName = new Npgsql.NpgsqlConnectionStringBuilder(_connectionString).Database!;
+        // Safe: dbName is derived from Guid.NewGuid(), never user input. DDL cannot be parameterized.
 #pragma warning disable EF1002
         await masterCtx.Database.ExecuteSqlRawAsync($"CREATE DATABASE \"{dbName}\"");
 #pragma warning restore EF1002
@@ -49,14 +51,17 @@ public class DashboardAggregatorIntegrationTests : IAsyncLifetime
         _mockGa.Setup(g => g.GetOverviewAsync(It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Result.Success(new WebsiteOverview(120, 95, 340, 2.5, 45.0, 60)));
 
-        var dbContext = _fixture.CreateDbContext(connectionString: _connectionString);
-        _sut = new DashboardAggregator(dbContext, _mockGa.Object, NullLogger<DashboardAggregator>.Instance);
+        _dbContext = _fixture.CreateDbContext(connectionString: _connectionString);
+        _sut = new DashboardAggregator(_dbContext, _mockGa.Object, NullLogger<DashboardAggregator>.Instance);
     }
 
     public async Task DisposeAsync()
     {
+        await _dbContext.DisposeAsync();
+
         await using var masterCtx = _fixture.CreateDbContext(connectionString: _fixture.ConnectionString);
         var dbName = new Npgsql.NpgsqlConnectionStringBuilder(_connectionString).Database!;
+        // Safe: dbName is derived from Guid.NewGuid(), never user input. DDL cannot be parameterized.
 #pragma warning disable EF1002
         await masterCtx.Database.ExecuteSqlRawAsync($"DROP DATABASE IF EXISTS \"{dbName}\" WITH (FORCE)");
 #pragma warning restore EF1002
