@@ -175,9 +175,11 @@ public class EngagementAggregator : IEngagementAggregator
             .Select(g =>
             {
                 var totalEngagement = g.Sum(x => x.Snapshot.Likes + x.Snapshot.Comments + x.Snapshot.Shares);
-                var engagementByPlatform = g.ToDictionary(
-                    x => x.Status.Platform,
-                    x => x.Snapshot.Likes + x.Snapshot.Comments + x.Snapshot.Shares)
+                var engagementByPlatform = g
+                    .GroupBy(x => x.Status.Platform)
+                    .ToDictionary(
+                        pg => pg.Key,
+                        pg => pg.Sum(x => x.Snapshot.Likes + x.Snapshot.Comments + x.Snapshot.Shares))
                     .AsReadOnly();
 
                 return new
