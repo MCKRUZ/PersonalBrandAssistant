@@ -11,6 +11,9 @@ import { DashboardKpiCardsComponent } from './components/dashboard-kpi-cards.com
 import { DateRangeSelectorComponent } from './components/date-range-selector.component';
 import { EngagementTimelineChartComponent } from './components/engagement-timeline-chart.component';
 import { PlatformBreakdownChartComponent } from './components/platform-breakdown-chart.component';
+import { PlatformHealthCardsComponent } from './components/platform-health-cards.component';
+import { WebsiteAnalyticsSectionComponent } from './components/website-analytics-section.component';
+import { SubstackSectionComponent } from './components/substack-section.component';
 import { AnalyticsStore } from './store/analytics.store';
 import { DashboardPeriod } from './models/dashboard.model';
 
@@ -22,6 +25,7 @@ import { DashboardPeriod } from './models/dashboard.model';
     PageHeaderComponent, EmptyStateComponent,
     TopContentTableComponent, DashboardKpiCardsComponent, DateRangeSelectorComponent,
     EngagementTimelineChartComponent, PlatformBreakdownChartComponent,
+    PlatformHealthCardsComponent, WebsiteAnalyticsSectionComponent, SubstackSectionComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -66,7 +70,16 @@ import { DashboardPeriod } from './models/dashboard.model';
       </div>
 
       <div class="mt-3">
+        <app-platform-health-cards [platforms]="store.platformSummaries()" />
+      </div>
+
+      <div class="mt-3">
         <app-top-content-table [items]="store.topContent()" (viewDetail)="viewDetail($event)" />
+      </div>
+
+      <div class="bottom-row mt-3">
+        <app-website-analytics-section [data]="store.websiteData()" />
+        <app-substack-section [posts]="store.substackPosts()" />
       </div>
     }
   `,
@@ -101,6 +114,14 @@ import { DashboardPeriod } from './models/dashboard.model';
       display: grid;
       grid-template-columns: 2fr 1fr;
       gap: 1rem;
+    }
+    .bottom-row {
+      display: grid;
+      grid-template-columns: 3fr 1fr;
+      gap: 1rem;
+    }
+    @media (max-width: 1024px) {
+      .bottom-row { grid-template-columns: 1fr; }
     }
   `,
 })
