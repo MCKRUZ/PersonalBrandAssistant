@@ -276,6 +276,7 @@ public static class DependencyInjection
             return new SearchConsoleClientWrapper(service);
         });
         services.AddScoped<IGoogleAnalyticsService, GoogleAnalyticsService>();
+        services.AddScoped<IDashboardAggregator, DashboardAggregator>();
 
         // Content automation
         services.Configure<ContentAutomationOptions>(
