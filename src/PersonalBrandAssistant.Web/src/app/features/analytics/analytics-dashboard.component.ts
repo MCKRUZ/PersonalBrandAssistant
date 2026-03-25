@@ -6,10 +6,11 @@ import { Skeleton } from 'primeng/skeleton';
 import { Tooltip } from 'primeng/tooltip';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { EmptyStateComponent } from '../../shared/components/empty-state/empty-state.component';
-import { EngagementChartComponent } from './components/engagement-chart.component';
 import { TopContentTableComponent } from './components/top-content-table.component';
 import { DashboardKpiCardsComponent } from './components/dashboard-kpi-cards.component';
 import { DateRangeSelectorComponent } from './components/date-range-selector.component';
+import { EngagementTimelineChartComponent } from './components/engagement-timeline-chart.component';
+import { PlatformBreakdownChartComponent } from './components/platform-breakdown-chart.component';
 import { AnalyticsStore } from './store/analytics.store';
 import { DashboardPeriod } from './models/dashboard.model';
 
@@ -19,8 +20,8 @@ import { DashboardPeriod } from './models/dashboard.model';
   imports: [
     CommonModule, ButtonModule, Skeleton, Tooltip,
     PageHeaderComponent, EmptyStateComponent,
-    EngagementChartComponent, TopContentTableComponent,
-    DashboardKpiCardsComponent, DateRangeSelectorComponent,
+    TopContentTableComponent, DashboardKpiCardsComponent, DateRangeSelectorComponent,
+    EngagementTimelineChartComponent, PlatformBreakdownChartComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -60,10 +61,8 @@ import { DashboardPeriod } from './models/dashboard.model';
       <app-dashboard-kpi-cards [summary]="store.summary()" />
 
       <div class="charts-row mt-3">
-        <div class="chart-placeholder">
-          <app-engagement-chart [items]="store.topContent()" />
-        </div>
-        <div class="chart-placeholder"></div>
+        <app-engagement-timeline-chart [timeline]="store.timeline()" />
+        <app-platform-breakdown-chart [timeline]="store.timeline()" />
       </div>
 
       <div class="mt-3">
