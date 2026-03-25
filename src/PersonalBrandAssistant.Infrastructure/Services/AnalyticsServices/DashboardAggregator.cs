@@ -10,6 +10,7 @@ namespace PersonalBrandAssistant.Infrastructure.Services.AnalyticsServices;
 internal sealed class DashboardAggregator(
     IApplicationDbContext db,
     IGoogleAnalyticsService ga,
+    IEnumerable<ISocialPlatform> platformAdapters,
     ILogger<DashboardAggregator> logger) : IDashboardAggregator
 {
     // Platforms that do not have full engagement data available
@@ -161,6 +162,22 @@ internal sealed class DashboardAggregator(
                 .Where(c => contentIds.Contains(c.Id))
                 .ToDictionaryAsync(c => c.Id, c => c.Title, ct);
 
+            // Fetch follower/karma counts from connected platforms (best-effort)
+            var followerCounts = new Dictionary<PlatformType, int?>();
+            foreach (var adapter in platformAdapters)
+            {
+                try
+                {
+                    var profileResult = await adapter.GetProfileAsync(ct);
+                    if (profileResult.IsSuccess)
+                        followerCounts[adapter.Type] = profileResult.Value!.FollowerCount;
+                }
+                catch (Exception ex)
+                {
+                    logger.LogDebug(ex, "Could not fetch profile for {Platform}", adapter.Type);
+                }
+            }
+
             // Group statuses by platform
             var platformGroups = statuses.GroupBy(s => s.Platform);
 
@@ -191,7 +208,7 @@ internal sealed class DashboardAggregator(
 
                 summaries.Add(new PlatformSummary(
                     Platform: platform,
-                    FollowerCount: null, // Follower data comes from platform adapters at API layer
+                    FollowerCount: followerCounts.GetValueOrDefault(platform),
                     PostCount: postCount,
                     AvgEngagement: avgEngagement,
                     TopPostTitle: topPostTitle,

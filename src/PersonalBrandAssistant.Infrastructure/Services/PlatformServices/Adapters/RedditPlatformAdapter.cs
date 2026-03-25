@@ -130,11 +130,13 @@ public sealed class RedditPlatformAdapter : PlatformAdapterBase, ISocialEngageme
 
         var json = await response.Content.ReadFromJsonAsync<JsonElement>(ct);
 
+        var karma = json.TryGetProperty("total_karma", out var k) ? k.GetInt32() : (int?)null;
+
         return Result.Success(new PlatformProfile(
             PlatformUserId: json.GetProperty("id").GetString()!,
             DisplayName: json.GetProperty("name").GetString()!,
             AvatarUrl: json.TryGetProperty("icon_img", out var avatar) ? avatar.GetString() : null,
-            FollowerCount: null));
+            FollowerCount: karma));
     }
 
     protected override (int? Remaining, DateTimeOffset? ResetAt) ParseRateLimitHeaders(
