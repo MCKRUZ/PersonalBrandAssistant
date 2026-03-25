@@ -19,6 +19,7 @@ using PersonalBrandAssistant.Infrastructure.Services.ContentServices.TrendPoller
 using PersonalBrandAssistant.Infrastructure.Services.PlatformServices.Formatters;
 using PersonalBrandAssistant.Infrastructure.Services.IntegrationServices;
 using PersonalBrandAssistant.Infrastructure.Services.ContentAutomation;
+using PersonalBrandAssistant.Infrastructure.Services.AnalyticsServices;
 using PersonalBrandAssistant.Infrastructure.Services.SocialServices;
 
 namespace PersonalBrandAssistant.Infrastructure;
@@ -232,6 +233,39 @@ public static class DependencyInjection
         // Social engagement background services
         services.AddHostedService<EngagementScheduler>();
         services.AddHostedService<InboxPoller>();
+
+        // Google Analytics / Search Console
+        services.Configure<GoogleAnalyticsOptions>(
+            configuration.GetSection(GoogleAnalyticsOptions.SectionName));
+        services.AddSingleton<Google.Apis.Auth.OAuth2.GoogleCredential>(sp =>
+        {
+            var opts = sp.GetRequiredService<IOptions<GoogleAnalyticsOptions>>().Value;
+#pragma warning disable CS0618 // GoogleCredential.FromFile deprecated; CredentialFactory not available in this version
+            return Google.Apis.Auth.OAuth2.GoogleCredential.FromFile(opts.CredentialsPath);
+#pragma warning restore CS0618
+        });
+        services.AddSingleton<IGa4Client>(sp =>
+        {
+            var credential = sp.GetRequiredService<Google.Apis.Auth.OAuth2.GoogleCredential>();
+            var builder = new Google.Analytics.Data.V1Beta.BetaAnalyticsDataClientBuilder
+            {
+                GoogleCredential = credential
+            };
+            return new Ga4ClientWrapper(builder.Build());
+        });
+        services.AddSingleton<ISearchConsoleClient>(sp =>
+        {
+            var credential = sp.GetRequiredService<Google.Apis.Auth.OAuth2.GoogleCredential>()
+                .CreateScoped(Google.Apis.SearchConsole.v1.SearchConsoleService.Scope.WebmastersReadonly);
+            var service = new Google.Apis.SearchConsole.v1.SearchConsoleService(
+                new Google.Apis.Services.BaseClientService.Initializer
+                {
+                    HttpClientInitializer = credential,
+                    ApplicationName = "PersonalBrandAssistant"
+                });
+            return new SearchConsoleClientWrapper(service);
+        });
+        services.AddScoped<IGoogleAnalyticsService, GoogleAnalyticsService>();
 
         // Content automation
         services.Configure<ContentAutomationOptions>(

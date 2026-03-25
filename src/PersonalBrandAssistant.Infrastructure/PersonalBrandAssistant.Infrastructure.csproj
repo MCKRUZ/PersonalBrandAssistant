@@ -3,6 +3,7 @@
   <ItemGroup>
     <InternalsVisibleTo Include="PersonalBrandAssistant.Infrastructure.Tests" />
     <InternalsVisibleTo Include="PersonalBrandAssistant.Application.Tests" />
+    <InternalsVisibleTo Include="DynamicProxyGenAssembly2" />
   </ItemGroup>
 
   <ItemGroup>
@@ -16,6 +17,8 @@
   <ItemGroup>
     <PackageReference Include="Anthropic" Version="12.8.0" />
     <PackageReference Include="Fluid.Core" Version="2.31.0" />
+    <PackageReference Include="Google.Analytics.Data.V1Beta" Version="2.0.0-beta10" />
+    <PackageReference Include="Google.Apis.SearchConsole.v1" Version="1.70.0.3847" />
     <PackageReference Include="Ical.Net" Version="5.2.1" />
     <PackageReference Include="Microsoft.AspNetCore.DataProtection" Version="10.0.5" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.5" />
