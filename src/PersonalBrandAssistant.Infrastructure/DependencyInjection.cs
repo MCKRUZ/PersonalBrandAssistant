@@ -234,6 +234,16 @@ public static class DependencyInjection
         services.AddHostedService<EngagementScheduler>();
         services.AddHostedService<InboxPoller>();
 
+        // Substack RSS
+        services.Configure<SubstackOptions>(
+            configuration.GetSection(SubstackOptions.SectionName));
+        services.AddHttpClient<ISubstackService, SubstackService>(client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(10);
+            client.DefaultRequestHeaders.UserAgent.ParseAdd(
+                "PersonalBrandAssistant/1.0 (+https://github.com/MCKRUZ/personal-brand-assistant)");
+        });
+
         // Google Analytics / Search Console
         services.Configure<GoogleAnalyticsOptions>(
             configuration.GetSection(GoogleAnalyticsOptions.SectionName));
