@@ -233,38 +233,57 @@ public static class AnalyticsEndpoints
             .Select(cps => cps.PlatformPostId)
             .ToHashSetAsync(ct);
 
+        // Group by normalized title to collapse crossposts
+        var grouped = discovered.GroupBy(p =>
+            p.Title.Replace(" — open source", "").Replace(" - open source", "").Trim());
+
         var imported = 0;
-        foreach (var post in discovered)
+        foreach (var group in grouped)
         {
-            if (existingPostIds.Contains(post.PlatformPostId))
-                continue;
+            // Check if all posts in this group already exist
+            var newPosts = group.Where(p => !existingPostIds.Contains(p.PlatformPostId)).ToList();
+            if (newPosts.Count == 0) continue;
 
-            // Create Content record as externally discovered
-            var content = Content.Create(
-                ContentType.SocialPost,
-                post.Body,
-                post.Title,
-                [PlatformType.Reddit]);
-            content.TransitionTo(ContentStatus.Review);
-            content.TransitionTo(ContentStatus.Approved);
-            content.TransitionTo(ContentStatus.Scheduled);
-            content.TransitionTo(ContentStatus.Publishing);
-            content.TransitionTo(ContentStatus.Published);
-            content.PublishedAt = post.PublishedAt;
+            // Find existing Content for this title group, or create one
+            var firstPost = group.First();
+            var existingContent = await db.Contents
+                .Where(c => c.Title != null && c.Title.Contains(group.Key) && c.TargetPlatforms.Contains(PlatformType.Reddit))
+                .FirstOrDefaultAsync(ct);
 
-            db.Contents.Add(content);
-
-            db.ContentPlatformStatuses.Add(new ContentPlatformStatus
+            Content content;
+            if (existingContent is not null)
             {
-                ContentId = content.Id,
-                Platform = PlatformType.Reddit,
-                Status = PlatformPublishStatus.Published,
-                PlatformPostId = post.PlatformPostId,
-                PostUrl = post.Url,
-                PublishedAt = post.PublishedAt,
-            });
+                content = existingContent;
+            }
+            else
+            {
+                content = Content.Create(
+                    ContentType.SocialPost,
+                    firstPost.Body,
+                    firstPost.Title,
+                    [PlatformType.Reddit]);
+                content.TransitionTo(ContentStatus.Review);
+                content.TransitionTo(ContentStatus.Approved);
+                content.TransitionTo(ContentStatus.Scheduled);
+                content.TransitionTo(ContentStatus.Publishing);
+                content.TransitionTo(ContentStatus.Published);
+                content.PublishedAt = firstPost.PublishedAt;
+                db.Contents.Add(content);
+            }
 
-            imported++;
+            foreach (var post in newPosts)
+            {
+                db.ContentPlatformStatuses.Add(new ContentPlatformStatus
+                {
+                    ContentId = content.Id,
+                    Platform = PlatformType.Reddit,
+                    Status = PlatformPublishStatus.Published,
+                    PlatformPostId = post.PlatformPostId,
+                    PostUrl = post.Url,
+                    PublishedAt = post.PublishedAt,
+                });
+                imported++;
+            }
         }
 
         await db.SaveChangesAsync(ct);
