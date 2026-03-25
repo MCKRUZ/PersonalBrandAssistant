@@ -1,17 +1,30 @@
 using PersonalBrandAssistant.Api.Extensions;
+using PersonalBrandAssistant.Application.Common.Errors;
 using PersonalBrandAssistant.Application.Common.Interfaces;
+using PersonalBrandAssistant.Application.Common.Models;
 
 namespace PersonalBrandAssistant.Api.Endpoints;
 
 public static class AnalyticsEndpoints
 {
+    private static readonly HashSet<string> ValidPeriods = ["1d", "7d", "14d", "30d", "90d"];
+
     public static void MapAnalyticsEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/analytics").WithTags("Analytics");
 
+        // Existing engagement routes
         group.MapGet("/content/{id:guid}", GetPerformance);
         group.MapGet("/top", GetTopContent);
         group.MapPost("/content/{id:guid}/refresh", RefreshEngagement);
+
+        // Dashboard routes
+        group.MapGet("/dashboard", GetDashboard);
+        group.MapGet("/engagement-timeline", GetTimeline);
+        group.MapGet("/platform-summary", GetPlatformSummaries);
+        group.MapGet("/website", GetWebsiteAnalytics);
+        group.MapGet("/substack", GetSubstackPosts);
+        group.MapGet("/health", GetAnalyticsHealth);
     }
 
     private static async Task<IResult> GetPerformance(
@@ -44,5 +57,196 @@ public static class AnalyticsEndpoints
         if (result.IsSuccess)
             return Results.Accepted(value: result.Value);
         return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> GetDashboard(
+        IDashboardAggregator aggregator,
+        IDashboardCacheInvalidator cacheInvalidator,
+        IDateTimeProvider clock,
+        string? period = null,
+        DateTimeOffset? from = null,
+        DateTimeOffset? to = null,
+        bool refresh = false,
+        CancellationToken ct = default)
+    {
+        var rangeResult = ParseDateRange(period, from, to, clock);
+        if (!rangeResult.IsSuccess)
+            return rangeResult.ToHttpResult();
+
+        if (refresh)
+            await cacheInvalidator.TryInvalidateAsync(ct);
+
+        var (resolvedFrom, resolvedTo) = rangeResult.Value!;
+        var result = await aggregator.GetSummaryAsync(resolvedFrom, resolvedTo, ct);
+        return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> GetTimeline(
+        IDashboardAggregator aggregator,
+        IDashboardCacheInvalidator cacheInvalidator,
+        IDateTimeProvider clock,
+        string? period = null,
+        DateTimeOffset? from = null,
+        DateTimeOffset? to = null,
+        bool refresh = false,
+        CancellationToken ct = default)
+    {
+        var rangeResult = ParseDateRange(period, from, to, clock);
+        if (!rangeResult.IsSuccess)
+            return rangeResult.ToHttpResult();
+
+        if (refresh)
+            await cacheInvalidator.TryInvalidateAsync(ct);
+
+        var (resolvedFrom, resolvedTo) = rangeResult.Value!;
+        var result = await aggregator.GetTimelineAsync(resolvedFrom, resolvedTo, ct);
+        return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> GetPlatformSummaries(
+        IDashboardAggregator aggregator,
+        IDashboardCacheInvalidator cacheInvalidator,
+        IDateTimeProvider clock,
+        string? period = null,
+        DateTimeOffset? from = null,
+        DateTimeOffset? to = null,
+        bool refresh = false,
+        CancellationToken ct = default)
+    {
+        var rangeResult = ParseDateRange(period, from, to, clock);
+        if (!rangeResult.IsSuccess)
+            return rangeResult.ToHttpResult();
+
+        if (refresh)
+            await cacheInvalidator.TryInvalidateAsync(ct);
+
+        var (resolvedFrom, resolvedTo) = rangeResult.Value!;
+        var result = await aggregator.GetPlatformSummariesAsync(resolvedFrom, resolvedTo, ct);
+        return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> GetWebsiteAnalytics(
+        IGoogleAnalyticsService gaService,
+        IDateTimeProvider clock,
+        string? period = null,
+        DateTimeOffset? from = null,
+        DateTimeOffset? to = null,
+        CancellationToken ct = default)
+    {
+        var rangeResult = ParseDateRange(period, from, to, clock);
+        if (!rangeResult.IsSuccess)
+            return rangeResult.ToHttpResult();
+
+        var (resolvedFrom, resolvedTo) = rangeResult.Value!;
+
+        // Run all four calls in parallel; capture failures individually
+        var overviewTask = gaService.GetOverviewAsync(resolvedFrom, resolvedTo, ct);
+        var topPagesTask = gaService.GetTopPagesAsync(resolvedFrom, resolvedTo, 20, ct);
+        var trafficTask = gaService.GetTrafficSourcesAsync(resolvedFrom, resolvedTo, ct);
+        var queriesTask = gaService.GetTopQueriesAsync(resolvedFrom, resolvedTo, 20, ct);
+
+        await Task.WhenAll(overviewTask, topPagesTask, trafficTask, queriesTask);
+
+        var overview = overviewTask.Result;
+        var topPages = topPagesTask.Result;
+        var traffic = trafficTask.Result;
+        var queries = queriesTask.Result;
+
+        var response = new WebsiteAnalyticsResponse(
+            Overview: overview.IsSuccess ? overview.Value : null,
+            TopPages: topPages.IsSuccess ? topPages.Value! : [],
+            TrafficSources: traffic.IsSuccess ? traffic.Value! : [],
+            SearchQueries: queries.IsSuccess ? queries.Value! : []);
+
+        return Results.Ok(response);
+    }
+
+    private static async Task<IResult> GetSubstackPosts(
+        ISubstackService substackService,
+        int limit = 10,
+        CancellationToken ct = default)
+    {
+        var clampedLimit = Math.Clamp(limit, 1, 50);
+        var result = await substackService.GetRecentPostsAsync(clampedLimit, ct);
+        return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> GetAnalyticsHealth(
+        IGoogleAnalyticsService gaService,
+        ISubstackService substackService,
+        CancellationToken ct = default)
+    {
+        var yesterday = DateTimeOffset.UtcNow.AddDays(-1);
+        var today = DateTimeOffset.UtcNow;
+
+        bool ga4 = false, searchConsole = false, substack = false;
+
+        // Probe GA4
+        try
+        {
+            var gaResult = await gaService.GetOverviewAsync(yesterday, today, ct);
+            ga4 = gaResult.IsSuccess;
+        }
+        catch { /* connectivity failed */ }
+
+        // Probe Search Console independently
+        try
+        {
+            var scResult = await gaService.GetTopQueriesAsync(yesterday, today, 1, ct);
+            searchConsole = scResult.IsSuccess;
+        }
+        catch { /* connectivity failed */ }
+
+        // Probe Substack
+        try
+        {
+            var substackResult = await substackService.GetRecentPostsAsync(1, ct);
+            substack = substackResult.IsSuccess;
+        }
+        catch { /* connectivity failed */ }
+
+        return Results.Ok(new { ga4, searchConsole, substack });
+    }
+
+    private static Result<(DateTimeOffset From, DateTimeOffset To)> ParseDateRange(
+        string? period, DateTimeOffset? from, DateTimeOffset? to, IDateTimeProvider clock)
+    {
+        var today = clock.UtcNow.Date;
+
+        if (period is not null)
+        {
+            if (!ValidPeriods.Contains(period))
+                return Result<(DateTimeOffset, DateTimeOffset)>.Failure(
+                    ErrorCode.ValidationFailed,
+                    $"Invalid period '{period}'. Valid values: {string.Join(", ", ValidPeriods)}");
+
+            var days = int.Parse(period.TrimEnd('d'));
+            var resolvedTo = new DateTimeOffset(today, TimeSpan.Zero)
+                .AddDays(1).AddTicks(-1); // end of today
+            var resolvedFrom = new DateTimeOffset(today.AddDays(-(days - 1)), TimeSpan.Zero);
+            return Result.Success((resolvedFrom, resolvedTo));
+        }
+
+        if (from.HasValue && to.HasValue)
+        {
+            if (from.Value > to.Value)
+                return Result<(DateTimeOffset, DateTimeOffset)>.Failure(
+                    ErrorCode.ValidationFailed, "'from' must be before or equal to 'to'.");
+
+            var maxRange = TimeSpan.FromDays(365);
+            if (to.Value - from.Value > maxRange)
+                return Result<(DateTimeOffset, DateTimeOffset)>.Failure(
+                    ErrorCode.ValidationFailed, "Date range cannot exceed 365 days.");
+
+            return Result.Success((from.Value, to.Value));
+        }
+
+        // Default to 30d
+        {
+            var resolvedTo = new DateTimeOffset(today, TimeSpan.Zero)
+                .AddDays(1).AddTicks(-1);
+            var resolvedFrom = new DateTimeOffset(today.AddDays(-29), TimeSpan.Zero);
+            return Result.Success((resolvedFrom, resolvedTo));
+        }
     }
 }
