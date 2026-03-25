@@ -19,11 +19,12 @@ public class ContentPipelineTests
     private readonly Mock<ISidecarClient> _sidecarClient = new();
     private readonly Mock<IBrandVoiceService> _brandVoiceService = new();
     private readonly Mock<IWorkflowEngine> _workflowEngine = new();
+    private readonly Mock<IPipelineEventBroadcaster> _broadcaster = new();
     private readonly Mock<ILogger<ContentPipeline>> _logger = new();
 
     private ContentPipeline CreatePipeline() =>
         new(_dbContext.Object, _sidecarClient.Object, _brandVoiceService.Object,
-            _workflowEngine.Object, _logger.Object);
+            _workflowEngine.Object, _broadcaster.Object, _logger.Object);
 
     private void SetupContentsDbSet(List<Content> contents)
     {
