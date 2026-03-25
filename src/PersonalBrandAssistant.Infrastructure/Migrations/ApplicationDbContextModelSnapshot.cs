@@ -1269,6 +1269,9 @@ namespace PersonalBrandAssistant.Infrastructure.Migrations
                     b.Property<string>("Category")
                         .HasColumnType("text");
 
+                    b.Property<int>("ConsecutiveFailures")
+                        .HasColumnType("integer");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -1277,6 +1280,15 @@ namespace PersonalBrandAssistant.Infrastructure.Migrations
 
                     b.Property<bool>("IsEnabled")
                         .HasColumnType("boolean");
+
+                    b.Property<string>("LastError")
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset?>("LastPolledAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("LastSuccessAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Name")
                         .IsRequired()

@@ -119,16 +119,25 @@ public sealed class TrendMonitor : ITrendMonitor
                 continue;
             }
 
+            source.LastPolledAt = DateTimeOffset.UtcNow;
+
             try
             {
                 var items = await poller.PollAsync(source, ct);
                 allItems.AddRange(items);
+                source.LastSuccessAt = DateTimeOffset.UtcNow;
+                source.LastError = null;
+                source.ConsecutiveFailures = 0;
             }
             catch (Exception ex)
             {
+                source.ConsecutiveFailures++;
+                source.LastError = ex.Message.Length > 500
+                    ? ex.Message[..500]
+                    : ex.Message;
                 _logger.LogWarning(ex,
-                    "Failed to poll trend source {SourceName} ({SourceType})",
-                    source.Name, source.Type);
+                    "Failed to poll trend source {SourceName} ({SourceType}, {Failures} consecutive failures)",
+                    source.Name, source.Type, source.ConsecutiveFailures);
             }
         }
 

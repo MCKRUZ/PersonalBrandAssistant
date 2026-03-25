@@ -161,6 +161,10 @@ public static class TrendEndpoints
                     .OrderByDescending(i => i.DetectedAt)
                     .Select(i => (DateTimeOffset?)i.DetectedAt)
                     .FirstOrDefault(),
+                s.LastPolledAt,
+                s.LastSuccessAt,
+                s.LastError,
+                s.ConsecutiveFailures,
                 ComingSoon = false,
             })
             .ToListAsync(ct);

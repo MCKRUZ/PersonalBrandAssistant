@@ -304,11 +304,12 @@ public class DataSeeder : IHostedService
         Feed("The Rundown AI", "https://rss.beehiiv.com/feeds/2R3C6Bt5wj.xml", "AI/ML"),
         Feed("Latent Space", "https://www.latent.space/feed", "AI/ML"),
 
-        // TLDR Newsletters (via kill-the-newsletter — AI/DevOps/Data URLs need updating per env)
-        Feed("TLDR Tech", "https://kill-the-newsletter.com/feeds/rlzmozqqblwaphdn9wb0.xml", "General Tech"),
+        // TLDR Newsletters (via bullrich.dev/tldr-rss third-party converter)
+        Feed("TLDR Tech", "https://bullrich.dev/tldr-rss/tech.rss", "General Tech"),
         Feed("TLDR AI", "https://bullrich.dev/tldr-rss/ai.rss", "AI/ML"),
         Feed("TLDR DevOps", "https://bullrich.dev/tldr-rss/devops.rss", "Docker/Infra"),
         Feed("TLDR Data", "https://bullrich.dev/tldr-rss/data.rss", "AI/ML"),
+        FeedDisabled("TLDR All (KTN Backup)", "https://kill-the-newsletter.com/feeds/rlzmozqqblwaphdn9wb0.xml", "General Tech"),
 
         // AI/ML — YouTube
         Feed("Two Minute Papers (YouTube)", "https://www.youtube.com/feeds/videos.xml?channel_id=UCbfYPyITQ-7l4upoX8nvctg", "AI/ML"),
@@ -361,6 +362,16 @@ public class DataSeeder : IHostedService
         Category = category,
         PollIntervalMinutes = 60,
         IsEnabled = true,
+    };
+
+    private static TrendSource FeedDisabled(string name, string feedUrl, string category) => new()
+    {
+        Name = name,
+        Type = TrendSourceType.RssFeed,
+        FeedUrl = feedUrl,
+        Category = category,
+        PollIntervalMinutes = 60,
+        IsEnabled = false,
     };
 
     private static List<InterestKeyword> GetDefaultInterestKeywords() =>

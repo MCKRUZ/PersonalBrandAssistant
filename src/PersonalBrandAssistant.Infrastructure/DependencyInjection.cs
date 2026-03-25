@@ -113,9 +113,10 @@ public static class DependencyInjection
         services.AddScoped<ITrendSourcePoller, TrendRadarPoller>();
         services.AddScoped<ITrendSourcePoller, RssFeedPoller>();
 
+        var feedTimeoutSeconds = configuration.GetValue("TrendMonitoring:FeedTimeoutSeconds", 30);
         services.AddHttpClient("RssFeed", client =>
         {
-            client.Timeout = TimeSpan.FromSeconds(10);
+            client.Timeout = TimeSpan.FromSeconds(feedTimeoutSeconds);
             client.DefaultRequestHeaders.UserAgent.ParseAdd(
                 "PersonalBrandAssistant/1.0 (+https://github.com/MCKRUZ/personal-brand-assistant)");
         });

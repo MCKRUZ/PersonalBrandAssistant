@@ -68,8 +68,28 @@ export interface NewsSource {
   readonly category?: string;
   readonly itemCount: number;
   readonly lastSync?: string;
+  readonly lastPolledAt?: string;
+  readonly lastSuccessAt?: string;
+  readonly lastError?: string;
+  readonly consecutiveFailures: number;
   readonly comingSoon: boolean;
 }
+
+export type FeedHealthStatus = 'healthy' | 'warning' | 'error' | 'unknown';
+
+export function getFeedHealth(source: NewsSource): FeedHealthStatus {
+  if (!source.lastPolledAt) return 'unknown';
+  if (source.consecutiveFailures >= 3) return 'error';
+  if (source.consecutiveFailures >= 1 || source.lastError) return 'warning';
+  return 'healthy';
+}
+
+export const FEED_HEALTH_COLORS: Record<FeedHealthStatus, string> = {
+  healthy: '#22c55e',
+  warning: '#f59e0b',
+  error: '#ef4444',
+  unknown: '#6b7280',
+};
 
 export interface InterestKeyword {
   readonly id: string;

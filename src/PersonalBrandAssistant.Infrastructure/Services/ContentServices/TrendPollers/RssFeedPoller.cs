@@ -32,7 +32,7 @@ internal sealed partial class RssFeedPoller(
 
         var client = httpClientFactory.CreateClient("RssFeed");
 
-        using var response = await client.GetAsync(source.FeedUrl, ct);
+        using var response = await client.GetAsync(source.FeedUrl, HttpCompletionOption.ResponseHeadersRead, ct);
         response.EnsureSuccessStatusCode();
 
         await using var stream = await response.Content.ReadAsStreamAsync(ct);

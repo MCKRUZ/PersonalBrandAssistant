@@ -14,10 +14,10 @@ function loadMaxAgeHours(): number {
     const stored = localStorage.getItem(STORAGE_KEY_MAX_AGE);
     if (stored !== null) {
       const val = Number(stored);
-      return Number.isFinite(val) ? val : 24;
+      return Number.isFinite(val) ? val : 72;
     }
   } catch { /* localStorage unavailable */ }
-  return 24;
+  return 72;
 }
 
 interface SavedEntry {

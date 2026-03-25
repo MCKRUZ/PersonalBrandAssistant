@@ -85,6 +85,10 @@ import { CATEGORY_COLORS, CATEGORY_ICONS, TIME_WINDOW_OPTIONS, FeedTimeWindow } 
         />
       </p-iconfield>
 
+      @if (hiddenByTimeCount() > 0) {
+        <span class="filter-bar__hint">{{ hiddenByTimeCount() }} hidden by time filter</span>
+      }
+
       @if (activeFilterCount() > 0) {
         <p-badge [value]="activeFilterCount().toString()" severity="contrast" />
       }
@@ -182,6 +186,11 @@ import { CATEGORY_COLORS, CATEGORY_ICONS, TIME_WINDOW_OPTIONS, FeedTimeWindow } 
       opacity: 1;
       box-shadow: 0 0 8px var(--chip-color);
     }
+    .filter-bar__hint {
+      font-size: 0.72rem;
+      color: #f59e0b;
+      white-space: nowrap;
+    }
   `,
 })
 export class NewsFeedFiltersComponent {
@@ -190,7 +199,7 @@ export class NewsFeedFiltersComponent {
   readonly timeWindowOptions = [...TIME_WINDOW_OPTIONS];
   selectedTimeWindow: FeedTimeWindow = TIME_WINDOW_OPTIONS.find(
     (o) => o.hours === this.store.filters().maxAgeHours
-  ) ?? TIME_WINDOW_OPTIONS[2]; // default '1 day'
+  ) ?? TIME_WINDOW_OPTIONS[4]; // default '3 days'
 
   relevanceValue = 0;
   searchValue = '';
@@ -210,12 +219,18 @@ export class NewsFeedFiltersComponent {
     const f = this.store.filters();
     let count = 0;
     if (f.categories.length > 0) count++;
-    if (f.maxAgeHours > 0 && f.maxAgeHours !== 24) count++;
+    if (f.maxAgeHours > 0 && f.maxAgeHours !== 72) count++;
     if (f.minRelevance > 0) count++;
     if (f.searchQuery) count++;
     if (f.showSavedOnly) count++;
     if (f.showAnalyzedOnly) count++;
     return count;
+  });
+
+  readonly hiddenByTimeCount = computed(() => {
+    const filters = this.store.filters();
+    if (filters.maxAgeHours <= 0) return 0;
+    return this.store.allItems().length - this.store.filteredItems().length;
   });
 
   toggleSavedOnly() {

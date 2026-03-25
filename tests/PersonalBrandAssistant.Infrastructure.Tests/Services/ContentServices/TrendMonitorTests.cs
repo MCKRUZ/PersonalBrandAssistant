@@ -290,4 +290,95 @@ public class TrendMonitorTests
         var scores = TrendMonitor.ParseRelevanceScores("I think the score is about 7");
         Assert.Empty(scores);
     }
+
+    // --- Feed Health Tracking ---
+
+    [Fact]
+    public async Task RefreshTrendsAsync_SuccessfulPoll_ResetsHealthFields()
+    {
+        var source = new TrendSource
+        {
+            Name = "Test Feed",
+            Type = TrendSourceType.RssFeed,
+            IsEnabled = true,
+            ConsecutiveFailures = 3,
+            LastError = "Previous error",
+        };
+
+        SetupDbSets(sources: [source]);
+        _dbContext.Setup(d => d.TrendSettings)
+            .Returns(Array.Empty<TrendSettings>().AsQueryable().BuildMockDbSet().Object);
+
+        var mockPoller = new Mock<ITrendSourcePoller>();
+        mockPoller.Setup(p => p.SourceType).Returns(TrendSourceType.RssFeed);
+        mockPoller.Setup(p => p.PollAsync(source, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([new TrendItem { Title = "Item 1", SourceType = TrendSourceType.RssFeed }]);
+        _pollers.Add(mockPoller.Object);
+
+        var sut = CreateSut();
+        await sut.RefreshTrendsAsync(CancellationToken.None);
+
+        Assert.NotNull(source.LastPolledAt);
+        Assert.NotNull(source.LastSuccessAt);
+        Assert.Null(source.LastError);
+        Assert.Equal(0, source.ConsecutiveFailures);
+    }
+
+    [Fact]
+    public async Task RefreshTrendsAsync_FailedPoll_IncrementsFailureCount()
+    {
+        var source = new TrendSource
+        {
+            Name = "Broken Feed",
+            Type = TrendSourceType.RssFeed,
+            IsEnabled = true,
+            ConsecutiveFailures = 1,
+        };
+
+        SetupDbSets(sources: [source]);
+        _dbContext.Setup(d => d.TrendSettings)
+            .Returns(Array.Empty<TrendSettings>().AsQueryable().BuildMockDbSet().Object);
+
+        var mockPoller = new Mock<ITrendSourcePoller>();
+        mockPoller.Setup(p => p.SourceType).Returns(TrendSourceType.RssFeed);
+        mockPoller.Setup(p => p.PollAsync(source, It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new HttpRequestException("Connection timed out"));
+        _pollers.Add(mockPoller.Object);
+
+        var sut = CreateSut();
+        await sut.RefreshTrendsAsync(CancellationToken.None);
+
+        Assert.NotNull(source.LastPolledAt);
+        Assert.Null(source.LastSuccessAt);
+        Assert.Equal(2, source.ConsecutiveFailures);
+        Assert.Equal("Connection timed out", source.LastError);
+    }
+
+    [Fact]
+    public async Task RefreshTrendsAsync_LongErrorMessage_TruncatesTo500Chars()
+    {
+        var source = new TrendSource
+        {
+            Name = "Verbose Feed",
+            Type = TrendSourceType.RssFeed,
+            IsEnabled = true,
+        };
+
+        SetupDbSets(sources: [source]);
+        _dbContext.Setup(d => d.TrendSettings)
+            .Returns(Array.Empty<TrendSettings>().AsQueryable().BuildMockDbSet().Object);
+
+        var longMessage = new string('x', 1000);
+        var mockPoller = new Mock<ITrendSourcePoller>();
+        mockPoller.Setup(p => p.SourceType).Returns(TrendSourceType.RssFeed);
+        mockPoller.Setup(p => p.PollAsync(source, It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new Exception(longMessage));
+        _pollers.Add(mockPoller.Object);
+
+        var sut = CreateSut();
+        await sut.RefreshTrendsAsync(CancellationToken.None);
+
+        Assert.NotNull(source.LastError);
+        Assert.Equal(500, source.LastError!.Length);
+    }
 }

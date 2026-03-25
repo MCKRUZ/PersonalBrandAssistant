@@ -40,11 +40,11 @@ export class AnalyticsDashboardComponent implements OnInit {
   readonly store = inject(AnalyticsStore);
 
   ngOnInit() {
-    this.store.loadTopContent(this.store.dateRange());
+    this.store.loadDashboard();
   }
 
   onRangeChanged(range: { from: string; to: string }) {
-    this.store.loadTopContent(range);
+    this.store.setPeriod(range);
   }
 
   viewDetail(contentId: string) {
