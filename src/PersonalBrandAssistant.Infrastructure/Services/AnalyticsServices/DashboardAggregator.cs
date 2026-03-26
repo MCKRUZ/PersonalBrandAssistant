@@ -14,7 +14,7 @@ internal sealed class DashboardAggregator(
     ILogger<DashboardAggregator> logger) : IDashboardAggregator
 {
     // Platforms that do not have full engagement data available
-    private static readonly PlatformType[] UnavailablePlatforms = [PlatformType.LinkedIn];
+    private static readonly PlatformType[] UnavailablePlatforms = [];
 
     public async Task<Result<DashboardSummary>> GetSummaryAsync(
         DateTimeOffset from, DateTimeOffset to, CancellationToken ct)

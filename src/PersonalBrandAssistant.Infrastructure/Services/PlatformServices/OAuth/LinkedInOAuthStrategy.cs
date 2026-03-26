@@ -14,7 +14,7 @@ internal sealed class LinkedInOAuthStrategy : IOAuthPlatformStrategy
         var clientId = _configuration["PlatformIntegrations:LinkedIn:ClientId"];
         return $"https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id={clientId}" +
                $"&redirect_uri={Uri.EscapeDataString(callbackUrl)}" +
-               $"&scope=w_member_social%20r_liteprofile&state={state}";
+               $"&scope=openid%20profile%20w_member_social&state={state}";
     }
 
     public async Task<OAuthTokens?> ExchangeCodeAsync(
