@@ -21,7 +21,6 @@ services:
       context: .
       dockerfile: src/PersonalBrandAssistant.Api/Dockerfile
     volumes:
-      - ./src:/src
       - ./secrets:/app/secrets:ro
     environment:
       ASPNETCORE_ENVIRONMENT: Development
@@ -36,7 +35,10 @@ services:
       PlatformIntegrations__LinkedIn__ClientId: ${LINKEDIN_CLIENT_ID:-}
       PlatformIntegrations__LinkedIn__ClientSecret: ${LINKEDIN_CLIENT_SECRET:-}
       GoogleAnalytics__CredentialsPath: /app/secrets/google-analytics-sa.json
-    command: ["dotnet", "watch", "run", "--project", "/src/PersonalBrandAssistant.Api/PersonalBrandAssistant.Api.csproj", "--urls", "http://+:8080"]
+      DataProtection__KeyPath: /data-protection-keys
+      DOTNET_USE_POLLING_FILE_WATCHER: "true"
+    # dotnet watch disabled — doesn't work with Docker volume mounts on Windows
+    # For dev: use `docker compose up -d --build api` after code changes
 
   web:
     build:

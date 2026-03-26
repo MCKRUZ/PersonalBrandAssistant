@@ -230,7 +230,7 @@ public sealed class LinkedInPlatformAdapter : PlatformAdapterBase
     protected override async Task<Result<PlatformProfile>> ExecuteGetProfileAsync(
         string accessToken, CancellationToken ct)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Get, "/userinfo");
+        using var request = new HttpRequestMessage(HttpMethod.Get, "https://api.linkedin.com/v2/userinfo");
         request.Headers.Authorization = new("Bearer", accessToken);
 
         var response = await _httpClient.SendAsync(request, ct);
@@ -246,6 +246,63 @@ public sealed class LinkedInPlatformAdapter : PlatformAdapterBase
             AvatarUrl: json.TryGetProperty("picture", out var pic) ? pic.GetString() : null,
             FollowerCount: null));
     }
+
+    public async Task<Result<IReadOnlyList<DiscoveredLinkedInPost>>> DiscoverUserPostsAsync(
+        int limit, CancellationToken ct)
+    {
+        var tokenResult = await GetAccessTokenAsync(ct);
+        if (!tokenResult.IsSuccess)
+            return Result.Failure<IReadOnlyList<DiscoveredLinkedInPost>>(ErrorCode.Unauthorized, "LinkedIn not authenticated");
+
+        var profileResult = await ExecuteGetProfileAsync(tokenResult.Value!, ct);
+        if (!profileResult.IsSuccess)
+            return Result.Failure<IReadOnlyList<DiscoveredLinkedInPost>>(ErrorCode.InternalError, "Could not fetch LinkedIn profile");
+
+        var personUrn = $"urn:li:person:{profileResult.Value!.PlatformUserId}";
+        var clampedLimit = Math.Clamp(limit, 1, 50);
+
+        using var request = new HttpRequestMessage(HttpMethod.Get,
+            $"/rest/posts?author={Uri.EscapeDataString(personUrn)}&q=author&count={clampedLimit}&sortBy=LAST_MODIFIED");
+        request.Headers.Authorization = new("Bearer", tokenResult.Value!);
+        request.Headers.Add("X-Restli-Protocol-Version", "2.0.0");
+        request.Headers.Add("Linkedin-Version", _options.ApiVersion ?? "202401");
+
+        var response = await _httpClient.SendAsync(request, ct);
+        if (!response.IsSuccessStatusCode)
+            return HandleHttpError<IReadOnlyList<DiscoveredLinkedInPost>>(response, "LinkedIn user posts");
+
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>(ct);
+        var posts = new List<DiscoveredLinkedInPost>();
+
+        if (json.TryGetProperty("elements", out var elements))
+        {
+            foreach (var post in elements.EnumerateArray())
+            {
+                var postId = post.TryGetProperty("id", out var id) ? id.GetString() ?? "" : "";
+                var commentary = post.TryGetProperty("commentary", out var c) ? c.GetString() ?? "" : "";
+                var createdAt = post.TryGetProperty("createdAt", out var ca)
+                    ? DateTimeOffset.FromUnixTimeMilliseconds(ca.GetInt64())
+                    : DateTimeOffset.UtcNow;
+                var lifecycleState = post.TryGetProperty("lifecycleState", out var ls) ? ls.GetString() : null;
+
+                if (lifecycleState != "PUBLISHED" || string.IsNullOrEmpty(postId)) continue;
+
+                var title = commentary.Length > 100 ? commentary[..100] + "..." : commentary;
+
+                posts.Add(new DiscoveredLinkedInPost(
+                    PlatformPostId: postId,
+                    Title: title,
+                    Body: commentary,
+                    Url: $"https://www.linkedin.com/feed/update/{postId}",
+                    PublishedAt: createdAt));
+            }
+        }
+
+        return Result.Success<IReadOnlyList<DiscoveredLinkedInPost>>(posts.AsReadOnly());
+    }
+
+    public record DiscoveredLinkedInPost(
+        string PlatformPostId, string Title, string Body, string Url, DateTimeOffset PublishedAt);
 
     protected override (int? Remaining, DateTimeOffset? ResetAt) ParseRateLimitHeaders(
         HttpResponseMessage response)
