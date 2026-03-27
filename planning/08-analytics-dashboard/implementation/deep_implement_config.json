@@ -1,0 +1,82 @@
+{
+  "plugin_root": "C:\\Users\\kruz7\\.claude\\plugins\\cache\\piercelamb-plugins\\deep-implement\\0.2.0",
+  "sections_dir": "C:\\Users\\kruz7\\OneDrive\\Documents\\Code Repos\\MCKRUZ\\personal-brand-assistant\\planning\\08-analytics-dashboard\\sections",
+  "target_dir": "C:\\Users\\kruz7\\OneDrive\\Documents\\Code Repos\\MCKRUZ\\personal-brand-assistant",
+  "state_dir": "C:\\Users\\kruz7\\OneDrive\\Documents\\Code Repos\\MCKRUZ\\personal-brand-assistant\\planning\\08-analytics-dashboard\\implementation",
+  "git_root": "C:\\Users\\kruz7\\OneDrive\\Documents\\Code Repos\\MCKRUZ\\personal-brand-assistant",
+  "commit_style": "conventional",
+  "test_command": "uv run pytest",
+  "sections": [
+    "section-01-backend-models",
+    "section-02-google-analytics-service",
+    "section-03-substack-service",
+    "section-04-dashboard-aggregator",
+    "section-05-caching-resilience",
+    "section-06-api-endpoints",
+    "section-07-frontend-models-service",
+    "section-08-analytics-store",
+    "section-09-dashboard-page-kpis",
+    "section-10-charts-components",
+    "section-11-platform-website-substack",
+    "section-12-integration-testing"
+  ],
+  "sections_state": {
+    "section-01-backend-models": {
+      "status": "complete",
+      "commit_hash": "3976965"
+    },
+    "section-02-google-analytics-service": {
+      "status": "complete",
+      "commit_hash": "1ab2f19"
+    },
+    "section-03-substack-service": {
+      "status": "complete",
+      "commit_hash": "360a739"
+    },
+    "section-04-dashboard-aggregator": {
+      "status": "complete",
+      "commit_hash": "f57e197"
+    },
+    "section-05-caching-resilience": {
+      "status": "complete",
+      "commit_hash": "08022f7"
+    },
+    "section-06-api-endpoints": {
+      "status": "complete",
+      "commit_hash": "19e1d32"
+    },
+    "section-07-frontend-models-service": {
+      "status": "complete",
+      "commit_hash": "e8dddeb"
+    },
+    "section-08-analytics-store": {
+      "status": "complete",
+      "commit_hash": "3b523f2"
+    },
+    "section-09-dashboard-page-kpis": {
+      "status": "complete",
+      "commit_hash": "ad81e46"
+    },
+    "section-10-charts-components": {
+      "status": "complete",
+      "commit_hash": "0c8cad1"
+    },
+    "section-11-platform-website-substack": {
+      "status": "complete",
+      "commit_hash": "ace3f8a"
+    },
+    "section-12-integration-testing": {
+      "status": "complete",
+      "commit_hash": "fd6f401"
+    }
+  },
+  "pre_commit": {
+    "present": false,
+    "type": "none",
+    "config_file": null,
+    "native_hook": null,
+    "may_modify_files": false,
+    "detected_formatters": []
+  },
+  "created_at": "2026-03-25T02:08:15.574738+00:00"
+}

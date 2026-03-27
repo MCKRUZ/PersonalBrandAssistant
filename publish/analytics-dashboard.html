@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Brand Analytics Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --surface-950: #0a0a0f;
+      --surface-900: #111118;
+      --surface-800: #1a1a24;
+      --surface-700: #25252f;
+      --surface-600: #3a3a48;
+      --text-primary: #e4e4e7;
+      --text-muted: #71717a;
+      --text-dim: #52525b;
+      --accent: #8b5cf6;
+      --accent-dim: rgba(139, 92, 246, 0.15);
+      --green: #22c55e;
+      --green-dim: rgba(34, 197, 94, 0.12);
+      --red: #ef4444;
+      --red-dim: rgba(239, 68, 68, 0.12);
+      --blue: #3b82f6;
+      --twitter: #1d9bf0;
+      --linkedin: #0a66c2;
+      --youtube: #ff0000;
+      --instagram: #e1306c;
+      --reddit: #ff4500;
+      --radius: 12px;
+      --radius-sm: 8px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: var(--surface-950);
+      color: var(--text-primary);
+      line-height: 1.5;
+      min-height: 100vh;
+      padding: 1.5rem;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.75rem;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    .header h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: -0.025em;
+    }
+    .header h1 span { color: var(--accent); }
+    .header-meta {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+    .period-badge {
+      padding: 0.35rem 0.85rem;
+      border-radius: 20px;
+      background: var(--accent-dim);
+      color: var(--accent);
+      font-weight: 600;
+      font-size: 0.75rem;
+      letter-spacing: 0.02em;
+    }
+
+    /* Grid Layouts */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .charts-row {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .platform-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .bottom-row {
+      display: grid;
+      grid-template-columns: 3fr 1fr;
+      gap: 1rem;
+    }
+
+    /* Card base */
+    .card {
+      background: var(--surface-900);
+      border: 1px solid var(--surface-700);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      transition: border-color 0.2s ease;
+    }
+    .card:hover { border-color: var(--surface-600); }
+    .card-title {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      margin-bottom: 1rem;
+    }
+
+    /* KPI Cards */
+    .kpi-card {
+      background: var(--surface-900);
+      border: 1px solid var(--surface-700);
+      border-radius: var(--radius);
+      padding: 1.1rem 1.25rem;
+      transition: border-color 0.2s ease, transform 0.2s ease;
+    }
+    .kpi-card:hover {
+      border-color: var(--surface-600);
+      transform: translateY(-1px);
+    }
+    .kpi-label {
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      margin-bottom: 0.5rem;
+    }
+    .kpi-value {
+      font-size: 1.65rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.1;
+      margin-bottom: 0.4rem;
+    }
+    .kpi-trend {
+      font-size: 0.75rem;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      padding: 0.15rem 0.5rem;
+      border-radius: 6px;
+    }
+    .kpi-trend.up { color: var(--green); background: var(--green-dim); }
+    .kpi-trend.down { color: var(--red); background: var(--red-dim); }
+
+    /* Platform Health Cards */
+    .platform-card {
+      background: var(--surface-900);
+      border: 1px solid var(--surface-700);
+      border-radius: var(--radius);
+      padding: 1rem 1.1rem;
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.2s ease, transform 0.2s ease;
+    }
+    .platform-card:hover {
+      transform: translateY(-1px);
+    }
+    .platform-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: var(--platform-color);
+    }
+    .platform-card .p-icon {
+      width: 28px; height: 28px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.85rem;
+      font-weight: 800;
+      margin-bottom: 0.6rem;
+      color: var(--platform-color);
+      background: color-mix(in srgb, var(--platform-color) 12%, transparent);
+    }
+    .platform-card .p-name {
+      font-size: 0.78rem;
+      font-weight: 700;
+      margin-bottom: 0.65rem;
+      color: var(--text-primary);
+    }
+    .platform-card .p-stat {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.72rem;
+      padding: 0.2rem 0;
+    }
+    .platform-card .p-stat-label { color: var(--text-muted); }
+    .platform-card .p-stat-value { font-weight: 700; color: var(--text-primary); }
+    .platform-card .p-best {
+      margin-top: 0.5rem;
+      padding-top: 0.5rem;
+      border-top: 1px solid var(--surface-700);
+      font-size: 0.68rem;
+      color: var(--text-dim);
+      line-height: 1.4;
+    }
+    .platform-card .p-best strong {
+      color: var(--text-muted);
+    }
+
+    /* Table */
+    .table-wrap { overflow-x: auto; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8rem;
+    }
+    th {
+      text-align: left;
+      padding: 0.6rem 0.75rem;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--surface-700);
+    }
+    td {
+      padding: 0.65rem 0.75rem;
+      border-bottom: 1px solid var(--surface-700);
+      color: var(--text-primary);
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255,255,255,0.02); }
+    .platform-dot {
+      display: inline-block;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      margin-right: 0.4rem;
+      vertical-align: middle;
+    }
+    .eng-rate {
+      font-weight: 700;
+      padding: 0.15rem 0.5rem;
+      border-radius: 6px;
+      font-size: 0.72rem;
+    }
+    .eng-rate.high { color: var(--green); background: var(--green-dim); }
+    .eng-rate.med { color: #eab308; background: rgba(234,179,8,0.12); }
+    .eng-rate.low { color: var(--text-muted); background: rgba(255,255,255,0.04); }
+
+    /* Automation Stats */
+    .auto-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+    }
+    .auto-stat {
+      padding: 0.85rem;
+      background: var(--surface-800);
+      border-radius: var(--radius-sm);
+      text-align: center;
+    }
+    .auto-stat-value {
+      font-size: 1.25rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+    .auto-stat-label {
+      font-size: 0.65rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      margin-top: 0.2rem;
+    }
+
+    /* Chart containers */
+    .chart-container { position: relative; width: 100%; }
+    .chart-container.line-chart { height: 280px; }
+    .chart-container.bar-chart { height: 280px; }
+
+    /* Responsive */
+    @media (max-width: 1200px) {
+      .kpi-grid { grid-template-columns: repeat(3, 1fr); }
+      .platform-grid { grid-template-columns: repeat(3, 1fr); }
+    }
+    @media (max-width: 900px) {
+      .charts-row, .bottom-row { grid-template-columns: 1fr; }
+      .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+      .platform-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 600px) {
+      body { padding: 1rem; }
+      .kpi-grid, .platform-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="header">
+    <h1><span>Brand</span> Analytics</h1>
+    <div class="header-meta">
+      <span class="period-badge">Last 30 days</span>
+      <span>Updated Mar 24, 2026</span>
+    </div>
+  </div>
+
+  <!-- KPI Cards -->
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <div class="kpi-label">Total Engagement</div>
+      <div class="kpi-value">12,847</div>
+      <span class="kpi-trend up">+18.3% vs prev</span>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Total Impressions</div>
+      <div class="kpi-value">284K</div>
+      <span class="kpi-trend up">+9.1% vs prev</span>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Engagement Rate</div>
+      <div class="kpi-value">4.52%</div>
+      <span class="kpi-trend up">+0.8pp vs prev</span>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Content Published</div>
+      <div class="kpi-value">34</div>
+      <span class="kpi-trend up">+6 vs prev</span>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Cost / Engagement</div>
+      <div class="kpi-value">$0.03</div>
+      <span class="kpi-trend down">+$0.01 vs prev</span>
+    </div>
+  </div>
+
+  <!-- Charts Row -->
+  <div class="charts-row">
+    <div class="card">
+      <div class="card-title">Engagement Over Time</div>
+      <div class="chart-container line-chart">
+        <canvas id="engagementChart"></canvas>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Platform Breakdown</div>
+      <div class="chart-container bar-chart">
+        <canvas id="platformChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Platform Health Cards -->
+  <div class="platform-grid">
+    <div class="platform-card" style="--platform-color: var(--twitter);">
+      <div class="p-icon">X</div>
+      <div class="p-name">Twitter / X</div>
+      <div class="p-stat"><span class="p-stat-label">Followers</span><span class="p-stat-value">2,841</span></div>
+      <div class="p-stat"><span class="p-stat-label">Posts</span><span class="p-stat-value">18</span></div>
+      <div class="p-stat"><span class="p-stat-label">Avg Eng.</span><span class="p-stat-value">127</span></div>
+      <div class="p-best"><strong>Top:</strong> Why agent frameworks need a rethink in 2026</div>
+    </div>
+    <div class="platform-card" style="--platform-color: var(--linkedin);">
+      <div class="p-icon">in</div>
+      <div class="p-name">LinkedIn</div>
+      <div class="p-stat"><span class="p-stat-label">Followers</span><span class="p-stat-value">5,230</span></div>
+      <div class="p-stat"><span class="p-stat-label">Posts</span><span class="p-stat-value">8</span></div>
+      <div class="p-stat"><span class="p-stat-label">Avg Eng.</span><span class="p-stat-value">312</span></div>
+      <div class="p-best"><strong>Top:</strong> The real cost of "AI-first" when your team isn't ready</div>
+    </div>
+    <div class="platform-card" style="--platform-color: var(--youtube);">
+      <div class="p-icon">YT</div>
+      <div class="p-name">YouTube</div>
+      <div class="p-stat"><span class="p-stat-label">Subscribers</span><span class="p-stat-value">890</span></div>
+      <div class="p-stat"><span class="p-stat-label">Videos</span><span class="p-stat-value">3</span></div>
+      <div class="p-stat"><span class="p-stat-label">Avg Views</span><span class="p-stat-value">1,420</span></div>
+      <div class="p-best"><strong>Top:</strong> Building an AI brand assistant from scratch</div>
+    </div>
+    <div class="platform-card" style="--platform-color: var(--instagram);">
+      <div class="p-icon">IG</div>
+      <div class="p-name">Instagram</div>
+      <div class="p-stat"><span class="p-stat-label">Followers</span><span class="p-stat-value">1,156</span></div>
+      <div class="p-stat"><span class="p-stat-label">Posts</span><span class="p-stat-value">4</span></div>
+      <div class="p-stat"><span class="p-stat-label">Avg Eng.</span><span class="p-stat-value">89</span></div>
+      <div class="p-best"><strong>Top:</strong> Claude Code workflow in 60 seconds</div>
+    </div>
+    <div class="platform-card" style="--platform-color: var(--reddit);">
+      <div class="p-icon">R</div>
+      <div class="p-name">Reddit</div>
+      <div class="p-stat"><span class="p-stat-label">Karma</span><span class="p-stat-value">3,450</span></div>
+      <div class="p-stat"><span class="p-stat-label">Posts</span><span class="p-stat-value">6</span></div>
+      <div class="p-stat"><span class="p-stat-label">Avg Score</span><span class="p-stat-value">58</span></div>
+      <div class="p-best"><strong>Top:</strong> How I automated my content pipeline with Claude</div>
+    </div>
+  </div>
+
+  <!-- Bottom Row: Table + Automation Stats -->
+  <div class="bottom-row">
+    <div class="card">
+      <div class="card-title">Top Performing Content</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Title</th>
+              <th>Platform</th>
+              <th>Engagement</th>
+              <th>Impressions</th>
+              <th>Eng. Rate</th>
+              <th>Published</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>1</td>
+              <td>The real cost of "AI-first" when your team isn't ready</td>
+              <td><span class="platform-dot" style="background: var(--linkedin);"></span>LinkedIn</td>
+              <td>842</td>
+              <td>12,400</td>
+              <td><span class="eng-rate high">6.79%</span></td>
+              <td>Mar 18</td>
+            </tr>
+            <tr>
+              <td>2</td>
+              <td>Building an AI brand assistant from scratch</td>
+              <td><span class="platform-dot" style="background: var(--youtube);"></span>YouTube</td>
+              <td>724</td>
+              <td>4,260</td>
+              <td><span class="eng-rate high">17.0%</span></td>
+              <td>Mar 12</td>
+            </tr>
+            <tr>
+              <td>3</td>
+              <td>Why agent frameworks need a rethink in 2026</td>
+              <td><span class="platform-dot" style="background: var(--twitter);"></span>Twitter/X</td>
+              <td>631</td>
+              <td>18,900</td>
+              <td><span class="eng-rate med">3.34%</span></td>
+              <td>Mar 20</td>
+            </tr>
+            <tr>
+              <td>4</td>
+              <td>Enterprise AI adoption is a people problem, not a tech one</td>
+              <td><span class="platform-dot" style="background: var(--linkedin);"></span>LinkedIn</td>
+              <td>518</td>
+              <td>9,800</td>
+              <td><span class="eng-rate high">5.29%</span></td>
+              <td>Mar 10</td>
+            </tr>
+            <tr>
+              <td>5</td>
+              <td>How I automated my content pipeline with Claude</td>
+              <td><span class="platform-dot" style="background: var(--reddit);"></span>Reddit</td>
+              <td>412</td>
+              <td>8,200</td>
+              <td><span class="eng-rate high">5.02%</span></td>
+              <td>Mar 15</td>
+            </tr>
+            <tr>
+              <td>6</td>
+              <td>Claude Code workflow in 60 seconds</td>
+              <td><span class="platform-dot" style="background: var(--instagram);"></span>Instagram</td>
+              <td>356</td>
+              <td>5,100</td>
+              <td><span class="eng-rate high">6.98%</span></td>
+              <td>Mar 22</td>
+            </tr>
+            <tr>
+              <td>7</td>
+              <td>Stop calling it AI strategy if nobody ships</td>
+              <td><span class="platform-dot" style="background: var(--twitter);"></span>Twitter/X</td>
+              <td>298</td>
+              <td>14,500</td>
+              <td><span class="eng-rate low">2.06%</span></td>
+              <td>Mar 8</td>
+            </tr>
+            <tr>
+              <td>8</td>
+              <td>The MCP protocol changes everything for agent tooling</td>
+              <td><span class="platform-dot" style="background: var(--twitter);"></span>Twitter/X</td>
+              <td>245</td>
+              <td>11,200</td>
+              <td><span class="eng-rate low">2.19%</span></td>
+              <td>Mar 5</td>
+            </tr>
+            <tr>
+              <td>9</td>
+              <td>What 6 months of AI content creation taught me</td>
+              <td><span class="platform-dot" style="background: var(--linkedin);"></span>LinkedIn</td>
+              <td>198</td>
+              <td>6,300</td>
+              <td><span class="eng-rate med">3.14%</span></td>
+              <td>Mar 2</td>
+            </tr>
+            <tr>
+              <td>10</td>
+              <td>Self-hosted LLM pipelines: worth the pain?</td>
+              <td><span class="platform-dot" style="background: var(--reddit);"></span>Reddit</td>
+              <td>167</td>
+              <td>3,800</td>
+              <td><span class="eng-rate med">4.39%</span></td>
+              <td>Mar 1</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Engagement Automation</div>
+      <div class="auto-stats">
+        <div class="auto-stat">
+          <div class="auto-stat-value" style="color: var(--accent);">7</div>
+          <div class="auto-stat-label">Active Tasks</div>
+        </div>
+        <div class="auto-stat">
+          <div class="auto-stat-value">1,284</div>
+          <div class="auto-stat-label">Total Actions</div>
+        </div>
+        <div class="auto-stat">
+          <div class="auto-stat-value" style="color: var(--green);">94.2%</div>
+          <div class="auto-stat-label">Success Rate</div>
+        </div>
+        <div class="auto-stat">
+          <div class="auto-stat-value">186</div>
+          <div class="auto-stat-label">This Week</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Chart.js global defaults for dark theme
+    Chart.defaults.color = '#71717a';
+    Chart.defaults.borderColor = 'rgba(255,255,255,0.06)';
+    Chart.defaults.font.family = "-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif";
+
+    // Generate 30-day labels
+    const labels = [];
+    const now = new Date(2026, 2, 24);
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i);
+      labels.push(d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+    }
+
+    // Simulated engagement data per platform
+    function generateData(base, variance, trend) {
+      return Array.from({ length: 30 }, (_, i) => {
+        const trendVal = base + (trend * i / 30);
+        return Math.max(0, Math.round(trendVal + (Math.random() - 0.5) * variance));
+      });
+    }
+
+    const twitterData = generateData(80, 40, 30);
+    const linkedinData = generateData(120, 50, 40);
+    const youtubeData = generateData(50, 30, 15);
+    const instagramData = generateData(35, 20, 10);
+    const redditData = generateData(25, 15, 8);
+    const totalData = twitterData.map((v, i) => v + linkedinData[i] + youtubeData[i] + instagramData[i] + redditData[i]);
+
+    // Engagement Over Time (Line Chart)
+    new Chart(document.getElementById('engagementChart'), {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: 'Total',
+            data: totalData,
+            borderColor: '#8b5cf6',
+            backgroundColor: 'rgba(139, 92, 246, 0.08)',
+            borderWidth: 2.5,
+            fill: true,
+            tension: 0.35,
+            pointRadius: 0,
+            pointHitRadius: 8,
+          },
+          {
+            label: 'Twitter/X',
+            data: twitterData,
+            borderColor: '#1d9bf0',
+            borderWidth: 1.5,
+            tension: 0.35,
+            pointRadius: 0,
+            pointHitRadius: 8,
+          },
+          {
+            label: 'LinkedIn',
+            data: linkedinData,
+            borderColor: '#0a66c2',
+            borderWidth: 1.5,
+            tension: 0.35,
+            pointRadius: 0,
+            pointHitRadius: 8,
+          },
+          {
+            label: 'YouTube',
+            data: youtubeData,
+            borderColor: '#ff0000',
+            borderWidth: 1.5,
+            tension: 0.35,
+            pointRadius: 0,
+            pointHitRadius: 8,
+          },
+          {
+            label: 'Instagram',
+            data: instagramData,
+            borderColor: '#e1306c',
+            borderWidth: 1.5,
+            tension: 0.35,
+            pointRadius: 0,
+            pointHitRadius: 8,
+          },
+          {
+            label: 'Reddit',
+            data: redditData,
+            borderColor: '#ff4500',
+            borderWidth: 1.5,
+            tension: 0.35,
+            pointRadius: 0,
+            pointHitRadius: 8,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: {
+            position: 'top',
+            labels: {
+              usePointStyle: true,
+              pointStyle: 'circle',
+              boxWidth: 6,
+              padding: 16,
+              font: { size: 11, weight: '600' },
+            },
+          },
+          tooltip: {
+            backgroundColor: '#1a1a24',
+            borderColor: '#3a3a48',
+            borderWidth: 1,
+            titleFont: { weight: '700' },
+            bodyFont: { size: 12 },
+            padding: 12,
+            cornerRadius: 8,
+          },
+        },
+        scales: {
+          x: {
+            grid: { display: false },
+            ticks: { maxTicksLimit: 8, font: { size: 10 } },
+          },
+          y: {
+            grid: { color: 'rgba(255,255,255,0.04)' },
+            ticks: { font: { size: 10 } },
+          },
+        },
+      },
+    });
+
+    // Platform Breakdown (Horizontal Stacked Bar)
+    new Chart(document.getElementById('platformChart'), {
+      type: 'bar',
+      data: {
+        labels: ['Twitter/X', 'LinkedIn', 'YouTube', 'Instagram', 'Reddit'],
+        datasets: [
+          {
+            label: 'Likes',
+            data: [1840, 3120, 1580, 720, 890],
+            backgroundColor: 'rgba(139, 92, 246, 0.7)',
+            borderRadius: 3,
+          },
+          {
+            label: 'Comments',
+            data: [420, 680, 340, 160, 280],
+            backgroundColor: 'rgba(96, 165, 250, 0.7)',
+            borderRadius: 3,
+          },
+          {
+            label: 'Shares',
+            data: [580, 510, 120, 88, 64],
+            backgroundColor: 'rgba(52, 211, 153, 0.55)',
+            borderRadius: 3,
+          },
+        ],
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'top',
+            labels: {
+              usePointStyle: true,
+              pointStyle: 'circle',
+              boxWidth: 6,
+              padding: 16,
+              font: { size: 11, weight: '600' },
+            },
+          },
+          tooltip: {
+            backgroundColor: '#1a1a24',
+            borderColor: '#3a3a48',
+            borderWidth: 1,
+            padding: 10,
+            cornerRadius: 8,
+          },
+        },
+        scales: {
+          x: {
+            stacked: true,
+            grid: { color: 'rgba(255,255,255,0.04)' },
+            ticks: { font: { size: 10 } },
+          },
+          y: {
+            stacked: true,
+            grid: { display: false },
+            ticks: {
+              font: { size: 11, weight: '600' },
+              color: function(context) {
+                const colors = ['#1d9bf0', '#0a66c2', '#ff0000', '#e1306c', '#ff4500'];
+                return colors[context.index] || '#71717a';
+              },
+            },
+          },
+        },
+      },
+    });
+  </script>
+
+</body>
+</html>

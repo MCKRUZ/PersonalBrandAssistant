@@ -1,0 +1,82 @@
+{
+  "plugin_root": "C:\\Users\\kruz7\\.claude\\plugins\\cache\\piercelamb-plugins\\deep-implement\\0.2.0",
+  "sections_dir": "C:\\Users\\kruz7\\OneDrive\\Documents\\Code Repos\\MCKRUZ\\personal-brand-assistant\\planning\\05-content-engine\\sections",
+  "target_dir": "C:\\Users\\kruz7\\OneDrive\\Documents\\Code Repos\\MCKRUZ\\personal-brand-assistant",
+  "state_dir": "C:\\Users\\kruz7\\OneDrive\\Documents\\Code Repos\\MCKRUZ\\personal-brand-assistant\\planning\\05-content-engine\\implementation",
+  "git_root": "C:\\Users\\kruz7\\OneDrive\\Documents\\Code Repos\\MCKRUZ\\personal-brand-assistant",
+  "commit_style": "conventional",
+  "test_command": "uv run pytest",
+  "sections": [
+    "section-01-domain-entities",
+    "section-02-sidecar-integration",
+    "section-03-agent-refactoring",
+    "section-04-content-pipeline",
+    "section-05-content-repurposing",
+    "section-06-content-calendar",
+    "section-07-brand-voice",
+    "section-08-trend-monitoring",
+    "section-09-content-analytics",
+    "section-10-background-processors",
+    "section-11-api-endpoints",
+    "section-12-docker-di-config"
+  ],
+  "sections_state": {
+    "section-01-domain-entities": {
+      "status": "complete",
+      "commit_hash": "64f1e00"
+    },
+    "section-02-sidecar-integration": {
+      "status": "complete",
+      "commit_hash": "73638a2"
+    },
+    "section-03-agent-refactoring": {
+      "status": "complete",
+      "commit_hash": "6c5ae23"
+    },
+    "section-04-content-pipeline": {
+      "status": "complete",
+      "commit_hash": "19d0cc3"
+    },
+    "section-05-content-repurposing": {
+      "status": "complete",
+      "commit_hash": "a11c938"
+    },
+    "section-06-content-calendar": {
+      "status": "complete",
+      "commit_hash": "6e48b16"
+    },
+    "section-07-brand-voice": {
+      "status": "complete",
+      "commit_hash": "c6f211d"
+    },
+    "section-08-trend-monitoring": {
+      "status": "complete",
+      "commit_hash": "d85ba00"
+    },
+    "section-09-content-analytics": {
+      "status": "complete",
+      "commit_hash": "c2e54e4"
+    },
+    "section-10-background-processors": {
+      "status": "complete",
+      "commit_hash": "8839cf6"
+    },
+    "section-11-api-endpoints": {
+      "status": "complete",
+      "commit_hash": "a3b459a"
+    },
+    "section-12-docker-di-config": {
+      "status": "complete",
+      "commit_hash": "650acae"
+    }
+  },
+  "pre_commit": {
+    "present": false,
+    "type": "none",
+    "config_file": null,
+    "native_hook": null,
+    "may_modify_files": false,
+    "detected_formatters": []
+  },
+  "created_at": "2026-03-16T02:26:19.899408+00:00"
+}
