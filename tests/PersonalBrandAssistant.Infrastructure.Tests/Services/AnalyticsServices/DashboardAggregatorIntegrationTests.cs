@@ -52,7 +52,7 @@ public class DashboardAggregatorIntegrationTests : IAsyncLifetime
             .ReturnsAsync(Result.Success(new WebsiteOverview(120, 95, 340, 2.5, 45.0, 60)));
 
         _dbContext = _fixture.CreateDbContext(connectionString: _connectionString);
-        _sut = new DashboardAggregator(_dbContext, _mockGa.Object, NullLogger<DashboardAggregator>.Instance);
+        _sut = new DashboardAggregator(_dbContext, _mockGa.Object, [], NullLogger<DashboardAggregator>.Instance);
     }
 
     public async Task DisposeAsync()

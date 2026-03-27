@@ -34,6 +34,8 @@ public class ContentPlatformStatusConfiguration : IEntityTypeConfiguration<Conte
             .HasForeignKey(c => c.ContentId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        builder.Property(c => c.ScheduledAt);
+
         builder.Property<uint>("xmin")
             .HasColumnType("xid")
             .ValueGeneratedOnAddOrUpdate()

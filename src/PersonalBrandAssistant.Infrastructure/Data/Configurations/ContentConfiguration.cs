@@ -58,6 +58,15 @@ public class ContentConfiguration : IEntityTypeConfiguration<Content>
         builder.Property(c => c.ImageFileId).HasMaxLength(500);
         builder.Property(c => c.ImageRequired).IsRequired().HasDefaultValue(false);
 
+        builder.Property(c => c.SubstackPostUrl).HasMaxLength(2000);
+        builder.Property(c => c.BlogPostUrl).HasMaxLength(2000);
+        builder.Property(c => c.BlogDeployCommitSha).HasMaxLength(40);
+        builder.Property(c => c.BlogDelayOverride);
+        builder.Property(c => c.BlogSkipped).IsRequired().HasDefaultValue(false);
+
+        builder.HasIndex(c => new { c.ContentType, c.Status })
+            .HasFilter("\"ContentType\" = 0");
+
         builder.Ignore(c => c.DomainEvents);
     }
 }

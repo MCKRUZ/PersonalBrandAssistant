@@ -19,7 +19,7 @@ public class DashboardAggregatorTests
     private readonly DateTimeOffset _from = new(2026, 3, 1, 0, 0, 0, TimeSpan.Zero);
     private readonly DateTimeOffset _to = new(2026, 3, 14, 23, 59, 59, TimeSpan.Zero);
 
-    private DashboardAggregator CreateSut() => new(_db.Object, _ga.Object, _logger.Object);
+    private DashboardAggregator CreateSut() => new(_db.Object, _ga.Object, [], _logger.Object);
 
     private static void SetEntityId<T>(T entity, Guid? id = null) where T : class
     {

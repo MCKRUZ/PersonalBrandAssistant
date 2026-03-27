@@ -14,4 +14,6 @@ public enum NotificationType
     AutomationPipelineCompleted,
     AutomationNoTrends,
     AutomationConsecutiveFailure,
+    SubstackDetected,
+    BlogReady,
 }

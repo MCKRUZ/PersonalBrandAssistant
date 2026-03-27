@@ -15,5 +15,6 @@ public class ContentPlatformStatus : AuditableEntityBase
     public int RetryCount { get; set; } = 0;
     public DateTimeOffset? NextRetryAt { get; set; }
     public DateTimeOffset? PublishedAt { get; set; }
+    public DateTimeOffset? ScheduledAt { get; set; }
     public uint Version { get; set; }
 }

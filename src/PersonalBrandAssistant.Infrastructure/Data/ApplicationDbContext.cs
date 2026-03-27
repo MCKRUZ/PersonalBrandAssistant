@@ -37,6 +37,10 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<SocialInboxItem> SocialInboxItems => Set<SocialInboxItem>();
     public DbSet<OpportunityAction> OpportunityActions => Set<OpportunityAction>();
     public DbSet<AutomationRun> AutomationRuns => Set<AutomationRun>();
+    public DbSet<ChatConversation> ChatConversations => Set<ChatConversation>();
+    public DbSet<SubstackDetection> SubstackDetections => Set<SubstackDetection>();
+    public DbSet<UserNotification> UserNotifications => Set<UserNotification>();
+    public DbSet<BlogPublishRequest> BlogPublishRequests => Set<BlogPublishRequest>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

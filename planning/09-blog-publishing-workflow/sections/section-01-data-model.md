@@ -249,3 +249,17 @@ dotnet ef migrations add AddBlogPublishingWorkflow --startup-project ../Personal
 ## Implementation Order
 
 1. Create enums → 2. Extend NotificationType → 3. Create entities → 4. Create domain event → 5. Modify Content + ContentPlatformStatus → 6. Create EF configurations → 7. Modify existing configs → 8. Update DbContext → 9. Create options classes → 10. Generate migration → 11. Write tests
+
+---
+
+## Implementation Notes (Actual)
+
+**Status:** COMPLETE
+**Tests:** 7 domain + 12 integration = 19 passing
+**Test files:**
+- `tests/PersonalBrandAssistant.Domain.Tests/Entities/BlogEntityTests.cs`
+- `tests/PersonalBrandAssistant.Infrastructure.Tests/Data/BlogDataModelTests.cs`
+
+**Deviations from plan:**
+- EF migration generation deferred until all data model sections complete (avoids intermediate migrations)
+- Also fixed pre-existing build errors in DashboardAggregatorTests (missing IEnumerable<ISocialPlatform> constructor arg)

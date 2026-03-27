@@ -33,6 +33,10 @@ public interface IApplicationDbContext
     DbSet<SocialInboxItem> SocialInboxItems { get; }
     DbSet<OpportunityAction> OpportunityActions { get; }
     DbSet<AutomationRun> AutomationRuns { get; }
+    DbSet<ChatConversation> ChatConversations { get; }
+    DbSet<SubstackDetection> SubstackDetections { get; }
+    DbSet<UserNotification> UserNotifications { get; }
+    DbSet<BlogPublishRequest> BlogPublishRequests { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

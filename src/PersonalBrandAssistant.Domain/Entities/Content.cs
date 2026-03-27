@@ -44,6 +44,11 @@ public class Content : AuditableEntityBase
     public uint Version { get; set; }
     public string? ImageFileId { get; set; }
     public bool ImageRequired { get; set; }
+    public string? SubstackPostUrl { get; set; }
+    public string? BlogPostUrl { get; set; }
+    public string? BlogDeployCommitSha { get; set; }
+    public TimeSpan? BlogDelayOverride { get; set; }
+    public bool BlogSkipped { get; set; }
 
     public static Content Create(
         ContentType type,
