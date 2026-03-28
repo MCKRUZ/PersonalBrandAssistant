@@ -352,6 +352,11 @@ public static class DependencyInjection
         services.AddScoped<IBlogChatService, BlogChatService>();
         services.AddScoped<ISubstackPrepService, SubstackPrepService>();
 
+        // Blog HTML generation
+        services.Configure<BlogPublishOptions>(
+            configuration.GetSection(BlogPublishOptions.SectionName));
+        services.AddScoped<IBlogHtmlGenerator, BlogHtmlGenerator>();
+
         // Content automation
         services.Configure<ContentAutomationOptions>(
             configuration.GetSection(ContentAutomationOptions.SectionName));

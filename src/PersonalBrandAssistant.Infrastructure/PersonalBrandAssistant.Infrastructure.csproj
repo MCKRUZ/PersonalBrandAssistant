@@ -15,6 +15,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Content Include="templates\blog-post.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Anthropic" Version="12.8.0" />
     <PackageReference Include="Fluid.Core" Version="2.31.0" />
     <PackageReference Include="Google.Analytics.Data.V1Beta" Version="2.0.0-beta10" />
@@ -37,6 +43,7 @@
     <PackageReference Include="Cronos" Version="0.11.1" />
     <PackageReference Include="SkiaSharp" Version="3.119.2" />
     <PackageReference Include="System.ServiceModel.Syndication" Version="10.0.5" />
+    <PackageReference Include="Markdig" Version="0.38.0" />
     <PackageReference Include="Microsoft.Extensions.Caching.Hybrid" Version="9.6.0" />
     <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="9.6.0" />
   </ItemGroup>
