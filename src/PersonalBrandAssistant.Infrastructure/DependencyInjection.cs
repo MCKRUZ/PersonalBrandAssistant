@@ -344,6 +344,13 @@ public static class DependencyInjection
         services.AddScoped<IDashboardCacheInvalidator>(sp =>
             sp.GetRequiredService<CachedDashboardAggregator>());
 
+        // Blog chat
+        services.Configure<BlogChatOptions>(
+            configuration.GetSection(BlogChatOptions.SectionName));
+        services.AddHttpClient("Anthropic");
+        services.AddSingleton<IClaudeChatClient, ClaudeChatClient>();
+        services.AddScoped<IBlogChatService, BlogChatService>();
+
         // Content automation
         services.Configure<ContentAutomationOptions>(
             configuration.GetSection(ContentAutomationOptions.SectionName));

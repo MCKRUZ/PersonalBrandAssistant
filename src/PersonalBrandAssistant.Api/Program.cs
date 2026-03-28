@@ -100,6 +100,7 @@ else
     app.MapIntegrationEndpoints();
     app.MapEventEndpoints();
     app.MapAutomationEndpoints();
+    app.MapBlogChatEndpoints();
 
     app.Run();
 }

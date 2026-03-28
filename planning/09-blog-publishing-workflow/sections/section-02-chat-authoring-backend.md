@@ -137,3 +137,20 @@ Contains Matt Kruczek's voice, enterprise AI thought leadership, humanizer rules
 | `Api/prompts/blog-writer-system.md` | Create |
 | `Infrastructure/DependencyInjection.cs` | Modify (register) |
 | `Api/Program.cs` | Modify (map endpoints) |
+
+---
+
+## Implementation Notes (Actual)
+
+**Status:** COMPLETE
+**Tests:** 12 passing (5 service + 5 finalization + 2 windowing)
+**Test files:**
+- `tests/PersonalBrandAssistant.Infrastructure.Tests/Services/BlogChat/BlogChatServiceTests.cs`
+- `tests/PersonalBrandAssistant.Infrastructure.Tests/Services/BlogChat/BlogChatFinalizationTests.cs`
+- `tests/PersonalBrandAssistant.Infrastructure.Tests/Services/BlogChat/ConversationWindowingTests.cs`
+
+**Deviations from plan:**
+- Used raw HttpClient + REST API instead of Anthropic SDK directly (isolated behind IClaudeChatClient interface for easy swap)
+- Added IClaudeChatClient wrapper interface not in original plan (improves testability)
+- JSON column mutations require list reassignment + MarkMessagesModified for EF Core change tracking
+- Endpoint tests deferred (require CustomWebApplicationFactory setup)
