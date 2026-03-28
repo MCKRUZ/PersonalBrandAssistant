@@ -21,7 +21,7 @@ interface CopyState {
   template: `
     @if (loading()) {
       <app-loading-spinner message="Preparing Substack content..." />
-    } @else if (prep(); as p) {
+    } @else if (prep()) {
       <p-card>
         <ng-template pTemplate="header">
           <div class="flex align-items-center justify-content-between p-3">
