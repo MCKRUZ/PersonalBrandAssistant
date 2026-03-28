@@ -14,7 +14,7 @@ namespace PersonalBrandAssistant.Infrastructure.Services.ContentServices;
 
 public class BlogChatService : IBlogChatService
 {
-    private readonly IClaudeChatClient _claude;
+    private readonly ISidecarClient _sidecar;
     private readonly IApplicationDbContext _db;
     private readonly BlogChatOptions _options;
     private readonly ILogger<BlogChatService> _logger;
@@ -27,12 +27,12 @@ public class BlogChatService : IBlogChatService
     };
 
     public BlogChatService(
-        IClaudeChatClient claude,
+        ISidecarClient sidecar,
         IApplicationDbContext db,
         IOptions<BlogChatOptions> options,
         ILogger<BlogChatService> logger)
     {
-        _claude = claude;
+        _sidecar = sidecar;
         _db = db;
         _options = options.Value;
         _logger = logger;
@@ -61,14 +61,29 @@ public class BlogChatService : IBlogChatService
         MarkMessagesModified(conversation);
         await _db.SaveChangesAsync(ct);
 
-        var claudeMessages = BuildClaudeMessages(conversation);
+        var contextMessages = BuildContextString(conversation);
+        var task = $"{contextMessages}\n\nUser: {userMessage}";
         var fullResponse = new StringBuilder();
 
-        await foreach (var chunk in _claude.StreamMessageAsync(
-            _options.Model, _options.MaxTokens, _systemPrompt, claudeMessages, ct))
+        if (!_sidecar.IsConnected)
+            await _sidecar.ConnectAsync(ct);
+
+        await foreach (var evt in _sidecar.SendTaskAsync(task, _systemPrompt, null, ct))
         {
-            fullResponse.Append(chunk);
-            yield return chunk;
+            if (evt is ChatEvent chatEvt && chatEvt.Text is not null)
+            {
+                fullResponse.Append(chatEvt.Text);
+                yield return chatEvt.Text;
+            }
+            else if (evt is ErrorEvent errorEvt)
+            {
+                _logger.LogWarning("Sidecar error during chat: {Error}", errorEvt.Message);
+                break;
+            }
+            else if (evt is TaskCompleteEvent)
+            {
+                break;
+            }
         }
 
         conversation.Messages = [..conversation.Messages, new ChatMessage("assistant", fullResponse.ToString(), DateTimeOffset.UtcNow)];
@@ -96,23 +111,31 @@ public class BlogChatService : IBlogChatService
         if (conversation is null)
             return Result<FinalizedDraft>.Failure(ErrorCode.NotFound, "No conversation found for this content");
 
-        var claudeMessages = BuildClaudeMessages(conversation);
-        claudeMessages.Add(new ClaudeChatMessage("user", FinalizationPrompt));
+        var contextMessages = BuildContextString(conversation);
+        var finalizationTask = $"{contextMessages}\n\n{FinalizationPrompt}";
 
         for (var attempt = 0; attempt <= _options.FinalizationMaxRetries; attempt++)
         {
             try
             {
-                var response = await _claude.SendMessageAsync(
-                    _options.Model, _options.MaxTokens, _systemPrompt, claudeMessages, ct);
+                if (!_sidecar.IsConnected)
+                    await _sidecar.ConnectAsync(ct);
+
+                var responseSb = new StringBuilder();
+                await foreach (var evt in _sidecar.SendTaskAsync(finalizationTask, _systemPrompt, null, ct))
+                {
+                    if (evt is ChatEvent chatEvt && chatEvt.Text is not null)
+                        responseSb.Append(chatEvt.Text);
+                    else if (evt is TaskCompleteEvent)
+                        break;
+                }
+                var response = responseSb.ToString();
 
                 var jsonStart = response.IndexOf('{');
                 var jsonEnd = response.LastIndexOf('}');
                 if (jsonStart < 0 || jsonEnd < 0)
                 {
-                    claudeMessages.Add(new ClaudeChatMessage("assistant", response));
-                    claudeMessages.Add(new ClaudeChatMessage("user",
-                        "Your response did not contain valid JSON. Please respond with ONLY the JSON object, no markdown fences."));
+                    finalizationTask = $"{response}\n\nYour response did not contain valid JSON. Please respond with ONLY the JSON object, no markdown fences.";
                     continue;
                 }
 
@@ -121,9 +144,7 @@ public class BlogChatService : IBlogChatService
 
                 if (draft is null || string.IsNullOrWhiteSpace(draft.Title) || string.IsNullOrWhiteSpace(draft.BodyMarkdown))
                 {
-                    claudeMessages.Add(new ClaudeChatMessage("assistant", response));
-                    claudeMessages.Add(new ClaudeChatMessage("user",
-                        "JSON was missing required fields (title, body_markdown). Please include all fields."));
+                    finalizationTask = $"{response}\n\nJSON was missing required fields (title, body_markdown). Please include all fields.";
                     continue;
                 }
 
@@ -144,8 +165,7 @@ public class BlogChatService : IBlogChatService
             catch (JsonException ex)
             {
                 _logger.LogWarning(ex, "Failed to parse finalization JSON (attempt {Attempt})", attempt + 1);
-                claudeMessages.Add(new ClaudeChatMessage("user",
-                    $"JSON parsing error: {ex.Message}. Please respond with valid JSON only."));
+                finalizationTask = $"JSON parsing error: {ex.Message}. Please respond with valid JSON only.";
             }
         }
 
@@ -158,25 +178,20 @@ public class BlogChatService : IBlogChatService
             dbContext.Entry(conversation).Property(c => c.Messages).IsModified = true;
     }
 
-    private List<ClaudeChatMessage> BuildClaudeMessages(ChatConversation conversation)
+    private string BuildContextString(ChatConversation conversation)
     {
-        var messages = new List<ClaudeChatMessage>();
+        var sb = new StringBuilder();
 
         if (!string.IsNullOrWhiteSpace(conversation.ConversationSummary))
-        {
-            messages.Add(new ClaudeChatMessage("user",
-                $"[Previous conversation summary]: {conversation.ConversationSummary}"));
-            messages.Add(new ClaudeChatMessage("assistant",
-                "Understood, I have context from our previous conversation. Let's continue."));
-        }
+            sb.AppendLine($"[Previous conversation summary]: {conversation.ConversationSummary}\n");
 
         var recentMessages = conversation.Messages
-            .TakeLast(_options.RecentMessageCount)
-            .Select(m => new ClaudeChatMessage(m.Role, m.Content))
-            .ToList();
+            .TakeLast(_options.RecentMessageCount);
 
-        messages.AddRange(recentMessages);
-        return messages;
+        foreach (var msg in recentMessages)
+            sb.AppendLine($"{(msg.Role == "user" ? "User" : "Assistant")}: {msg.Content}\n");
+
+        return sb.ToString();
     }
 
     private async Task UpdateConversationSummaryAsync(ChatConversation conversation, CancellationToken ct)
@@ -188,16 +203,22 @@ public class BlogChatService : IBlogChatService
 
         if (olderMessages.Count == 0) return;
 
-        var summaryPrompt = new List<ClaudeChatMessage>
-        {
-            new("user", $"Summarize this conversation concisely, preserving key decisions and content direction:\n\n{string.Join("\n\n", olderMessages)}")
-        };
+        var task = $"Summarize this conversation concisely, preserving key decisions and content direction:\n\n{string.Join("\n\n", olderMessages)}";
 
         try
         {
-            var summary = await _claude.SendMessageAsync(
-                _options.Model, 1024, "You are a conversation summarizer. Be concise.", summaryPrompt, ct);
-            conversation.ConversationSummary = summary;
+            if (!_sidecar.IsConnected)
+                await _sidecar.ConnectAsync(ct);
+
+            var sb = new StringBuilder();
+            await foreach (var evt in _sidecar.SendTaskAsync(task, "You are a conversation summarizer. Be concise.", null, ct))
+            {
+                if (evt is ChatEvent chatEvt && chatEvt.Text is not null)
+                    sb.Append(chatEvt.Text);
+                else if (evt is TaskCompleteEvent)
+                    break;
+            }
+            conversation.ConversationSummary = sb.ToString();
         }
         catch (Exception ex)
         {

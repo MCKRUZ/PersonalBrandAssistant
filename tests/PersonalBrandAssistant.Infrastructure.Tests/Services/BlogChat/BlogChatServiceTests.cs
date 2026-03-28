@@ -16,7 +16,7 @@ namespace PersonalBrandAssistant.Infrastructure.Tests.Services.BlogChat;
 public class BlogChatServiceTests
 {
     private readonly PostgresFixture _fixture;
-    private readonly Mock<IClaudeChatClient> _mockClaude = new();
+    private readonly Mock<ISidecarClient> _mockSidecar = new();
 
     public BlogChatServiceTests(PostgresFixture fixture) => _fixture = fixture;
 
@@ -29,7 +29,10 @@ public class BlogChatServiceTests
             RecentMessageCount = 5,
             FinalizationMaxRetries = 2,
         });
-        var sut = new BlogChatService(_mockClaude.Object, db, options, NullLogger<BlogChatService>.Instance);
+
+        _mockSidecar.Setup(s => s.IsConnected).Returns(true);
+
+        var sut = new BlogChatService(_mockSidecar.Object, db, options, NullLogger<BlogChatService>.Instance);
         return (sut, db);
     }
 
@@ -46,7 +49,7 @@ public class BlogChatServiceTests
         db.Contents.Add(content);
         await db.SaveChangesAsync();
 
-        SetupStreamResponse("Hello! Let me help you write.");
+        SetupSidecarResponse("Hello! Let me help you write.");
 
         var chunks = new List<string>();
         await foreach (var chunk in sut.SendMessageAsync(content.Id, "Help me write a blog post", default))
@@ -77,7 +80,7 @@ public class BlogChatServiceTests
         db.ChatConversations.Add(conversation);
         await db.SaveChangesAsync();
 
-        SetupStreamResponse("Second reply");
+        SetupSidecarResponse("Second reply");
 
         await foreach (var _ in sut.SendMessageAsync(content.Id, "Second msg", default)) { }
 
@@ -94,7 +97,7 @@ public class BlogChatServiceTests
         db.Contents.Add(content);
         await db.SaveChangesAsync();
 
-        SetupStreamResponse("Full response text");
+        SetupSidecarResponse("Full response text");
 
         var allChunks = new List<string>();
         await foreach (var chunk in sut.SendMessageAsync(content.Id, "Write something", default))
@@ -140,17 +143,18 @@ public class BlogChatServiceTests
         await db.DisposeAsync();
     }
 
-    private void SetupStreamResponse(string fullText)
+    private void SetupSidecarResponse(string fullText)
     {
-        _mockClaude.Setup(c => c.StreamMessageAsync(
-                It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string>(),
-                It.IsAny<IReadOnlyList<ClaudeChatMessage>>(), It.IsAny<CancellationToken>()))
-            .Returns(ToAsyncEnumerable(fullText));
+        _mockSidecar.Setup(s => s.SendTaskAsync(
+                It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()))
+            .Returns(ToSidecarEvents(fullText));
     }
 
-    private static async IAsyncEnumerable<string> ToAsyncEnumerable(string text)
+    private static async IAsyncEnumerable<SidecarEvent> ToSidecarEvents(string text)
     {
         await Task.CompletedTask;
-        yield return text;
+        yield return new ChatEvent("text", text, null, null);
+        yield return new TaskCompleteEvent("test-session", 100, 50, 0, 0, 0.01m);
     }
 }

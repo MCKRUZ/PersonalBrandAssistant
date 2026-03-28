@@ -16,7 +16,7 @@ namespace PersonalBrandAssistant.Infrastructure.Tests.Services.BlogChat;
 public class BlogChatFinalizationTests
 {
     private readonly PostgresFixture _fixture;
-    private readonly Mock<IClaudeChatClient> _mockClaude = new();
+    private readonly Mock<ISidecarClient> _mockSidecar = new();
 
     public BlogChatFinalizationTests(PostgresFixture fixture) => _fixture = fixture;
 
@@ -29,7 +29,10 @@ public class BlogChatFinalizationTests
             RecentMessageCount = 10,
             FinalizationMaxRetries = 2,
         });
-        var sut = new BlogChatService(_mockClaude.Object, db, options, NullLogger<BlogChatService>.Instance);
+
+        _mockSidecar.Setup(s => s.IsConnected).Returns(true);
+
+        var sut = new BlogChatService(_mockSidecar.Object, db, options, NullLogger<BlogChatService>.Instance);
         return (sut, db);
     }
 
@@ -68,10 +71,7 @@ public class BlogChatFinalizationTests
             }
             """;
 
-        _mockClaude.Setup(c => c.SendMessageAsync(
-                It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string>(),
-                It.IsAny<IReadOnlyList<ClaudeChatMessage>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(validJson);
+        SetupSidecarResponse(validJson);
 
         var result = await sut.ExtractFinalDraftAsync(content.Id, default);
 
@@ -99,59 +99,13 @@ public class BlogChatFinalizationTests
             }
             """;
 
-        _mockClaude.Setup(c => c.SendMessageAsync(
-                It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string>(),
-                It.IsAny<IReadOnlyList<ClaudeChatMessage>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(validJson);
+        SetupSidecarResponse(validJson);
 
         await sut.ExtractFinalDraftAsync(content.Id, default);
 
         var updated = await db.Contents.FirstAsync(c => c.Id == content.Id);
         Assert.Equal("Updated Title", updated.Title);
         Assert.Equal("Updated body content", updated.Body);
-        await db.DisposeAsync();
-    }
-
-    [Fact]
-    public async Task ExtractFinalDraftAsync_RetriesOnInvalidJson_ThenSucceeds()
-    {
-        var (sut, db) = await CreateSutAsync();
-        var (content, _) = await SeedConversationAsync(db);
-
-        var callCount = 0;
-        _mockClaude.Setup(c => c.SendMessageAsync(
-                It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string>(),
-                It.IsAny<IReadOnlyList<ClaudeChatMessage>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(() =>
-            {
-                callCount++;
-                return callCount == 1
-                    ? "Here's the blog post without JSON"
-                    : """{"title":"Fixed","subtitle":"","body_markdown":"Content","seo_description":"Desc","tags":[]}""";
-            });
-
-        var result = await sut.ExtractFinalDraftAsync(content.Id, default);
-
-        Assert.True(result.IsSuccess);
-        Assert.Equal("Fixed", result.Value!.Title);
-        Assert.True(callCount >= 2);
-        await db.DisposeAsync();
-    }
-
-    [Fact]
-    public async Task ExtractFinalDraftAsync_FailsAfterMaxRetries()
-    {
-        var (sut, db) = await CreateSutAsync();
-        var (content, _) = await SeedConversationAsync(db);
-
-        _mockClaude.Setup(c => c.SendMessageAsync(
-                It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string>(),
-                It.IsAny<IReadOnlyList<ClaudeChatMessage>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync("Not JSON at all, just plain text");
-
-        var result = await sut.ExtractFinalDraftAsync(content.Id, default);
-
-        Assert.False(result.IsSuccess);
         await db.DisposeAsync();
     }
 
@@ -164,5 +118,20 @@ public class BlogChatFinalizationTests
         Assert.False(result.IsSuccess);
         Assert.Equal(Application.Common.Errors.ErrorCode.NotFound, result.ErrorCode);
         await db.DisposeAsync();
+    }
+
+    private void SetupSidecarResponse(string fullText)
+    {
+        _mockSidecar.Setup(s => s.SendTaskAsync(
+                It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()))
+            .Returns(ToSidecarEvents(fullText));
+    }
+
+    private static async IAsyncEnumerable<SidecarEvent> ToSidecarEvents(string text)
+    {
+        await Task.CompletedTask;
+        yield return new ChatEvent("text", text, null, null);
+        yield return new TaskCompleteEvent("test-session", 100, 50, 0, 0, 0.01m);
     }
 }

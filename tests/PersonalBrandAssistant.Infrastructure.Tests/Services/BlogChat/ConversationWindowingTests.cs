@@ -16,7 +16,7 @@ namespace PersonalBrandAssistant.Infrastructure.Tests.Services.BlogChat;
 public class ConversationWindowingTests
 {
     private readonly PostgresFixture _fixture;
-    private readonly Mock<IClaudeChatClient> _mockClaude = new();
+    private readonly Mock<ISidecarClient> _mockSidecar = new();
 
     public ConversationWindowingTests(PostgresFixture fixture) => _fixture = fixture;
 
@@ -29,7 +29,10 @@ public class ConversationWindowingTests
             RecentMessageCount = recentMessageCount,
             FinalizationMaxRetries = 2,
         });
-        var sut = new BlogChatService(_mockClaude.Object, db, options, NullLogger<BlogChatService>.Instance);
+
+        _mockSidecar.Setup(s => s.IsConnected).Returns(true);
+
+        var sut = new BlogChatService(_mockSidecar.Object, db, options, NullLogger<BlogChatService>.Instance);
         return (sut, db);
     }
 
@@ -55,16 +58,18 @@ public class ConversationWindowingTests
         db.ChatConversations.Add(conversation);
         await db.SaveChangesAsync();
 
-        // Mock both stream and summary calls
-        _mockClaude.Setup(c => c.StreamMessageAsync(
-                It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string>(),
-                It.IsAny<IReadOnlyList<ClaudeChatMessage>>(), It.IsAny<CancellationToken>()))
-            .Returns(ToAsyncEnumerable("New response"));
-
-        _mockClaude.Setup(c => c.SendMessageAsync(
-                It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string>(),
-                It.IsAny<IReadOnlyList<ClaudeChatMessage>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync("Summary of earlier conversation about topics X and Y");
+        // First call = chat response, second call = summary generation
+        var callCount = 0;
+        _mockSidecar.Setup(s => s.SendTaskAsync(
+                It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()))
+            .Returns(() =>
+            {
+                callCount++;
+                return callCount == 1
+                    ? ToSidecarEvents("New response")
+                    : ToSidecarEvents("Summary of earlier conversation about topics X and Y");
+            });
 
         await foreach (var _ in sut.SendMessageAsync(content.Id, "New message", default)) { }
 
@@ -75,7 +80,7 @@ public class ConversationWindowingTests
     }
 
     [Fact]
-    public async Task Windowing_IncludesSummaryInClaudeRequest()
+    public async Task Windowing_IncludesSummaryInContext()
     {
         var (sut, db) = await CreateSutAsync(recentMessageCount: 3);
         var content = Content.Create(ContentType.BlogPost, "Body", "Title");
@@ -91,24 +96,25 @@ public class ConversationWindowingTests
         db.ChatConversations.Add(conversation);
         await db.SaveChangesAsync();
 
-        IReadOnlyList<ClaudeChatMessage>? capturedMessages = null;
-        _mockClaude.Setup(c => c.StreamMessageAsync(
-                It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string>(),
-                It.IsAny<IReadOnlyList<ClaudeChatMessage>>(), It.IsAny<CancellationToken>()))
-            .Callback<string, int, string, IReadOnlyList<ClaudeChatMessage>, CancellationToken>(
-                (_, _, _, msgs, _) => capturedMessages = msgs)
-            .Returns(ToAsyncEnumerable("Response"));
+        string? capturedTask = null;
+        _mockSidecar.Setup(s => s.SendTaskAsync(
+                It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<string, string?, string?, CancellationToken>(
+                (task, _, _, _) => capturedTask = task)
+            .Returns(ToSidecarEvents("Response"));
 
         await foreach (var _ in sut.SendMessageAsync(content.Id, "Continue writing", default)) { }
 
-        Assert.NotNull(capturedMessages);
-        Assert.Contains(capturedMessages, m => m.Content.Contains("Previous conversation summary"));
+        Assert.NotNull(capturedTask);
+        Assert.Contains("Previous conversation summary", capturedTask);
         await db.DisposeAsync();
     }
 
-    private static async IAsyncEnumerable<string> ToAsyncEnumerable(string text)
+    private static async IAsyncEnumerable<SidecarEvent> ToSidecarEvents(string text)
     {
         await Task.CompletedTask;
-        yield return text;
+        yield return new ChatEvent("text", text, null, null);
+        yield return new TaskCompleteEvent("test-session", 100, 50, 0, 0, 0.01m);
     }
 }
