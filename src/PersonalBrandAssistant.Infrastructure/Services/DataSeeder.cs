@@ -34,7 +34,21 @@ public class DataSeeder : IHostedService
         using var scope = _scopeFactory.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-        await context.Database.EnsureCreatedAsync(cancellationToken);
+        var pending = await context.Database.GetPendingMigrationsAsync(cancellationToken);
+        if (pending.Any())
+        {
+            _logger.LogInformation("Applying {Count} pending migrations: {Migrations}",
+                pending.Count(), string.Join(", ", pending));
+            try
+            {
+                await context.Database.MigrateAsync(cancellationToken);
+            }
+            catch (Npgsql.PostgresException ex) when (ex.SqlState == "42P07")
+            {
+                _logger.LogWarning(ex,
+                    "Migration hit 'already exists' — DB was likely created by EnsureCreated. Skipping migration.");
+            }
+        }
 
         if (!await context.BrandProfiles.AnyAsync(cancellationToken))
         {
