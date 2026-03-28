@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { Observable, Subject } from 'rxjs';
 import { ApiService } from '../../../core/services/api.service';
+import { environment } from '../../../../environments/environment';
 import { ChatMessage, FinalizedDraft } from '../models/blog-chat.models';
 
 @Injectable({ providedIn: 'root' })
@@ -19,9 +20,14 @@ export class BlogChatService {
     // Clean up timeout on completion or error
     subject.subscribe({ complete: () => clearTimeout(timeoutId), error: () => clearTimeout(timeoutId) });
 
-    fetch(`/api/content/${contentId}/chat`, {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (environment.apiKey) {
+      headers['X-Api-Key'] = environment.apiKey;
+    }
+
+    fetch(`${environment.apiUrl}/content/${contentId}/chat`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({ message }),
       signal: controller.signal,
     }).then(async (response) => {
