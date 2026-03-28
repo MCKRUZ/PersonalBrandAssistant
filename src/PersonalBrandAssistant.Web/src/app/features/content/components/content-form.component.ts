@@ -51,21 +51,32 @@ import { ContentType, PlatformType } from '../../../shared/models';
               styleClass="w-full"
             />
           </div>
-          <div class="col-12">
-            <label for="title">Title</label>
-            <input id="title" type="text" pInputText formControlName="title" class="w-full" />
-          </div>
-          <div class="col-12">
-            <label for="body">Body</label>
-            <textarea id="body" pTextarea formControlName="body" [rows]="10" class="w-full"></textarea>
-          </div>
-          <div class="col-12">
-            <label for="tags">Tags (comma-separated)</label>
-            <input id="tags" type="text" pInputText formControlName="tags" class="w-full" />
-          </div>
+          @if (form.get('contentType')?.value !== 'BlogPost') {
+            <div class="col-12">
+              <label for="title">Title</label>
+              <input id="title" type="text" pInputText formControlName="title" class="w-full" />
+            </div>
+            <div class="col-12">
+              <label for="body">Body</label>
+              <textarea id="body" pTextarea formControlName="body" [rows]="10" class="w-full"></textarea>
+            </div>
+            <div class="col-12">
+              <label for="tags">Tags (comma-separated)</label>
+              <input id="tags" type="text" pInputText formControlName="tags" class="w-full" />
+            </div>
+          } @else {
+            <div class="col-12 p-3 surface-ground border-round text-color-secondary">
+              <i class="pi pi-info-circle mr-2"></i>
+              Select your platforms and click "Start Drafting" — you'll write the post with Claude in a chat interface.
+            </div>
+          }
           <div class="col-12 flex gap-2 justify-content-end">
             <p-button label="Cancel" severity="secondary" (onClick)="onCancel()" />
-            <p-button label="Save" icon="pi pi-check" type="submit" [loading]="store.saving()" [disabled]="form.invalid" />
+            @if (form.get('contentType')?.value === 'BlogPost' && !isEdit) {
+              <p-button label="Start Drafting" icon="pi pi-comments" (onClick)="createBlogPost()" [loading]="store.saving()" [disabled]="!(form.get('targetPlatforms')?.value?.length)" />
+            } @else {
+              <p-button label="Save" icon="pi pi-check" type="submit" [loading]="store.saving()" [disabled]="form.invalid" />
+            }
           </div>
         </div>
       </form>
@@ -107,7 +118,7 @@ export class ContentFormComponent implements OnInit {
   readonly form = this.fb.group({
     contentType: ['BlogPost' as ContentType, Validators.required],
     title: [''],
-    body: ['', Validators.required],
+    body: [''],
     targetPlatforms: [[] as PlatformType[]],
     tags: [''],
   });
@@ -173,6 +184,30 @@ export class ContentFormComponent implements OnInit {
         error: () => this.store.setSaving(false),
       });
     }
+  }
+
+  createBlogPost() {
+    const val = this.form.getRawValue();
+    this.store.setSaving(true);
+
+    this.contentService.create({
+      contentType: 'BlogPost',
+      body: '(draft in progress)',
+      title: 'New Blog Post',
+      targetPlatforms: val.targetPlatforms ?? [],
+      metadata: { tags: [], seoKeywords: [], platformSpecificData: {} },
+    }).subscribe({
+      next: (res: any) => {
+        this.store.setSaving(false);
+        const id = res?.id ?? res;
+        if (id) {
+          this.router.navigate(['/content', id]);
+        } else {
+          this.router.navigate(['/content']);
+        }
+      },
+      error: () => this.store.setSaving(false),
+    });
   }
 
   onCancel() {
