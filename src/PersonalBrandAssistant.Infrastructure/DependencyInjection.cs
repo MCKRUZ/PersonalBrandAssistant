@@ -377,6 +377,11 @@ public static class DependencyInjection
         });
         services.AddScoped<IGitHubPublishService, GitHubPublishService>();
 
+        // Blog scheduling
+        services.Configure<PublishDelayOptions>(
+            configuration.GetSection(PublishDelayOptions.SectionName));
+        services.AddScoped<IBlogSchedulingService, BlogSchedulingService>();
+
         // Content automation
         services.Configure<ContentAutomationOptions>(
             configuration.GetSection(ContentAutomationOptions.SectionName));

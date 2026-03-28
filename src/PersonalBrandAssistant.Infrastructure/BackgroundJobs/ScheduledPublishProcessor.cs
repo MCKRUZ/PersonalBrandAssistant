@@ -70,8 +70,33 @@ public class ScheduledPublishProcessor : BackgroundService
             .Where(c => c.Status == ContentStatus.Scheduled && c.ScheduledAt <= now)
             .ToListAsync(ct);
 
+        var notificationService = scope.ServiceProvider.GetRequiredService<INotificationService>();
+
         foreach (var content in dueContent)
         {
+            // For BlogPost content targeting PersonalBlog: create notification instead of auto-publishing
+            if (content.ContentType == ContentType.BlogPost
+                && content.TargetPlatforms.Contains(PlatformType.PersonalBlog))
+            {
+                var existingNotification = await context.UserNotifications
+                    .AnyAsync(n => n.ContentId == content.Id
+                        && n.Type == NotificationType.BlogReady.ToString()
+                        && n.Status == NotificationStatus.Pending, ct);
+
+                if (!existingNotification)
+                {
+                    await notificationService.SendAsync(
+                        NotificationType.BlogReady,
+                        "Blog post ready to publish",
+                        $"Blog post \"{content.Title}\" is due for publishing. Confirm to deploy to personal blog.",
+                        content.Id, ct);
+
+                    _logger.LogInformation(
+                        "Created BlogReady notification for content {ContentId}", content.Id);
+                }
+                continue;
+            }
+
             content.PublishingStartedAt = now;
             var transitionResult = await workflowEngine.TransitionAsync(
                 content.Id, ContentStatus.Publishing, null, ActorType.System, ct);
