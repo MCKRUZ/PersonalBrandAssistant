@@ -211,7 +211,7 @@ export class BlogDashboardComponent implements OnInit {
     this.router.navigate(['/content', id]);
   }
 
-  platformSeverity(status?: string): 'success' | 'info' | 'warning' | 'danger' | 'secondary' {
+  platformSeverity(status?: string): 'success' | 'info' | 'warn' | 'danger' | 'secondary' {
     switch (status) {
       case 'Published': return 'success';
       case 'Processing': return 'info';
@@ -234,10 +234,10 @@ export class BlogDashboardComponent implements OnInit {
     return 'Pending';
   }
 
-  blogStatusSeverity(item: BlogPipelineItem): 'success' | 'warning' | 'danger' | 'secondary' {
+  blogStatusSeverity(item: BlogPipelineItem): 'success' | 'warn' | 'danger' | 'secondary' {
     if (item.blogSkipped) return 'danger';
     if (item.personalBlog?.status === 'Published') return 'success';
-    if (item.personalBlog?.scheduledAt) return 'warning';
+    if (item.personalBlog?.scheduledAt) return 'warn';
     return 'secondary';
   }
 }

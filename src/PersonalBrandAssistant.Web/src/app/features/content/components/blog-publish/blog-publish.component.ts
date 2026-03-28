@@ -77,7 +77,7 @@ type PublishState = 'idle' | 'publishing' | 'verifying' | 'published' | 'failed'
                 <i class="pi pi-times-circle text-red-600 text-xl"></i>
                 <span class="text-red-700">{{ errorMessage() }}</span>
               </div>
-              <button pButton label="Retry" icon="pi pi-refresh" severity="warning"
+              <button pButton label="Retry" icon="pi pi-refresh" severity="warn"
                       (click)="publish()"></button>
             </div>
           }
@@ -184,12 +184,12 @@ export class BlogPublishComponent implements OnInit {
     }, 600_000);
   }
 
-  statusSeverity(status: string): 'success' | 'warning' | 'danger' | 'info' | 'secondary' {
+  statusSeverity(status: string): 'success' | 'warn' | 'danger' | 'info' | 'secondary' {
     switch (status) {
       case 'Published': return 'success';
       case 'Publishing': return 'info';
       case 'Failed': return 'danger';
-      case 'Staged': return 'warning';
+      case 'Staged': return 'warn';
       default: return 'secondary';
     }
   }
