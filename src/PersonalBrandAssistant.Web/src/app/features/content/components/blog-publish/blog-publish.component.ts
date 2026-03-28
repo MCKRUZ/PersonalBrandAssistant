@@ -89,7 +89,7 @@ type PublishState = 'idle' | 'publishing' | 'verifying' | 'published' | 'failed'
             <button pButton label="Publish to Blog" icon="pi pi-upload"
                     severity="success"
                     [disabled]="!substackPostUrl()"
-                    [pTooltip]="!substackPostUrl() ? 'Publish to Substack first' : ''"
+                    [title]="!substackPostUrl() ? 'Publish to Substack first' : ''"
                     (click)="publish()"></button>
           </div>
         }
