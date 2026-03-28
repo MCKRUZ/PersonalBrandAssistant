@@ -2,7 +2,7 @@ import { Component, inject, input, output, signal, OnInit, ElementRef, ViewChild
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
-import { InputTextarea } from 'primeng/inputtextarea';
+import { TextareaModule } from 'primeng/textarea';
 import { Card } from 'primeng/card';
 import { ProgressSpinner } from 'primeng/progressspinner';
 import { MessageService } from 'primeng/api';
@@ -12,7 +12,7 @@ import { ChatMessage, FinalizedDraft } from '../../models/blog-chat.models';
 @Component({
   selector: 'app-blog-chat',
   standalone: true,
-  imports: [CommonModule, FormsModule, ButtonModule, InputTextarea, Card, ProgressSpinner],
+  imports: [CommonModule, FormsModule, ButtonModule, TextareaModule, Card, ProgressSpinner],
   template: `
     <p-card header="Blog Authoring Chat">
       <div #messageContainer class="message-list" style="height: 400px; overflow-y: auto; padding: 1rem;">
@@ -46,7 +46,7 @@ import { ChatMessage, FinalizedDraft } from '../../models/blog-chat.models';
       </div>
 
       <div class="flex gap-2 mt-3">
-        <textarea pInputTextarea
+        <textarea pTextarea
           [(ngModel)]="inputMessage"
           [disabled]="streaming()"
           placeholder="Describe your blog post idea..."
