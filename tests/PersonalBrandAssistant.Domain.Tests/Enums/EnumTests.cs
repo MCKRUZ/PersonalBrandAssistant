@@ -45,10 +45,10 @@ public class EnumTests
     }
 
     [Fact]
-    public void NotificationType_HasExactly8Values()
+    public void NotificationType_HasExpectedValues()
     {
         var values = Enum.GetValues<NotificationType>();
-        Assert.Equal(8, values.Length);
+        Assert.Equal(14, values.Length);
         Assert.Contains(NotificationType.ContentReadyForReview, values);
         Assert.Contains(NotificationType.ContentApproved, values);
         Assert.Contains(NotificationType.ContentRejected, values);

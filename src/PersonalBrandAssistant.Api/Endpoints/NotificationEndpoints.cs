@@ -10,7 +10,9 @@ public static class NotificationEndpoints
         var group = app.MapGroup("/api/notifications").WithTags("Notifications");
 
         group.MapGet("/", ListNotifications);
+        group.MapGet("/pending", ListPending);
         group.MapPost("/{id:guid}/read", MarkRead);
+        group.MapPost("/{id:guid}/acknowledge", Acknowledge);
         group.MapPost("/read-all", MarkAllRead);
     }
 
@@ -44,6 +46,24 @@ public static class NotificationEndpoints
         INotificationService notificationService)
     {
         await notificationService.MarkAllReadAsync();
+        return Results.Ok();
+    }
+
+    private static async Task<IResult> ListPending(
+        INotificationService notificationService,
+        Guid? contentId = null,
+        CancellationToken ct = default)
+    {
+        var pending = await notificationService.GetPendingAsync(contentId, ct);
+        return Results.Ok(pending);
+    }
+
+    private static async Task<IResult> Acknowledge(
+        INotificationService notificationService,
+        Guid id,
+        CancellationToken ct = default)
+    {
+        await notificationService.AcknowledgeAsync(id, ct);
         return Results.Ok();
     }
 }
