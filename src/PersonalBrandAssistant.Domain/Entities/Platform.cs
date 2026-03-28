@@ -12,6 +12,7 @@ public class Platform : AuditableEntityBase
     public byte[]? EncryptedAccessToken { get; set; }
     public byte[]? EncryptedRefreshToken { get; set; }
     public DateTimeOffset? TokenExpiresAt { get; set; }
+    public string[]? GrantedScopes { get; set; }
     public PlatformRateLimitState RateLimitState { get; set; } = new();
     public DateTimeOffset? LastSyncAt { get; set; }
     public PlatformSettings Settings { get; set; } = new();

@@ -25,6 +25,9 @@ public class PlatformConfiguration : IEntityTypeConfiguration<Platform>
             .HasConversion(new JsonValueConverter<Domain.ValueObjects.PlatformSettings>())
             .HasColumnType("jsonb");
 
+        builder.Property(p => p.GrantedScopes)
+            .HasColumnType("text[]");
+
         builder.Property<uint>("xmin")
             .HasColumnType("xid")
             .ValueGeneratedOnAddOrUpdate()

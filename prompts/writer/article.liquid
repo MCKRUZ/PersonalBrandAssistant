@@ -1,0 +1,18 @@
+Write an article on the following topic:
+
+Topic: {{ task.topic }}
+{% if task.publication %}Target publication: {{ task.publication }}{% endif %}
+{% if task.angle %}Angle: {{ task.angle }}{% endif %}
+{% if task.target_length %}Target length: {{ task.target_length }} words{% endif %}
+
+{% if content %}
+Reference material:
+{{ content.Body }}
+{% endif %}
+
+Requirements:
+- Professional tone suitable for the target publication
+- Well-researched and substantiated points
+- Clear thesis statement in the introduction
+- Logical flow of arguments with supporting evidence
+- Polished conclusion that reinforces the key message

@@ -8,9 +8,35 @@ public interface IApplicationDbContext
     DbSet<Content> Contents { get; }
     DbSet<Platform> Platforms { get; }
     DbSet<BrandProfile> BrandProfiles { get; }
-    DbSet<ContentCalendarSlot> ContentCalendarSlots { get; }
+    DbSet<CalendarSlot> CalendarSlots { get; }
+    DbSet<ContentSeries> ContentSeries { get; }
+    DbSet<TrendSource> TrendSources { get; }
+    DbSet<TrendItem> TrendItems { get; }
+    DbSet<TrendSuggestion> TrendSuggestions { get; }
+    DbSet<TrendSuggestionItem> TrendSuggestionItems { get; }
+    DbSet<EngagementSnapshot> EngagementSnapshots { get; }
     DbSet<AuditLogEntry> AuditLogEntries { get; }
     DbSet<User> Users { get; }
+    DbSet<Notification> Notifications { get; }
+    DbSet<WorkflowTransitionLog> WorkflowTransitionLogs { get; }
+    DbSet<AutonomyConfiguration> AutonomyConfigurations { get; }
+    DbSet<AgentExecution> AgentExecutions { get; }
+    DbSet<AgentExecutionLog> AgentExecutionLogs { get; }
+    DbSet<ContentPlatformStatus> ContentPlatformStatuses { get; }
+    DbSet<OAuthState> OAuthStates { get; }
+    DbSet<InterestKeyword> InterestKeywords { get; }
+    DbSet<SavedTrendItem> SavedTrendItems { get; }
+    DbSet<TrendSettings> TrendSettings { get; }
+    DbSet<EngagementTask> EngagementTasks { get; }
+    DbSet<EngagementExecution> EngagementExecutions { get; }
+    DbSet<EngagementAction> EngagementActions { get; }
+    DbSet<SocialInboxItem> SocialInboxItems { get; }
+    DbSet<OpportunityAction> OpportunityActions { get; }
+    DbSet<AutomationRun> AutomationRuns { get; }
+    DbSet<ChatConversation> ChatConversations { get; }
+    DbSet<SubstackDetection> SubstackDetections { get; }
+    DbSet<UserNotification> UserNotifications { get; }
+    DbSet<BlogPublishRequest> BlogPublishRequests { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

@@ -1,17 +1,44 @@
 services:
   db:
     ports:
-      - "5432:5432"
+      - "5433:5432"
+
+  sidecar:
+    ports:
+      - "3001:3001"
+    volumes:
+      - ~/.claude/.credentials.json:/root/.claude/.credentials.json:ro
+    networks:
+      - default
+      - internal
+
+  freshrss:
+    ports:
+      - "8080:80"
 
   api:
     build:
       context: .
       dockerfile: src/PersonalBrandAssistant.Api/Dockerfile
     volumes:
-      - ./src:/src
+      - ./secrets:/app/secrets:ro
     environment:
       ASPNETCORE_ENVIRONMENT: Development
-    command: ["dotnet", "watch", "run", "--project", "/src/PersonalBrandAssistant.Api/PersonalBrandAssistant.Api.csproj", "--urls", "http://+:8080"]
+      ApiKey: pba-dev-write-key
+      ApiKeys__ReadonlyKey: pba-dev-readonly-key
+      ApiKeys__WriteKey: pba-dev-write-key
+      PlatformIntegrations__Reddit__ClientId: ${REDDIT_CLIENT_ID:-}
+      PlatformIntegrations__Reddit__ClientSecret: ${REDDIT_CLIENT_SECRET:-}
+      PlatformIntegrations__Reddit__Username: ${REDDIT_USERNAME:-}
+      PlatformIntegrations__Reddit__Password: ${REDDIT_PASSWORD:-}
+      PlatformIntegrations__Reddit__UserAgent: ${REDDIT_USER_AGENT:-pba/1.0}
+      PlatformIntegrations__LinkedIn__ClientId: ${LINKEDIN_CLIENT_ID:-}
+      PlatformIntegrations__LinkedIn__ClientSecret: ${LINKEDIN_CLIENT_SECRET:-}
+      GoogleAnalytics__CredentialsPath: /app/secrets/google-analytics-sa.json
+      DataProtection__KeyPath: /data-protection-keys
+      DOTNET_USE_POLLING_FILE_WATCHER: "true"
+    # dotnet watch disabled — doesn't work with Docker volume mounts on Windows
+    # For dev: use `docker compose up -d --build api` after code changes
 
   web:
     build:
@@ -21,4 +48,4 @@ services:
       - ./src/PersonalBrandAssistant.Web:/app
       - /app/node_modules
     ports:
-      - "4200:4200"
+      - "4201:4200"

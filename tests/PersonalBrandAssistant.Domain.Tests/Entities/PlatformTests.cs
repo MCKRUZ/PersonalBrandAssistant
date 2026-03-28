@@ -35,4 +35,32 @@ public class PlatformTests
         Assert.IsType<byte[]>(platform.EncryptedAccessToken);
         Assert.IsType<byte[]>(platform.EncryptedRefreshToken);
     }
+
+    [Fact]
+    public void GrantedScopes_StoresAndRetrievesStringArray()
+    {
+        var platform = new Platform
+        {
+            Type = PlatformType.TwitterX,
+            DisplayName = "Twitter/X",
+            GrantedScopes = new[] { "tweet.read", "tweet.write" },
+        };
+
+        Assert.NotNull(platform.GrantedScopes);
+        Assert.Equal(2, platform.GrantedScopes.Length);
+        Assert.Contains("tweet.read", platform.GrantedScopes);
+        Assert.Contains("tweet.write", platform.GrantedScopes);
+    }
+
+    [Fact]
+    public void GrantedScopes_DefaultsToNull()
+    {
+        var platform = new Platform
+        {
+            Type = PlatformType.Instagram,
+            DisplayName = "Instagram",
+        };
+
+        Assert.Null(platform.GrantedScopes);
+    }
 }

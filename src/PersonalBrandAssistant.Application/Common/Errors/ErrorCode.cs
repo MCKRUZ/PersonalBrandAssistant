@@ -8,4 +8,6 @@ public enum ErrorCode
     Conflict,
     Unauthorized,
     InternalError,
+    RateLimited,
+    ExternalServiceError,
 }

@@ -13,6 +13,22 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - default
+    restart: unless-stopped
+
+  sidecar:
+    build:
+      context: ../claude-code-sidecar
+    container_name: pba-sidecar
+    environment:
+      PORT: "3001"
+      SIDECAR_CONFIG_DIR: /config
+    volumes:
+      - ./prompts:/config/prompts:ro
+      - ./prompts/sidecar.config.json:/config/sidecar.config.json:ro
+    networks:
+      - internal
     restart: unless-stopped
 
   api:
@@ -30,9 +46,40 @@ services:
       ApiKey: ${API_KEY}
       DataProtection__KeyPath: /data-protection-keys
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+      Sidecar__WebSocketUrl: ws://sidecar:3001/ws
+      TrendMonitoring__TrendRadarApiUrl: http://trendradar:8000/api
+      TrendMonitoring__FreshRssApiUrl: http://freshrss:80/api
     volumes:
       - dpkeys:/data-protection-keys
       - logs:/app/logs
+    networks:
+      - default
+      - internal
+    restart: unless-stopped
+
+  trendradar:
+    image: sansan0/trendradar:0.3.0
+    container_name: pba-trendradar
+    profiles:
+      - trendradar
+    volumes:
+      - trendradar_data:/data
+    networks:
+      - internal
+    restart: unless-stopped
+
+  freshrss:
+    image: freshrss/freshrss:1.24.3
+    container_name: pba-freshrss
+    environment:
+      CRON_MIN: "*/15"
+      TZ: America/New_York
+    volumes:
+      - freshrss_data:/var/www/FreshRSS/data
+      - freshrss_extensions:/var/www/FreshRSS/extensions
+    networks:
+      - default
+      - internal
     restart: unless-stopped
 
   web:
@@ -46,7 +93,15 @@ services:
       - api
     restart: unless-stopped
 
+networks:
+  internal:
+    driver: bridge
+    internal: true
+
 volumes:
   pgdata:
   dpkeys:
   logs:
+  trendradar_data:
+  freshrss_data:
+  freshrss_extensions:

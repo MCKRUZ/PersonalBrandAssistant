@@ -1,0 +1,72 @@
+{
+  "plugin_root": "C:\\Users\\kruz7\\.claude\\plugins\\cache\\piercelamb-plugins\\deep-implement\\0.2.0",
+  "sections_dir": "C:\\Users\\kruz7\\OneDrive\\Documents\\Code Repos\\MCKRUZ\\personal-brand-assistant\\planning\\07-linkedin-automation\\sections",
+  "target_dir": "C:\\Users\\kruz7\\OneDrive\\Documents\\Code Repos\\MCKRUZ\\personal-brand-assistant",
+  "state_dir": "C:\\Users\\kruz7\\OneDrive\\Documents\\Code Repos\\MCKRUZ\\personal-brand-assistant\\planning\\07-linkedin-automation\\implementation",
+  "git_root": "C:\\Users\\kruz7\\OneDrive\\Documents\\Code Repos\\MCKRUZ\\personal-brand-assistant",
+  "commit_style": "conventional",
+  "test_command": "uv run pytest",
+  "sections": [
+    "section-01-foundation",
+    "section-02-comfyui-client",
+    "section-03-image-services",
+    "section-04-image-resizer",
+    "section-05-formatter-changes",
+    "section-06-linkedin-image-upload",
+    "section-07-platform-content-gen",
+    "section-08-orchestrator",
+    "section-09-scheduler",
+    "section-10-api-endpoints"
+  ],
+  "sections_state": {
+    "section-01-foundation": {
+      "status": "complete",
+      "commit_hash": "f1ad6f1"
+    },
+    "section-02-comfyui-client": {
+      "status": "complete",
+      "commit_hash": "530ae1a"
+    },
+    "section-03-image-services": {
+      "status": "complete",
+      "commit_hash": "611c1da"
+    },
+    "section-04-image-resizer": {
+      "status": "complete",
+      "commit_hash": "2ad8b7c"
+    },
+    "section-05-formatter-changes": {
+      "status": "complete",
+      "commit_hash": "cb46cfd"
+    },
+    "section-06-linkedin-image-upload": {
+      "status": "complete",
+      "commit_hash": "d78731a"
+    },
+    "section-07-platform-content-gen": {
+      "status": "complete",
+      "commit_hash": "f58aa20"
+    },
+    "section-08-orchestrator": {
+      "status": "complete",
+      "commit_hash": "316dbf1"
+    },
+    "section-09-scheduler": {
+      "status": "complete",
+      "commit_hash": "4fac21b"
+    },
+    "section-10-api-endpoints": {
+      "status": "complete",
+      "commit_hash": "784dab8"
+    }
+  },
+  "pre_commit": {
+    "present": false,
+    "type": "none",
+    "config_file": null,
+    "native_hook": null,
+    "may_modify_files": false,
+    "detected_formatters": []
+  },
+  "created_at": "2026-03-24T01:56:40.715687+00:00"
+}

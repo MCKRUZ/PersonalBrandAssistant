@@ -1,10 +1,31 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <InternalsVisibleTo Include="PersonalBrandAssistant.Infrastructure.Tests" />
+    <InternalsVisibleTo Include="PersonalBrandAssistant.Application.Tests" />
+    <InternalsVisibleTo Include="DynamicProxyGenAssembly2" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\PersonalBrandAssistant.Application\PersonalBrandAssistant.Application.csproj" />
   </ItemGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="Services\ContentAutomation\Workflows\flux-text-to-image.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="templates\blog-post.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Anthropic" Version="12.8.0" />
+    <PackageReference Include="Fluid.Core" Version="2.31.0" />
+    <PackageReference Include="Google.Analytics.Data.V1Beta" Version="2.0.0-beta10" />
+    <PackageReference Include="Google.Apis.SearchConsole.v1" Version="1.70.0.3847" />
+    <PackageReference Include="Ical.Net" Version="5.2.1" />
     <PackageReference Include="Microsoft.AspNetCore.DataProtection" Version="10.0.5" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.5" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.5">
@@ -17,6 +38,15 @@
     <PackageReference Include="Serilog.AspNetCore" Version="10.0.0" />
     <PackageReference Include="Serilog.Sinks.Console" Version="6.1.1" />
     <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
+    <PackageReference Include="Stateless" Version="5.20.1" />
+    <PackageReference Include="NCrontab" Version="3.3.3" />
+    <PackageReference Include="Cronos" Version="0.11.1" />
+    <PackageReference Include="SkiaSharp" Version="3.119.2" />
+    <PackageReference Include="System.ServiceModel.Syndication" Version="10.0.5" />
+    <PackageReference Include="Markdig" Version="0.38.0" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Hybrid" Version="9.6.0" />
+    <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="9.6.0" />
   </ItemGroup>
 
 </Project>
+<!-- force rebuild 1774532354 -->

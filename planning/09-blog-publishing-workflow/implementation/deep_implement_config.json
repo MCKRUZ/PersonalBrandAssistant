@@ -1,0 +1,87 @@
+{
+  "plugin_root": "C:\\Users\\kruz7\\.claude\\plugins\\cache\\piercelamb-plugins\\deep-implement\\0.2.0",
+  "sections_dir": "C:\\Users\\kruz7\\OneDrive\\Documents\\Code Repos\\MCKRUZ\\personal-brand-assistant\\planning\\09-blog-publishing-workflow\\sections",
+  "target_dir": "C:\\Users\\kruz7\\OneDrive\\Documents\\Code Repos\\MCKRUZ\\personal-brand-assistant",
+  "state_dir": "C:\\Users\\kruz7\\OneDrive\\Documents\\Code Repos\\MCKRUZ\\personal-brand-assistant\\planning\\09-blog-publishing-workflow\\implementation",
+  "git_root": "C:\\Users\\kruz7\\OneDrive\\Documents\\Code Repos\\MCKRUZ\\personal-brand-assistant",
+  "commit_style": "conventional",
+  "test_command": "uv run pytest",
+  "sections": [
+    "section-01-data-model",
+    "section-02-chat-authoring-backend",
+    "section-03-substack-prep-service",
+    "section-04-blog-html-generator",
+    "section-05-github-publish-service",
+    "section-06-rss-detection",
+    "section-07-staggered-scheduling",
+    "section-08-notification-system",
+    "section-09-chat-authoring-frontend",
+    "section-10-substack-prep-ui",
+    "section-11-blog-publish-ui",
+    "section-12-blog-dashboard",
+    "section-13-pipeline-integration"
+  ],
+  "sections_state": {
+    "section-01-data-model": {
+      "status": "complete",
+      "commit_hash": "9eba788"
+    },
+    "section-02-chat-authoring-backend": {
+      "status": "complete",
+      "commit_hash": "92b381b"
+    },
+    "section-03-substack-prep-service": {
+      "status": "complete",
+      "commit_hash": "0243171"
+    },
+    "section-04-blog-html-generator": {
+      "status": "complete",
+      "commit_hash": "f4f83e3"
+    },
+    "section-05-github-publish-service": {
+      "status": "complete",
+      "commit_hash": "408d194"
+    },
+    "section-06-rss-detection": {
+      "status": "complete",
+      "commit_hash": "e69e3cd"
+    },
+    "section-07-staggered-scheduling": {
+      "status": "complete",
+      "commit_hash": "f30aa97"
+    },
+    "section-08-notification-system": {
+      "status": "complete",
+      "commit_hash": "fdb8e15"
+    },
+    "section-09-chat-authoring-frontend": {
+      "status": "complete",
+      "commit_hash": "0aa7088"
+    },
+    "section-10-substack-prep-ui": {
+      "status": "complete",
+      "commit_hash": "0aa7088"
+    },
+    "section-11-blog-publish-ui": {
+      "status": "complete",
+      "commit_hash": "0aa7088"
+    },
+    "section-12-blog-dashboard": {
+      "status": "complete",
+      "commit_hash": "255483c"
+    },
+    "section-13-pipeline-integration": {
+      "status": "complete",
+      "commit_hash": "255483c"
+    }
+  },
+  "pre_commit": {
+    "present": false,
+    "type": "none",
+    "config_file": null,
+    "native_hook": null,
+    "may_modify_files": false,
+    "detected_formatters": []
+  },
+  "created_at": "2026-03-27T20:33:56.722432+00:00"
+}

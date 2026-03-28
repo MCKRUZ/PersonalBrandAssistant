@@ -1,0 +1,18 @@
+Analyze the performance of the following content and provide insights.
+
+{% if task.platform %}Platform: {{ task.platform }}{% endif %}
+{% if task.timeframe %}Timeframe: {{ task.timeframe }}{% endif %}
+{% if task.metrics %}Key metrics: {{ task.metrics }}{% endif %}
+
+{% if content %}
+Content analyzed:
+{{ content.Title }}
+{{ content.Body }}
+{% endif %}
+
+Requirements:
+- Summarize key performance indicators
+- Identify what worked well and what underperformed
+- Compare against typical benchmarks for this content type
+- Provide 3-5 specific, actionable recommendations for improvement
+- Suggest content topics or formats to test based on the data
