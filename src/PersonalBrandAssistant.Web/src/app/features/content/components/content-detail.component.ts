@@ -102,19 +102,18 @@ export class ContentDetailComponent implements OnInit {
 
   actions: PageAction[] = [];
 
+  private readonly brandVoiceEffect = effect(() => {
+    const content = this.store.selectedContent();
+    if (content && content.contentType !== 'BlogPost') {
+      this.store.loadBrandVoice(content.id);
+    }
+  }, { allowSignalWrites: true });
+
   ngOnInit() {
     const id = this.route.snapshot.params['id'];
     this.store.loadContentById(id);
     this.store.loadTransitions(id);
     this.store.loadWorkflowLog(id);
-
-    // Skip brand voice scoring for BlogPost (content is authored via chat, not pre-written)
-    effect(() => {
-      const content = this.store.selectedContent();
-      if (content && content.contentType !== 'BlogPost') {
-        this.store.loadBrandVoice(content.id);
-      }
-    }, { allowSignalWrites: true });
 
     this.actions = [
       { label: 'Edit', icon: 'pi pi-pencil', command: () => this.router.navigate(['/content', id, 'edit']) },
