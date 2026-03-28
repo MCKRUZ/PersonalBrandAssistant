@@ -160,10 +160,15 @@ export class ContentFormComponent implements OnInit {
         targetPlatforms: val.targetPlatforms ?? [],
         metadata: { tags, seoKeywords: [], platformSpecificData: {} },
       }).subscribe({
-        next: res => {
+        next: (res: any) => {
           this.store.setSaving(false);
           this.messageService.add({ severity: 'success', summary: 'Created', detail: 'Content created' });
-          this.router.navigate(['/content', res.id]);
+          const id = res?.id ?? res;
+          if (id) {
+            this.router.navigate(['/content', id]);
+          } else {
+            this.router.navigate(['/content']);
+          }
         },
         error: () => this.store.setSaving(false),
       });

@@ -14,8 +14,7 @@ import { RelativeTimePipe } from '../../../shared/pipes/relative-time.pipe';
 import { ContentWorkflowPanelComponent } from './content-workflow-panel.component';
 import { BrandVoicePanelComponent } from './brand-voice-panel.component';
 import { ContentRepurposeDialogComponent } from './content-repurpose-dialog.component';
-import { SubstackPrepComponent } from './substack-prep/substack-prep.component';
-import { BlogPublishComponent } from './blog-publish/blog-publish.component';
+import { BlogWorkflowComponent } from './blog-workflow/blog-workflow.component';
 import { ContentStore } from '../store/content.store';
 import { ContentService } from '../services/content.service';
 import { ContentStatus, ContentType, PlatformType } from '../../../shared/models';
@@ -28,7 +27,7 @@ import { ContentStatus, ContentType, PlatformType } from '../../../shared/models
     PageHeaderComponent, StatusBadgeComponent, PlatformChipComponent,
     LoadingSpinnerComponent, RelativeTimePipe, ContentWorkflowPanelComponent,
     BrandVoicePanelComponent, ContentRepurposeDialogComponent,
-    SubstackPrepComponent, BlogPublishComponent,
+    BlogWorkflowComponent,
   ],
   providers: [ConfirmationService],
   template: `
@@ -71,10 +70,7 @@ import { ContentStatus, ContentType, PlatformType } from '../../../shared/models
 
             @if (content.contentType === 'BlogPost') {
               <div class="mt-3">
-                <app-substack-prep [contentId]="content.id" />
-              </div>
-              <div class="mt-3">
-                <app-blog-publish [contentId]="content.id" [substackPostUrl]="content.substackPostUrl ?? null" />
+                <app-blog-workflow [content]="content" />
               </div>
             }
           </div>
