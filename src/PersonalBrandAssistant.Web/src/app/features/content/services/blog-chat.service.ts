@@ -13,11 +13,17 @@ export class BlogChatService {
 
   sendMessage(contentId: string, message: string): Observable<string> {
     const subject = new Subject<string>();
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 120_000);
+
+    // Clean up timeout on completion or error
+    subject.subscribe({ complete: () => clearTimeout(timeoutId), error: () => clearTimeout(timeoutId) });
 
     fetch(`/api/content/${contentId}/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ message }),
+      signal: controller.signal,
     }).then(async (response) => {
       if (!response.ok) {
         subject.error(new Error(`Chat request failed: ${response.status}`));

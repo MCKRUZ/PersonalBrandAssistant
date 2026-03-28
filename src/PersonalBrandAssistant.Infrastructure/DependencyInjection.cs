@@ -252,6 +252,9 @@ public static class DependencyInjection
         // Substack publication detection
         services.AddHostedService<SubstackPublicationPoller>();
 
+        // Blog deploy verification (async background polling)
+        services.AddHostedService<BlogDeployVerificationJob>();
+
         // Substack RSS
         services.Configure<SubstackOptions>(
             configuration.GetSection(SubstackOptions.SectionName));

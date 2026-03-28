@@ -114,36 +114,25 @@ internal sealed class GitHubPublishService : IGitHubPublishService
     public async Task<bool> VerifyDeploymentAsync(string blogPostUrl, CancellationToken ct)
     {
         var client = _httpClientFactory.CreateClient("BlogVerification");
-        var initialDelay = TimeSpan.FromSeconds(_options.DeployVerificationInitialDelaySeconds);
-        var maxRetries = _options.DeployVerificationMaxRetries;
 
-        for (var attempt = 0; attempt < maxRetries; attempt++)
+        try
         {
-            var delay = initialDelay * Math.Pow(2, attempt);
-            _logger.LogDebug(
-                "Deploy verification attempt {Attempt}/{Max} for {Url} — waiting {Delay}s",
-                attempt + 1, maxRetries, blogPostUrl, delay.TotalSeconds);
-
-            await Task.Delay(delay, ct);
-
-            try
+            var response = await client.GetAsync(blogPostUrl, ct);
+            if (response.StatusCode == HttpStatusCode.OK)
             {
-                var response = await client.GetAsync(blogPostUrl, ct);
-                if (response.StatusCode == HttpStatusCode.OK)
-                {
-                    _logger.LogInformation("Blog deployment verified: {Url}", blogPostUrl);
-                    return true;
-                }
+                _logger.LogInformation("Blog deployment verified: {Url}", blogPostUrl);
+                return true;
             }
-            catch (HttpRequestException ex)
-            {
-                _logger.LogWarning(ex,
-                    "Network error during deploy verification attempt {Attempt}", attempt + 1);
-            }
+
+            _logger.LogDebug("Deploy not ready yet for {Url}: {Status}",
+                blogPostUrl, (int)response.StatusCode);
+            return false;
         }
-
-        _logger.LogWarning("Deploy verification failed after {Max} retries for {Url}", maxRetries, blogPostUrl);
-        return false;
+        catch (HttpRequestException ex)
+        {
+            _logger.LogWarning(ex, "Network error during deploy verification for {Url}", blogPostUrl);
+            return false;
+        }
     }
 
     // GitHub API DTOs

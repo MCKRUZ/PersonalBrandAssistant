@@ -137,30 +137,51 @@ export class BlogPublishComponent implements OnInit {
 
     this.publishService.publish(this.contentId()).subscribe({
       next: (result) => {
-        if (result.deployed) {
-          this.publishState.set('published');
-          this.status.set({
-            commitSha: result.commitSha,
-            blogUrl: result.blogUrl,
-            status: 'Published',
-            publishedAt: new Date().toISOString(),
-            errorMessage: null
-          });
-          this.messageService.add({
-            severity: 'success',
-            summary: 'Published',
-            detail: `Blog deployed at ${result.blogUrl}`
-          });
-        } else {
-          this.publishState.set('failed');
-          this.errorMessage.set('Deploy verification timed out');
-        }
+        this.publishState.set('verifying');
+        this.messageService.add({
+          severity: 'info',
+          summary: 'Committed',
+          detail: 'Blog committed to GitHub. Verifying deployment...'
+        });
+        this.pollStatus();
       },
       error: (err) => {
         this.publishState.set('failed');
         this.errorMessage.set(err?.error?.error ?? 'Publish failed');
       }
     });
+  }
+
+  private pollStatus(): void {
+    const pollInterval = setInterval(() => {
+      this.publishService.getStatus(this.contentId()).subscribe({
+        next: (s) => {
+          this.status.set(s);
+          if (s.status === 'Published') {
+            clearInterval(pollInterval);
+            this.publishState.set('published');
+            this.messageService.add({
+              severity: 'success',
+              summary: 'Published',
+              detail: `Blog deployed at ${s.blogUrl}`
+            });
+          } else if (s.status === 'Failed') {
+            clearInterval(pollInterval);
+            this.publishState.set('failed');
+            this.errorMessage.set(s.errorMessage ?? 'Deploy verification failed');
+          }
+        }
+      });
+    }, 15_000);
+
+    // Stop polling after 10 minutes
+    setTimeout(() => {
+      clearInterval(pollInterval);
+      if (this.publishState() === 'verifying') {
+        this.publishState.set('failed');
+        this.errorMessage.set('Deploy verification timed out. Check blog-status for updates.');
+      }
+    }, 600_000);
   }
 
   statusSeverity(status: string): 'success' | 'warning' | 'danger' | 'info' | 'secondary' {

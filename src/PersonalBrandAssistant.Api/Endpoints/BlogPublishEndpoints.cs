@@ -100,50 +100,23 @@ public static class BlogPublishEndpoints
             return Results.BadRequest(new { error = "Invalid blog URL" });
         }
 
-        // Verify deployment
-        var deployed = await publisher.VerifyDeploymentAsync(blogUrl, ct);
-
-        if (deployed)
-        {
-            publishRequest.Status = BlogPublishStatus.Published;
-            publishRequest.BlogUrl = blogUrl;
-            content.BlogPostUrl = blogUrl;
-            content.BlogDeployCommitSha = commitResult.Value.CommitSha;
-
-            // Update platform status for PersonalBlog
-            var platformStatus = await db.ContentPlatformStatuses
-                .FirstOrDefaultAsync(s => s.ContentId == contentId && s.Platform == PlatformType.PersonalBlog, ct);
-            if (platformStatus is not null)
-            {
-                platformStatus.Status = PlatformPublishStatus.Published;
-                platformStatus.PostUrl = blogUrl;
-                platformStatus.PublishedAt = DateTimeOffset.UtcNow;
-            }
-        }
-        else
-        {
-            publishRequest.Status = BlogPublishStatus.Failed;
-            publishRequest.ErrorMessage = "Deploy verification timed out";
-
-            var platformStatus = await db.ContentPlatformStatuses
-                .FirstOrDefaultAsync(s => s.ContentId == contentId && s.Platform == PlatformType.PersonalBlog, ct);
-            if (platformStatus is not null)
-            {
-                platformStatus.Status = PlatformPublishStatus.Failed;
-                platformStatus.ErrorMessage = "Deploy verification timed out";
-            }
-        }
-
+        // Store the blog URL and save — verification happens asynchronously
+        publishRequest.BlogUrl = blogUrl;
+        content.BlogPostUrl = blogUrl;
+        content.BlogDeployCommitSha = commitResult.Value.CommitSha;
         await db.SaveChangesAsync(ct);
 
-        return Results.Ok(new
-        {
-            commitSha = commitResult.Value.CommitSha,
-            commitUrl = commitResult.Value.CommitUrl,
-            blogUrl,
-            status = publishRequest.Status.ToString(),
-            deployed
-        });
+        // Return immediately — BlogDeployVerificationJob handles async verification
+        return Results.Accepted(
+            $"/api/content/{contentId}/blog-status",
+            new
+            {
+                commitSha = commitResult.Value.CommitSha,
+                commitUrl = commitResult.Value.CommitUrl,
+                blogUrl,
+                status = publishRequest.Status.ToString(),
+                message = "Committed to GitHub. Deploy verification running in background."
+            });
     }
 
     private static async Task<IResult> GetBlogStatus(
