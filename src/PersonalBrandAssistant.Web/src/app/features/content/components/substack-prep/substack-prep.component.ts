@@ -46,16 +46,16 @@ interface CopyState {
           </div>
         }
 
-        @if (p.tags.length > 0) {
+        @if (prep()!.tags.length > 0) {
           <div class="mb-4 p-3 surface-ground border-round">
             <div class="flex align-items-center justify-content-between mb-2">
               <span class="font-semibold text-color-secondary">Tags</span>
               <button pButton icon="pi pi-copy" severity="secondary"
                 class="p-button-text p-button-sm" label="Copy"
-                (click)="copyField('tags', p.tags.join(', '))"></button>
+                (click)="copyField('tags', prep()!.tags.join(', '))"></button>
             </div>
             <div class="flex gap-2 flex-wrap">
-              @for (tag of p.tags; track tag) {
+              @for (tag of prep()!.tags; track tag) {
                 <p-tag [value]="tag" severity="info" />
               }
             </div>
