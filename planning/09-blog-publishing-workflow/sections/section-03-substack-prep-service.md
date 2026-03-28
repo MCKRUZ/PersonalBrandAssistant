@@ -99,3 +99,16 @@ POST /api/content/{id}/substack-published   → SubstackPublishConfirmation (bod
 | `Api/Endpoints/SubstackPrepEndpoints.cs` | Create |
 | `Infrastructure/DependencyInjection.cs` | Modify |
 | `Api/Program.cs` | Modify |
+
+---
+
+## Implementation Notes (Actual)
+
+**Status:** COMPLETE
+**Tests:** 12 passing
+**Test file:** `tests/PersonalBrandAssistant.Infrastructure.Tests/Services/SubstackPrepServiceTests.cs`
+
+**Deviations from plan:**
+- ContentMetadata has no Description/Category fields; SEO description derived from plain text truncation, section name left null
+- Endpoint tests deferred (require CustomWebApplicationFactory setup)
+- MarkdownSanitizer uses source-generated regex for performance

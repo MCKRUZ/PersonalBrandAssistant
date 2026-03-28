@@ -350,6 +350,7 @@ public static class DependencyInjection
         services.AddHttpClient("Anthropic");
         services.AddSingleton<IClaudeChatClient, ClaudeChatClient>();
         services.AddScoped<IBlogChatService, BlogChatService>();
+        services.AddScoped<ISubstackPrepService, SubstackPrepService>();
 
         // Content automation
         services.Configure<ContentAutomationOptions>(

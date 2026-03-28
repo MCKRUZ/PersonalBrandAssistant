@@ -101,6 +101,7 @@ else
     app.MapEventEndpoints();
     app.MapAutomationEndpoints();
     app.MapBlogChatEndpoints();
+    app.MapSubstackPrepEndpoints();
 
     app.Run();
 }
