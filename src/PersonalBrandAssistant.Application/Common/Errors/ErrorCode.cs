@@ -9,4 +9,5 @@ public enum ErrorCode
     Unauthorized,
     InternalError,
     RateLimited,
+    ExternalServiceError,
 }

@@ -102,6 +102,7 @@ else
     app.MapAutomationEndpoints();
     app.MapBlogChatEndpoints();
     app.MapSubstackPrepEndpoints();
+    app.MapBlogPublishEndpoints();
 
     app.Run();
 }

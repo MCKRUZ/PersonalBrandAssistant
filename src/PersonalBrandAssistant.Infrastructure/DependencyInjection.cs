@@ -16,6 +16,7 @@ using PersonalBrandAssistant.Infrastructure.BackgroundJobs;
 using PersonalBrandAssistant.Infrastructure.Data;
 using PersonalBrandAssistant.Infrastructure.Data.Interceptors;
 using PersonalBrandAssistant.Infrastructure.Services;
+using PersonalBrandAssistant.Infrastructure.Services.BlogServices;
 using PersonalBrandAssistant.Infrastructure.Services.ContentServices;
 using PersonalBrandAssistant.Infrastructure.Services.MediaServices;
 using PersonalBrandAssistant.Infrastructure.Services.PlatformServices;
@@ -352,10 +353,25 @@ public static class DependencyInjection
         services.AddScoped<IBlogChatService, BlogChatService>();
         services.AddScoped<ISubstackPrepService, SubstackPrepService>();
 
-        // Blog HTML generation
+        // Blog HTML generation & GitHub publishing
         services.Configure<BlogPublishOptions>(
             configuration.GetSection(BlogPublishOptions.SectionName));
         services.AddScoped<IBlogHtmlGenerator, BlogHtmlGenerator>();
+        services.AddTransient<AuthHeaderRedactingHandler>();
+        services.AddHttpClient("GitHubApi", client =>
+        {
+            client.BaseAddress = new Uri("https://api.github.com");
+            client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("PersonalBrandAssistant/1.0");
+            client.DefaultRequestHeaders.Add("X-GitHub-Api-Version", "2022-11-28");
+        })
+        .AddHttpMessageHandler<AuthHeaderRedactingHandler>();
+        services.AddHttpClient("BlogVerification", client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(15);
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("PersonalBrandAssistant/1.0");
+        });
+        services.AddScoped<IGitHubPublishService, GitHubPublishService>();
 
         // Content automation
         services.Configure<ContentAutomationOptions>(
