@@ -65,5 +65,12 @@ export const routes: Routes = [
         (m) => m.AUTOMATION_ROUTES
       ),
   },
+  {
+    path: 'blog-publishing',
+    loadComponent: () =>
+      import('./features/blog-publishing/blog-dashboard.component').then(
+        (m) => m.BlogDashboardComponent
+      ),
+  },
   { path: '**', redirectTo: 'dashboard' },
 ];

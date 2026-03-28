@@ -29,6 +29,11 @@ export interface Content {
   readonly createdAt: string;
   readonly updatedAt: string;
   readonly metadata: ContentMetadata;
+  readonly substackPostUrl?: string;
+  readonly blogPostUrl?: string;
+  readonly blogDeployCommitSha?: string;
+  readonly blogDelayOverride?: string;
+  readonly blogSkipped?: boolean;
 }
 
 export interface CreateContentRequest {

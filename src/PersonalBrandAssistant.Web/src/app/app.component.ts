@@ -80,6 +80,7 @@ export class AppComponent {
     { label: 'Analytics', icon: 'pi pi-chart-line', route: '/analytics' },
     { label: 'Social', icon: 'pi pi-users', route: '/social' },
     { label: 'Platforms', icon: 'pi pi-share-alt', route: '/platforms' },
+    { label: 'Blog', icon: 'pi pi-book', route: '/blog-publishing' },
     { label: 'Automation', icon: 'pi pi-bolt', route: '/automation' },
     { label: 'Settings', icon: 'pi pi-cog', route: '/settings' },
   ];

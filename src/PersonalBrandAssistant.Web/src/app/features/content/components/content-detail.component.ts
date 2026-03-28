@@ -14,9 +14,11 @@ import { RelativeTimePipe } from '../../../shared/pipes/relative-time.pipe';
 import { ContentWorkflowPanelComponent } from './content-workflow-panel.component';
 import { BrandVoicePanelComponent } from './brand-voice-panel.component';
 import { ContentRepurposeDialogComponent } from './content-repurpose-dialog.component';
+import { SubstackPrepComponent } from './substack-prep/substack-prep.component';
+import { BlogPublishComponent } from './blog-publish/blog-publish.component';
 import { ContentStore } from '../store/content.store';
 import { ContentService } from '../services/content.service';
-import { ContentStatus, PlatformType } from '../../../shared/models';
+import { ContentStatus, ContentType, PlatformType } from '../../../shared/models';
 
 @Component({
   selector: 'app-content-detail',
@@ -26,6 +28,7 @@ import { ContentStatus, PlatformType } from '../../../shared/models';
     PageHeaderComponent, StatusBadgeComponent, PlatformChipComponent,
     LoadingSpinnerComponent, RelativeTimePipe, ContentWorkflowPanelComponent,
     BrandVoicePanelComponent, ContentRepurposeDialogComponent,
+    SubstackPrepComponent, BlogPublishComponent,
   ],
   providers: [ConfirmationService],
   template: `
@@ -65,6 +68,15 @@ import { ContentStatus, PlatformType } from '../../../shared/models';
                 <pre class="white-space-pre-wrap m-0">{{ content.body }}</pre>
               </div>
             </p-card>
+
+            @if (content.contentType === 'BlogPost') {
+              <div class="mt-3">
+                <app-substack-prep [contentId]="content.id" />
+              </div>
+              <div class="mt-3">
+                <app-blog-publish [contentId]="content.id" [substackPostUrl]="content.substackPostUrl ?? null" />
+              </div>
+            }
           </div>
 
           <div class="col-12 md:col-4 flex flex-column gap-3">
