@@ -116,6 +116,95 @@ internal sealed partial class SubstackService(
         return text.Length == 0 ? null : text;
     }
 
+    public async Task<Result<FeedFetchResult>> FetchFeedEntriesAsync(
+        string? etag, DateTimeOffset? ifModifiedSince, CancellationToken ct)
+    {
+        if (!IsValidSubstackHost(_options.FeedUrl))
+            return Result<FeedFetchResult>.Failure(
+                ErrorCode.ValidationFailed, "Substack feed URL must be a substack.com domain");
+
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get, _options.FeedUrl);
+
+            if (_options.EnableConditionalGet)
+            {
+                if (etag is not null)
+                    request.Headers.IfNoneMatch.Add(new System.Net.Http.Headers.EntityTagHeaderValue($"\"{etag}\""));
+                if (ifModifiedSince.HasValue)
+                    request.Headers.IfModifiedSince = ifModifiedSince.Value;
+            }
+
+            using var response = await httpClient.SendAsync(request, ct);
+
+            if (response.StatusCode == HttpStatusCode.NotModified)
+                return Result<FeedFetchResult>.Success(
+                    new FeedFetchResult(true, etag, ifModifiedSince, []));
+
+            response.EnsureSuccessStatusCode();
+
+            var responseEtag = response.Headers.ETag?.Tag?.Trim('"');
+            var responseLastModified = response.Content.Headers.LastModified;
+
+            await using var stream = await response.Content.ReadAsStreamAsync(ct);
+            using var reader = XmlReader.Create(stream, new XmlReaderSettings
+            {
+                Async = true,
+                DtdProcessing = DtdProcessing.Ignore,
+                XmlResolver = null
+            });
+
+            var feed = SyndicationFeed.Load(reader);
+            if (feed is null)
+                return Result<FeedFetchResult>.Failure(
+                    ErrorCode.InternalError, "Failed to parse Substack RSS feed");
+
+            var slidingWindow = DateTimeOffset.UtcNow.AddDays(-14);
+            var entries = feed.Items
+                .Where(item => (item.PublishDate != default ? item.PublishDate : item.LastUpdatedTime) >= slidingWindow)
+                .Select(item =>
+                {
+                    var title = item.Title?.Text ?? "";
+                    var link = item.Links.FirstOrDefault()?.Uri?.AbsoluteUri ?? "";
+                    var pubDate = item.PublishDate != default ? item.PublishDate : item.LastUpdatedTime;
+                    var guid = item.Id ?? link;
+
+                    var contentEncoded = item.ElementExtensions
+                        .FirstOrDefault(e => e.OuterName == "encoded"
+                            && e.OuterNamespace == "http://purl.org/rss/1.0/modules/content/")
+                        ?.GetObject<string>();
+                    contentEncoded ??= item.Summary?.Text;
+
+                    var hash = ComputeContentHash(contentEncoded ?? title);
+
+                    return new SubstackRssEntry(guid, title, link, pubDate, contentEncoded, hash);
+                })
+                .ToList();
+
+            return Result<FeedFetchResult>.Success(
+                new FeedFetchResult(false, responseEtag, responseLastModified, entries));
+        }
+        catch (HttpRequestException ex)
+        {
+            logger.LogError(ex, "Failed to fetch Substack RSS feed from {FeedUrl}", _options.FeedUrl);
+            return Result<FeedFetchResult>.Failure(
+                ErrorCode.InternalError, $"Failed to fetch feed: {ex.Message}");
+        }
+        catch (XmlException ex)
+        {
+            logger.LogError(ex, "Failed to parse Substack RSS feed from {FeedUrl}", _options.FeedUrl);
+            return Result<FeedFetchResult>.Failure(
+                ErrorCode.InternalError, $"Failed to parse feed: {ex.Message}");
+        }
+    }
+
+    private static string ComputeContentHash(string content)
+    {
+        var bytes = System.Text.Encoding.UTF8.GetBytes(content);
+        var hash = System.Security.Cryptography.SHA256.HashData(bytes);
+        return Convert.ToHexStringLower(hash);
+    }
+
     [GeneratedRegex(@"<[^>]+>")]
     private static partial Regex HtmlTagRegex();
 

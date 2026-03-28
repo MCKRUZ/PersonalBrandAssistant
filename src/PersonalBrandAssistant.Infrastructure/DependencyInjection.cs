@@ -249,6 +249,9 @@ public static class DependencyInjection
         services.AddHostedService<EngagementScheduler>();
         services.AddHostedService<InboxPoller>();
 
+        // Substack publication detection
+        services.AddHostedService<SubstackPublicationPoller>();
+
         // Substack RSS
         services.Configure<SubstackOptions>(
             configuration.GetSection(SubstackOptions.SectionName));
@@ -352,6 +355,7 @@ public static class DependencyInjection
         services.AddSingleton<IClaudeChatClient, ClaudeChatClient>();
         services.AddScoped<IBlogChatService, BlogChatService>();
         services.AddScoped<ISubstackPrepService, SubstackPrepService>();
+        services.AddScoped<ISubstackContentMatcher, SubstackContentMatcher>();
 
         // Blog HTML generation & GitHub publishing
         services.Configure<BlogPublishOptions>(
