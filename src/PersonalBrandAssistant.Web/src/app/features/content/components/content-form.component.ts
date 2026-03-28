@@ -99,6 +99,9 @@ export class ContentFormComponent implements OnInit {
     { label: 'LinkedIn', value: 'LinkedIn' as PlatformType },
     { label: 'Instagram', value: 'Instagram' as PlatformType },
     { label: 'YouTube', value: 'YouTube' as PlatformType },
+    { label: 'Reddit', value: 'Reddit' as PlatformType },
+    { label: 'Substack', value: 'Substack' as PlatformType },
+    { label: 'Personal Blog', value: 'PersonalBlog' as PlatformType },
   ];
 
   readonly form = this.fb.group({
