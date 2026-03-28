@@ -60,10 +60,10 @@ internal sealed class BlogHtmlGenerator : IBlogHtmlGenerator
             .Replace("{{date_iso}}", content.CreatedAt.ToString("O"))
             .Replace("{{author}}", System.Net.WebUtility.HtmlEncode(_options.AuthorName))
             .Replace("{{meta_description}}", System.Net.WebUtility.HtmlEncode(metaDescription))
-            .Replace("{{canonical_url}}", canonicalUrl ?? "")
+            .Replace("{{canonical_url}}", System.Net.WebUtility.HtmlEncode(canonicalUrl ?? ""))
             .Replace("{{og_title}}", System.Net.WebUtility.HtmlEncode(title))
             .Replace("{{og_description}}", System.Net.WebUtility.HtmlEncode(metaDescription))
-            .Replace("{{og_url}}", canonicalUrl ?? "")
+            .Replace("{{og_url}}", System.Net.WebUtility.HtmlEncode(canonicalUrl ?? ""))
             .Replace("{{body}}", bodyHtml);
 
         _logger.LogInformation("Generated blog HTML for content {ContentId} at {FilePath}", contentId, filePath);

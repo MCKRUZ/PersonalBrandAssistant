@@ -86,21 +86,17 @@ internal sealed class SubstackPublicationPoller : BackgroundService
 
         foreach (var entry in feed.Entries)
         {
-            // Dedup: skip if we already have this RSS guid
-            var alreadySeen = await db.SubstackDetections
-                .AnyAsync(d => d.RssGuid == entry.Guid, ct);
-            if (alreadySeen)
+            // Dedup: single query to check existence and get entity for hash updates
+            var existing = await db.SubstackDetections
+                .FirstOrDefaultAsync(d => d.RssGuid == entry.Guid, ct);
+            if (existing is not null)
             {
-                // Check for content edits via hash change
-                var existing = await db.SubstackDetections
-                    .FirstOrDefaultAsync(d => d.RssGuid == entry.Guid, ct);
-                if (existing is not null && existing.ContentHash != entry.ContentHash)
+                if (existing.ContentHash != entry.ContentHash)
                 {
                     _logger.LogInformation(
                         "Content hash changed for RSS entry '{Title}' (guid={Guid})",
                         entry.Title, entry.Guid);
                     existing.ContentHash = entry.ContentHash;
-                    await db.SaveChangesAsync(ct);
                 }
                 continue;
             }
@@ -120,9 +116,12 @@ internal sealed class SubstackPublicationPoller : BackgroundService
             };
             db.SubstackDetections.Add(detection);
 
-            if (matchResult.ContentId.HasValue && matchResult.Confidence <= confidenceThreshold)
+            // MatchConfidence enum: High=0, Medium=1, Low=2, None=3
+            // Lower numeric value = higher confidence, so <= threshold means "at least as confident"
+            var meetsThreshold = matchResult.Confidence <= confidenceThreshold;
+
+            if (matchResult.ContentId.HasValue && meetsThreshold)
             {
-                // Update Content.SubstackPostUrl
                 var content = await db.Contents
                     .FirstOrDefaultAsync(c => c.Id == matchResult.ContentId.Value, ct);
                 if (content is not null)
@@ -133,7 +132,6 @@ internal sealed class SubstackPublicationPoller : BackgroundService
                         entry.Title, content.Id, matchResult.Confidence);
                 }
 
-                // Create notification
                 db.UserNotifications.Add(new UserNotification
                 {
                     Type = "SubstackPublicationDetected",
@@ -147,8 +145,9 @@ internal sealed class SubstackPublicationPoller : BackgroundService
                 _logger.LogDebug(
                     "Unmatched Substack entry '{Title}' (guid={Guid})", entry.Title, entry.Guid);
             }
-
-            await db.SaveChangesAsync(ct);
         }
+
+        // Batch save all changes from this poll cycle
+        await db.SaveChangesAsync(ct);
     }
 }

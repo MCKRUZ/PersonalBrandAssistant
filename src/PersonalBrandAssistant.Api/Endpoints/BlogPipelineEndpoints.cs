@@ -93,6 +93,9 @@ public static class BlogPipelineEndpoints
     private static async Task<IResult> UpdateDelay(
         Guid contentId, DelayUpdateRequest request, IApplicationDbContext db, CancellationToken ct)
     {
+        if (request.DelayDays is < 0 or > 365)
+            return Results.BadRequest(new { error = "DelayDays must be between 0 and 365" });
+
         var content = await db.Contents.FirstOrDefaultAsync(c => c.Id == contentId, ct);
         if (content is null)
             return Results.NotFound(new { error = "Content not found" });

@@ -89,6 +89,17 @@ public static class BlogPublishEndpoints
             ?? htmlResult.Value.FilePath.Replace("content/blog/", "https://matthewkruczek.ai/blog/")
                 .Replace(".html", "");
 
+        // SSRF protection: only verify URLs on the personal blog domain
+        if (!Uri.TryCreate(blogUrl, UriKind.Absolute, out var blogUri)
+            || !blogUri.Host.Equals("matthewkruczek.ai", StringComparison.OrdinalIgnoreCase)
+            || blogUri.Scheme != Uri.UriSchemeHttps)
+        {
+            publishRequest.Status = BlogPublishStatus.Failed;
+            publishRequest.ErrorMessage = "Blog URL failed validation — must be https://matthewkruczek.ai";
+            await db.SaveChangesAsync(ct);
+            return Results.BadRequest(new { error = "Invalid blog URL" });
+        }
+
         // Verify deployment
         var deployed = await publisher.VerifyDeploymentAsync(blogUrl, ct);
 
