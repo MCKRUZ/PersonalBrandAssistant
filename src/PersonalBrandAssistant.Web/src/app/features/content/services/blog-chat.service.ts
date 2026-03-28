@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { Observable, Subject } from 'rxjs';
 import { ApiService } from '../../../core/services/api.service';
-import { environment } from '../../../../environments/environment';
+import { environment } from '../../../environments/environment';
 import { ChatMessage, FinalizedDraft } from '../models/blog-chat.models';
 
 @Injectable({ providedIn: 'root' })
