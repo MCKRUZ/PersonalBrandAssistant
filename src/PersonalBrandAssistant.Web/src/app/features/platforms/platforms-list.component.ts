@@ -34,7 +34,7 @@ import { Platform } from '../../shared/models';
       <app-empty-state message="No platforms configured" icon="pi pi-share-alt" />
     } @else {
       <div class="grid">
-        @for (platform of store.platforms(); track platform.id) {
+        @for (platform of store.platforms(); track platform.type) {
           <div class="col-12 md:col-6">
             <app-platform-card
               [platform]="platform"
