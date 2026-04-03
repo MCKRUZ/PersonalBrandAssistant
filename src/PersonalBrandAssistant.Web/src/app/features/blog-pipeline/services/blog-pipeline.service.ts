@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ApiService } from '../../../core/services/api.service';
-import { BlogPipelineItem, BlogPipelineStage } from '../modelsblog-pipeline.model';
+import { BlogPipelineItem, BlogPipelineStage } from '../models/blog-pipeline.model';
 
 @Injectable({ providedIn: 'root' })
 export class BlogPipelineService {

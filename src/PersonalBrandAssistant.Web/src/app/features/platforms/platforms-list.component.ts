@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, ViewChild } from '@angular/core';
+import { Component, computed, inject, OnInit, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { ConfirmDialog } from 'primeng/confirmdialog';
@@ -10,7 +10,9 @@ import { PlatformDetailDialogComponent } from './components/platform-detail-dial
 import { TestPostDialogComponent } from './components/test-post-dialog.component';
 import { PlatformStore } from './store/platform.store';
 import { PlatformService } from './services/platform.service';
-import { Platform } from '../../shared/models';
+import { Platform, PlatformType } from '../../shared/models';
+
+const NON_OAUTH_PLATFORMS: ReadonlySet<PlatformType> = new Set<PlatformType>(['Substack', 'PersonalBlog']);
 
 @Component({
   selector: 'app-platforms-list',
@@ -34,7 +36,7 @@ import { Platform } from '../../shared/models';
       <app-empty-state message="No platforms configured" icon="pi pi-share-alt" />
     } @else {
       <div class="grid">
-        @for (platform of store.platforms(); track platform.type) {
+        @for (platform of oauthPlatforms(); track platform.type) {
           <div class="col-12 md:col-6">
             <app-platform-card
               [platform]="platform"
@@ -51,6 +53,9 @@ import { Platform } from '../../shared/models';
 })
 export class PlatformsListComponent implements OnInit {
   readonly store = inject(PlatformStore);
+  readonly oauthPlatforms = computed(() =>
+    this.store.platforms().filter(p => !NON_OAUTH_PLATFORMS.has(p.type))
+  );
   private readonly platformService = inject(PlatformService);
   private readonly confirmationService = inject(ConfirmationService);
   private readonly messageService = inject(MessageService);
