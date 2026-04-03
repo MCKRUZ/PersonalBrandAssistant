@@ -15,6 +15,12 @@ public class AutonomyConfigurationConfiguration : IEntityTypeConfiguration<Auton
 
         builder.Property(c => c.GlobalLevel).IsRequired();
 
+        builder.Property(c => c.AutoPublishEnabled).IsRequired();
+        builder.Property(c => c.RequireApprovalForSocial).IsRequired();
+        builder.Property(c => c.MaxAutoPostsPerDay).IsRequired();
+        builder.Property(c => c.DefaultTone).IsRequired().HasMaxLength(50);
+        builder.Property(c => c.AutoScheduleEnabled).IsRequired();
+
         builder.Property(c => c.ContentTypeOverrides)
             .HasConversion(new JsonValueConverter<List<ContentTypeOverride>>())
             .HasColumnType("jsonb");

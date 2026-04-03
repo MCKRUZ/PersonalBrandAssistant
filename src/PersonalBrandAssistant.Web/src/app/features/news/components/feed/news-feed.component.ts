@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, signal, ViewEncapsulation, ElementRef, Injector, afterNextRender } from '@angular/core';
+import { Component, computed, inject, OnInit, signal, ViewEncapsulation, ElementRef, Injector, afterNextRender, ChangeDetectorRef } from '@angular/core';
 import { ButtonModule } from 'primeng/button';
 import { SkeletonModule } from 'primeng/skeleton';
 import { Tooltip } from 'primeng/tooltip';
@@ -6,7 +6,7 @@ import { NewsStore } from '../../store/news.store';
 import { NewsFeedFiltersComponent } from './news-feed-filters.component';
 import { NewsFeedItemComponent } from './news-feed-item.component';
 import { NewsFeedVideoCardComponent } from './news-feed-video-card.component';
-import { CATEGORY_COLORS, CATEGORY_ICONS, NewsFeedItem, SOURCE_COLORS, SOURCE_ICONS } from '../../models/news.model';
+import { CATEGORY_COLORS, CATEGORY_ICONS, CategoryGroup, NewsFeedItem, SOURCE_COLORS, SOURCE_ICONS } from '../../models/news.model';
 import { ContentIdeaWizardComponent } from '../../../content/components/content-idea-wizard.component';
 import { ContentPipelineDialogComponent } from '../../../content/components/content-pipeline-dialog.component';
 import { ContentType, PlatformFormatOption, PlatformType } from '../../../../shared/models';
@@ -49,7 +49,7 @@ import { ContentType, PlatformFormatOption, PlatformType } from '../../../../sha
           <p-skeleton height="100px" borderRadius="12px" />
         }
       </div>
-    } @else if (store.groupedByCategory().length === 0) {
+    } @else if (groups().length === 0) {
       <!-- Rich empty state -->
       <div style="
         border: 1px dashed rgba(139,92,246,0.2); border-radius: 16px;
@@ -98,7 +98,7 @@ import { ContentType, PlatformFormatOption, PlatformType } from '../../../../sha
       </div>
     } @else {
       <div style="display: flex; flex-direction: column; gap: 1.5rem;">
-        @for (group of store.groupedByCategory(); track group.category) {
+        @for (group of groups(); track $index) {
           <div class="category-section" [attr.data-category]="group.category">
             <div class="category-section__header" (click)="store.toggleCategoryCollapse(group.category)">
               <i class="category-section__chevron pi"
@@ -284,7 +284,9 @@ export class NewsFeedComponent implements OnInit {
   readonly store = inject(NewsStore);
   private readonly el = inject(ElementRef);
   private readonly injector = inject(Injector);
+  private readonly cdr = inject(ChangeDetectorRef);
   readonly skeletonItems = Array.from({ length: 5 }, (_, i) => i);
+  readonly groups = computed<readonly CategoryGroup[]>(() => this.store.groupedByCategory());
 
   wizardVisible = false;
   readonly wizardContext = signal<{ title: string; text: string; sourceUrl?: string } | null>(null);
@@ -350,7 +352,7 @@ export class NewsFeedComponent implements OnInit {
   }
 
   allCollapsed(): boolean {
-    const groups = this.store.groupedByCategory();
+    const groups = this.groups();
     return groups.length > 0 && groups.every((g) => this.isCollapsed(g.category));
   }
 
@@ -363,26 +365,52 @@ export class NewsFeedComponent implements OnInit {
   }
 
   onDismiss(itemId: string, category: string): void {
+    // Find the dismissed card's DOM element and its next sibling card
+    const allCards: HTMLElement[] = Array.from(
+      this.el.nativeElement.querySelectorAll('.feed-card, app-news-feed-video-card')
+    );
     const section: HTMLElement | null = this.el.nativeElement.querySelector(
       `[data-category="${CSS.escape(category)}"]`
     );
-    if (!section) {
-      this.store.dismiss(itemId);
-      return;
-    }
 
-    const topBefore = section.getBoundingClientRect().top;
+    // Capture scroll anchor: the next category section after this one
+    const allSections: HTMLElement[] = Array.from(
+      this.el.nativeElement.querySelectorAll('.category-section')
+    );
+    const sectionIdx = section ? allSections.indexOf(section) : -1;
+    const nextSection = sectionIdx >= 0 ? allSections[sectionIdx + 1] ?? allSections[sectionIdx - 1] : null;
+    const anchorTop = nextSection?.getBoundingClientRect().top ?? null;
+
     this.store.dismiss(itemId);
+    this.cdr.detectChanges();
 
     afterNextRender(() => {
+      // Try to keep the same category section in place
       const sameSection: HTMLElement | null = this.el.nativeElement.querySelector(
         `[data-category="${CSS.escape(category)}"]`
       );
-      if (!sameSection) return;
-      const topAfter = sameSection.getBoundingClientRect().top;
-      const diff = topAfter - topBefore;
-      if (diff !== 0) {
-        window.scrollBy(0, diff);
+      if (sameSection) {
+        // Category still exists — scroll-correct within it
+        if (section) {
+          const topAfter = sameSection.getBoundingClientRect().top;
+          const topBefore = section.getBoundingClientRect().top;
+          const diff = topAfter - topBefore;
+          if (Math.abs(diff) > 1) {
+            window.scrollBy(0, diff);
+          }
+        }
+        return;
+      }
+
+      // Category section is gone — anchor to the next/prev section
+      if (nextSection && anchorTop !== null) {
+        const newTop = nextSection.getBoundingClientRect().top;
+        const diff = newTop - anchorTop;
+        if (Math.abs(diff) > 1) {
+          window.scrollBy(0, diff);
+        }
+        // Scroll the next section into comfortable view
+        nextSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       }
     }, { injector: this.injector });
   }

@@ -1,6 +1,6 @@
 import { Component, inject, OnInit, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink } from '@angular/router';
+
 import { ButtonModule } from 'primeng/button';
 import { Badge } from 'primeng/badge';
 import { Popover } from 'primeng/popover';
@@ -10,7 +10,7 @@ import { NotificationStore } from '../../store/notification.store';
 @Component({
   selector: 'app-notification-bell',
   standalone: true,
-  imports: [CommonModule, RouterLink, ButtonModule, Badge, Popover, RelativeTimePipe],
+  imports: [CommonModule, ButtonModule, Badge, Popover, RelativeTimePipe],
   template: `
     <span class="notification-bell" (click)="panel.toggle($event)">
       <i class="pi pi-bell" style="font-size: 1.25rem; cursor: pointer"></i>

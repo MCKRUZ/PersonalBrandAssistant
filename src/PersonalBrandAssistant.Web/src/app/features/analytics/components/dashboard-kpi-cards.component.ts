@@ -27,7 +27,7 @@ function formatKpiValue(value: number, format: KpiFormat): string {
 }
 
 function computeChange(current: number, previous: number): { text: string; trend: 'up' | 'down' | 'neutral' } {
-  if (previous === 0) return { text: 'N/A', trend: 'neutral' };
+  if (previous === 0) return { text: 'No prior data', trend: 'neutral' };
   const pct = Math.round(((current - previous) / previous) * 10000) / 100;
   if (pct > 0) return { text: '+' + pct.toFixed(1) + '%', trend: 'up' };
   if (pct < 0) return { text: pct.toFixed(1) + '%', trend: 'down' };
@@ -54,7 +54,7 @@ const KPI_DEFS: readonly { label: string; current: keyof DashboardSummary; previ
         <div class="kpi-card">
           <div class="kpi-label">{{ card.label }}</div>
           <div class="kpi-value">{{ card.value }}</div>
-          <span class="kpi-trend" [class.up]="card.trend === 'up'" [class.down]="card.trend === 'down'">
+          <span class="kpi-trend" [class.up]="card.trend === 'up'" [class.down]="card.trend === 'down'" [class.neutral]="card.trend === 'neutral'">
             @if (card.trend === 'up') { &#9650; }
             @if (card.trend === 'down') { &#9660; }
             {{ card.changeText }}
@@ -106,6 +106,7 @@ const KPI_DEFS: readonly { label: string; current: keyof DashboardSummary; previ
     }
     .kpi-trend.up { color: #22c55e; background: rgba(34, 197, 94, 0.12); }
     .kpi-trend.down { color: #ef4444; background: rgba(239, 68, 68, 0.12); }
+    .kpi-trend.neutral { color: #71717a; background: rgba(255, 255, 255, 0.04); font-size: 0.68rem; }
   `,
 })
 export class DashboardKpiCardsComponent {

@@ -8,6 +8,8 @@ services:
       - "3001:3001"
     volumes:
       - ~/.claude/.credentials.json:/root/.claude/.credentials.json:ro
+      - ~/.claude/CLAUDE.md:/root/.claude/CLAUDE.md:ro
+      - ~/.claude/rules:/root/.claude/rules:ro
     networks:
       - default
       - internal
@@ -34,6 +36,10 @@ services:
       PlatformIntegrations__Reddit__UserAgent: ${REDDIT_USER_AGENT:-pba/1.0}
       PlatformIntegrations__LinkedIn__ClientId: ${LINKEDIN_CLIENT_ID:-}
       PlatformIntegrations__LinkedIn__ClientSecret: ${LINKEDIN_CLIENT_SECRET:-}
+      PlatformIntegrations__Twitter__CallbackUrl: http://localhost:4201/platforms/twitter/callback
+      PlatformIntegrations__LinkedIn__CallbackUrl: http://localhost:4201/platforms/linkedin/callback
+      PlatformIntegrations__Instagram__CallbackUrl: http://localhost:4201/platforms/instagram/callback
+      PlatformIntegrations__YouTube__CallbackUrl: http://localhost:4201/platforms/youtube/callback
       GoogleAnalytics__CredentialsPath: /app/secrets/google-analytics-sa.json
       DataProtection__KeyPath: /data-protection-keys
       DOTNET_USE_POLLING_FILE_WATCHER: "true"

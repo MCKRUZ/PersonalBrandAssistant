@@ -6,6 +6,7 @@ import { BudgetPanelComponent } from './components/budget-panel.component';
 import { UsagePanelComponent } from './components/usage-panel.component';
 import { NewsFeedsPanelComponent } from './components/news-feeds-panel.component';
 import { NewsPreferencesPanelComponent } from './components/news-preferences-panel.component';
+import { AutonomyPanelComponent } from './components/autonomy-panel.component';
 import { SettingsStore } from './store/settings.store';
 
 @Component({
@@ -14,6 +15,7 @@ import { SettingsStore } from './store/settings.store';
   imports: [
     CommonModule, PageHeaderComponent, LoadingSpinnerComponent,
     BudgetPanelComponent, UsagePanelComponent, NewsFeedsPanelComponent, NewsPreferencesPanelComponent,
+    AutonomyPanelComponent,
   ],
   template: `
     <app-page-header title="Settings" />
@@ -23,9 +25,12 @@ import { SettingsStore } from './store/settings.store';
     } @else {
       <div class="grid">
         <div class="col-12 md:col-6">
-          <app-budget-panel [budget]="store.budget()" />
+          <app-autonomy-panel />
         </div>
         <div class="col-12 md:col-6">
+          <app-budget-panel [budget]="store.budget()" />
+        </div>
+        <div class="col-12 md:col-6" style="margin-top: 1rem;">
           <app-usage-panel />
         </div>
         <div class="col-12 md:col-6" style="margin-top: 1rem;">

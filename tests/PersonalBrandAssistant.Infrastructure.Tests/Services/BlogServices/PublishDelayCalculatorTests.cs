@@ -46,7 +46,7 @@ public class PublishDelayCalculatorTests
     {
         var content = Content.Create(ContentType.BlogPost, "body", "Test",
             [PlatformType.Substack, PlatformType.PersonalBlog]);
-        content.BlogSkipped = true;
+        content.SkipBlog();
 
         Assert.True(content.BlogSkipped);
         // BlogSkipped = true means no schedule should be created
@@ -57,8 +57,8 @@ public class PublishDelayCalculatorTests
     {
         var content = Content.Create(ContentType.BlogPost, "body", "Test",
             [PlatformType.Substack, PlatformType.PersonalBlog]);
-        content.BlogSkipped = true;
-        content.BlogDelayOverride = TimeSpan.FromDays(3);
+        content.SkipBlog();
+        content.SetBlogDelay(TimeSpan.FromDays(3));
 
         Assert.True(content.BlogSkipped);
         Assert.Equal(TimeSpan.FromDays(3), content.BlogDelayOverride);

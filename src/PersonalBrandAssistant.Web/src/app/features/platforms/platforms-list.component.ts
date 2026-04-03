@@ -67,7 +67,7 @@ export class PlatformsListComponent implements OnInit {
     this.platformService.getAuthUrl(platform.type).subscribe({
       next: response => {
         this.store.setConnecting(false);
-        window.location.href = response.authUrl;
+        window.location.href = response.url;
       },
       error: () => {
         this.store.setConnecting(false);

@@ -17,12 +17,23 @@ export class OAuthCallbackComponent implements OnInit {
   private readonly platformService = inject(PlatformService);
   private readonly messageService = inject(MessageService);
 
+  private static readonly PLATFORM_MAP: Record<string, PlatformType> = {
+    twitterx: 'TwitterX',
+    twitter: 'TwitterX',
+    linkedin: 'LinkedIn',
+    instagram: 'Instagram',
+    youtube: 'YouTube',
+    reddit: 'Reddit',
+    personalblog: 'PersonalBlog',
+    substack: 'Substack',
+  };
+
   ngOnInit() {
     const queryParams = this.route.snapshot.queryParams;
     const code = queryParams['code'];
     const state = queryParams['state'];
-    const platformType = this.route.snapshot.params['type'] as PlatformType
-      ?? queryParams['platform'] as PlatformType;
+    const rawType = (this.route.snapshot.params['type'] ?? queryParams['platform'] ?? '') as string;
+    const platformType = OAuthCallbackComponent.PLATFORM_MAP[rawType.toLowerCase()] ?? rawType as PlatformType;
 
     if (!code || !state || !platformType) {
       this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Invalid OAuth callback' });
@@ -35,7 +46,8 @@ export class OAuthCallbackComponent implements OnInit {
         this.messageService.add({ severity: 'success', summary: 'Connected', detail: `${platformType} connected successfully` });
         this.router.navigate(['/platforms']);
       },
-      error: () => {
+      error: (err) => {
+        this.messageService.add({ severity: 'error', summary: 'Connection failed', detail: err?.error?.detail ?? 'Could not complete OAuth flow' });
         this.router.navigate(['/platforms']);
       },
     });

@@ -2,7 +2,6 @@ import { Component, computed, inject, input, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ButtonModule } from 'primeng/button';
 import { Timeline } from 'primeng/timeline';
-import { Tag } from 'primeng/tag';
 import { Card } from 'primeng/card';
 import { StatusBadgeComponent } from '../../../shared/components/status-badge/status-badge.component';
 import { RelativeTimePipe } from '../../../shared/pipes/relative-time.pipe';
@@ -11,7 +10,7 @@ import { ContentStatus, WorkflowTransitionLog } from '../../../shared/models';
 @Component({
   selector: 'app-content-workflow-panel',
   standalone: true,
-  imports: [CommonModule, ButtonModule, Timeline, Tag, Card, StatusBadgeComponent, RelativeTimePipe],
+  imports: [CommonModule, ButtonModule, Timeline, Card, StatusBadgeComponent, RelativeTimePipe],
   template: `
     <p-card header="Workflow">
       <div class="mb-3">

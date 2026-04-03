@@ -139,7 +139,7 @@ public class BlogSchedulingServiceTests
         var (sut, db, notifications) = await CreateSutAsync();
         var content = Content.Create(ContentType.BlogPost, "body", "Skip Test",
             [PlatformType.Substack, PlatformType.PersonalBlog]);
-        content.BlogSkipped = true;
+        content.SkipBlog();
         db.Contents.Add(content);
         await db.SaveChangesAsync();
 

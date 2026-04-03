@@ -52,6 +52,13 @@ export const routes: Routes = [
       ),
   },
   {
+    path: 'blog-pipeline',
+    loadChildren: () =>
+      import('./features/blog-pipeline/blog-pipeline.routes').then(
+        (m) => m.BLOG_PIPELINE_ROUTES
+      ),
+  },
+  {
     path: 'settings',
     loadChildren: () =>
       import('./features/settings/settings.routes').then(
@@ -63,13 +70,6 @@ export const routes: Routes = [
     loadChildren: () =>
       import('./features/automation/automation.routes').then(
         (m) => m.AUTOMATION_ROUTES
-      ),
-  },
-  {
-    path: 'blog-publishing',
-    loadComponent: () =>
-      import('./features/blog-publishing/blog-dashboard.component').then(
-        (m) => m.BlogDashboardComponent
       ),
   },
   { path: '**', redirectTo: 'dashboard' },

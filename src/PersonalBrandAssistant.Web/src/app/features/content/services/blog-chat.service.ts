@@ -15,7 +15,7 @@ export class BlogChatService {
   sendMessage(contentId: string, message: string): Observable<string> {
     const subject = new Subject<string>();
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 120_000);
+    const timeoutId = setTimeout(() => controller.abort(), 600_000);
 
     // Clean up timeout on completion or error
     subject.subscribe({ complete: () => clearTimeout(timeoutId), error: () => clearTimeout(timeoutId) });
@@ -44,6 +44,7 @@ export class BlogChatService {
 
       const decoder = new TextDecoder();
       let buffer = '';
+      let currentEvent = '';
 
       while (true) {
         const { done, value } = await reader.read();
@@ -54,16 +55,30 @@ export class BlogChatService {
         buffer = lines.pop() ?? '';
 
         for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6);
-            if (data === '[DONE]') {
+          if (line.startsWith('event: ')) {
+            currentEvent = line.slice(7).trim();
+            if (currentEvent === 'error') {
+              subject.error(new Error('Stream error'));
+              return;
+            }
+            if (currentEvent === 'done') {
               subject.complete();
               return;
             }
-            subject.next(data);
-          } else if (line.startsWith('event: error')) {
-            subject.error(new Error('Stream error'));
-            return;
+          } else if (line.startsWith('data: ')) {
+            const raw = line.slice(6);
+            if (raw === '[DONE]') {
+              subject.complete();
+              return;
+            }
+            try {
+              const parsed = JSON.parse(raw);
+              if (parsed.text) {
+                subject.next(parsed.text);
+              }
+            } catch {
+              subject.next(raw);
+            }
           }
         }
       }

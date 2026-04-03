@@ -1,9 +1,10 @@
-import { ChangeDetectionStrategy, Component, inject, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, OnInit, viewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
 import { Skeleton } from 'primeng/skeleton';
 import { Tooltip } from 'primeng/tooltip';
+import { Message } from 'primeng/message';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { EmptyStateComponent } from '../../shared/components/empty-state/empty-state.component';
 import { TopContentTableComponent } from './components/top-content-table.component';
@@ -14,6 +15,7 @@ import { PlatformBreakdownChartComponent } from './components/platform-breakdown
 import { PlatformHealthCardsComponent } from './components/platform-health-cards.component';
 import { WebsiteAnalyticsSectionComponent } from './components/website-analytics-section.component';
 import { SubstackSectionComponent } from './components/substack-section.component';
+import { ImportPostDialogComponent } from './components/import-post-dialog.component';
 import { AnalyticsStore } from './store/analytics.store';
 import { DashboardPeriod } from './models/dashboard.model';
 
@@ -21,11 +23,12 @@ import { DashboardPeriod } from './models/dashboard.model';
   selector: 'app-analytics-dashboard',
   standalone: true,
   imports: [
-    CommonModule, ButtonModule, Skeleton, Tooltip,
+    CommonModule, ButtonModule, Skeleton, Tooltip, Message,
     PageHeaderComponent, EmptyStateComponent,
     TopContentTableComponent, DashboardKpiCardsComponent, DateRangeSelectorComponent,
     EngagementTimelineChartComponent, PlatformBreakdownChartComponent,
     PlatformHealthCardsComponent, WebsiteAnalyticsSectionComponent, SubstackSectionComponent,
+    ImportPostDialogComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -35,6 +38,14 @@ import { DashboardPeriod } from './models/dashboard.model';
         <app-date-range-selector
           [activePeriod]="store.period()"
           (periodChanged)="onPeriodChanged($event)"
+        />
+        <p-button
+          label="Import Post"
+          icon="pi pi-download"
+          [outlined]="true"
+          size="small"
+          (onClick)="importDialog().open()"
+          pTooltip="Import an existing social media post"
         />
         <p-button
           icon="pi pi-refresh"
@@ -64,9 +75,15 @@ import { DashboardPeriod } from './models/dashboard.model';
     } @else {
       <app-dashboard-kpi-cards [summary]="store.summary()" />
 
+      @if (hasErrors()) {
+        <p-message severity="warn" styleClass="mt-2 w-full">
+          Some sections failed to load: {{ errorSections() }}. Try refreshing.
+        </p-message>
+      }
+
       <div class="charts-row mt-3">
-        <app-engagement-timeline-chart [timeline]="store.timeline()" />
-        <app-platform-breakdown-chart [timeline]="store.timeline()" />
+        <app-engagement-timeline-chart [timeline]="store.timeline()" [loading]="store.loading()" />
+        <app-platform-breakdown-chart [timeline]="store.timeline()" [loading]="store.loading()" />
       </div>
 
       <div class="mt-3">
@@ -82,6 +99,8 @@ import { DashboardPeriod } from './models/dashboard.model';
         <app-substack-section [posts]="store.substackPosts()" />
       </div>
     }
+
+    <app-import-post-dialog (imported)="onImported()" />
   `,
   styles: `
     .dashboard-header {
@@ -128,7 +147,25 @@ import { DashboardPeriod } from './models/dashboard.model';
 export class AnalyticsDashboardComponent implements OnInit {
   private readonly router = inject(Router);
   readonly store = inject(AnalyticsStore);
+  readonly importDialog = viewChild.required(ImportPostDialogComponent);
   readonly skeletonCards = [1, 2, 3, 4, 5, 6];
+
+  readonly hasErrors = computed(() => {
+    const e = this.store.errors();
+    return !!(e.summary || e.timeline || e.platforms || e.website || e.substack || e.topContent);
+  });
+
+  readonly errorSections = computed(() => {
+    const e = this.store.errors();
+    const sections: string[] = [];
+    if (e.summary) sections.push('Summary');
+    if (e.timeline) sections.push('Timeline');
+    if (e.platforms) sections.push('Platforms');
+    if (e.website) sections.push('Website');
+    if (e.substack) sections.push('Substack');
+    if (e.topContent) sections.push('Top Content');
+    return sections.join(', ');
+  });
 
   ngOnInit() {
     this.store.loadDashboard();
@@ -144,6 +181,10 @@ export class AnalyticsDashboardComponent implements OnInit {
 
   viewDetail(contentId: string) {
     this.router.navigate(['/analytics', contentId]);
+  }
+
+  onImported() {
+    this.store.refreshDashboard();
   }
 
   getRelativeTime(iso: string): string {

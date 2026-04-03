@@ -79,7 +79,7 @@ public class EngagementAggregationProcessorTests
         var sut = CreateSut();
 
         // Act
-        await sut.ProcessAsync(CancellationToken.None);
+        await sut.ProcessBulkAsync(CancellationToken.None);
 
         // Assert
         _aggregator.Verify(
@@ -103,7 +103,7 @@ public class EngagementAggregationProcessorTests
         var sut = CreateSut();
 
         // Act
-        await sut.ProcessAsync(CancellationToken.None);
+        await sut.ProcessBulkAsync(CancellationToken.None);
 
         // Assert
         _aggregator.Verify(
@@ -126,7 +126,7 @@ public class EngagementAggregationProcessorTests
         var sut = CreateSut();
 
         // Act
-        var ex = await Record.ExceptionAsync(() => sut.ProcessAsync(CancellationToken.None));
+        var ex = await Record.ExceptionAsync(() => sut.ProcessBulkAsync(CancellationToken.None));
 
         // Assert
         Assert.Null(ex);
@@ -149,7 +149,7 @@ public class EngagementAggregationProcessorTests
         var sut = CreateSut();
 
         // Act
-        var ex = await Record.ExceptionAsync(() => sut.ProcessAsync(CancellationToken.None));
+        var ex = await Record.ExceptionAsync(() => sut.ProcessBulkAsync(CancellationToken.None));
 
         // Assert
         Assert.Null(ex);
@@ -169,7 +169,7 @@ public class EngagementAggregationProcessorTests
         var sut = CreateSut();
 
         // Act
-        await sut.ProcessAsync(CancellationToken.None);
+        await sut.ProcessBulkAsync(CancellationToken.None);
 
         // Assert
         _aggregator.Verify(

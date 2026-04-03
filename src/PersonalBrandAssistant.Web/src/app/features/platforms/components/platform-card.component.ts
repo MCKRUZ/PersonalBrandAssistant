@@ -3,14 +3,14 @@ import { CommonModule, DatePipe } from '@angular/common';
 import { Card } from 'primeng/card';
 import { ButtonModule } from 'primeng/button';
 import { Tag } from 'primeng/tag';
-import { Badge } from 'primeng/badge';
+
 import { Platform } from '../../../shared/models';
 import { PLATFORM_ICONS, PLATFORM_LABELS, PLATFORM_COLORS } from '../../../shared/utils/platform-icons';
 
 @Component({
   selector: 'app-platform-card',
   standalone: true,
-  imports: [CommonModule, Card, ButtonModule, Tag, Badge, DatePipe],
+  imports: [CommonModule, Card, ButtonModule, Tag, DatePipe],
   template: `
     <p-card styleClass="h-full">
       <div class="flex flex-column gap-3">

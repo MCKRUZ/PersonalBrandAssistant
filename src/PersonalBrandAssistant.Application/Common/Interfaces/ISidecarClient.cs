@@ -6,6 +6,8 @@ public interface ISidecarClient
 {
     Task<SidecarSession> ConnectAsync(CancellationToken ct);
 
+    Task<SidecarSession> NewSessionAsync(CancellationToken ct);
+
     IAsyncEnumerable<SidecarEvent> SendTaskAsync(string task, string? systemPrompt, string? sessionId, CancellationToken ct);
 
     Task AbortAsync(string? sessionId, CancellationToken ct);

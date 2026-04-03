@@ -1,5 +1,5 @@
 import { Component, inject, OnInit, ViewChild } from '@angular/core';
-import { CommonModule, DatePipe } from '@angular/common';
+import { CommonModule } from '@angular/common';
 import { ButtonModule } from 'primeng/button';
 import { MessageService } from 'primeng/api';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
@@ -18,7 +18,7 @@ import { CalendarSlot } from '../../shared/models';
   imports: [
     CommonModule, ButtonModule, PageHeaderComponent, LoadingSpinnerComponent,
     CalendarGridComponent, SlotDetailDialogComponent, CreateSeriesDialogComponent,
-    CreateSlotDialogComponent, DatePipe,
+    CreateSlotDialogComponent,
   ],
   template: `
     <app-slot-detail-dialog #slotDialog (assigned)="reloadSlots()" />

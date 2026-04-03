@@ -252,6 +252,12 @@ namespace PersonalBrandAssistant.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<bool>("AutoPublishEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("AutoScheduleEnabled")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("ContentTypeOverrides")
                         .IsRequired()
                         .HasColumnType("jsonb");
@@ -263,12 +269,23 @@ namespace PersonalBrandAssistant.Infrastructure.Migrations
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("DefaultTone")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
                     b.Property<int>("GlobalLevel")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("MaxAutoPostsPerDay")
                         .HasColumnType("integer");
 
                     b.Property<string>("PlatformOverrides")
                         .IsRequired()
                         .HasColumnType("jsonb");
+
+                    b.Property<bool>("RequireApprovalForSocial")
+                        .HasColumnType("boolean");
 
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -282,6 +299,69 @@ namespace PersonalBrandAssistant.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("AutonomyConfigurations", (string)null);
+                });
+
+            modelBuilder.Entity("PersonalBrandAssistant.Domain.Entities.BlogPublishRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("BlogUrl")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<string>("CommitSha")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<string>("CommitUrl")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<Guid>("ContentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<string>("Html")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("Status")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
+
+                    b.Property<string>("TargetPath")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("VerificationAttempts")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
+
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ContentId");
+
+                    b.ToTable("BlogPublishRequests", (string)null);
                 });
 
             modelBuilder.Entity("PersonalBrandAssistant.Domain.Entities.BrandProfile", b =>
@@ -398,11 +478,65 @@ namespace PersonalBrandAssistant.Infrastructure.Migrations
                     b.ToTable("CalendarSlots", (string)null);
                 });
 
+            modelBuilder.Entity("PersonalBrandAssistant.Domain.Entities.ChatConversation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ContentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ConversationSummary")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("LastMessageAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Messages")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ContentId")
+                        .IsUnique();
+
+                    b.ToTable("ChatConversations", (string)null);
+                });
+
             modelBuilder.Entity("PersonalBrandAssistant.Domain.Entities.Content", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
+
+                    b.Property<TimeSpan?>("BlogDelayOverride")
+                        .HasColumnType("interval");
+
+                    b.Property<string>("BlogDeployCommitSha")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<string>("BlogPostUrl")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<bool>("BlogSkipped")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("BlogStageHistory")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
 
                     b.Property<string>("Body")
                         .IsRequired()
@@ -418,6 +552,11 @@ namespace PersonalBrandAssistant.Infrastructure.Migrations
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("CurrentBlogStage")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
 
                     b.Property<string>("ImageFileId")
                         .HasMaxLength(500)
@@ -458,6 +597,10 @@ namespace PersonalBrandAssistant.Infrastructure.Migrations
                     b.Property<int>("Status")
                         .HasColumnType("integer");
 
+                    b.Property<string>("SubstackPostUrl")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
                     b.PrimitiveCollection<int[]>("TargetPlatforms")
                         .IsRequired()
                         .HasColumnType("integer[]");
@@ -488,6 +631,9 @@ namespace PersonalBrandAssistant.Infrastructure.Migrations
                     b.HasIndex("ScheduledAt");
 
                     b.HasIndex("Status");
+
+                    b.HasIndex("ContentType", "Status")
+                        .HasFilter("\"ContentType\" = 0");
 
                     b.HasIndex("Status", "NextRetryAt");
 
@@ -541,6 +687,9 @@ namespace PersonalBrandAssistant.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("integer")
                         .HasDefaultValue(0);
+
+                    b.Property<DateTimeOffset?>("ScheduledAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("Status")
                         .ValueGeneratedOnAdd()
@@ -1151,6 +1300,57 @@ namespace PersonalBrandAssistant.Infrastructure.Migrations
                     b.ToTable("SocialInboxItems", (string)null);
                 });
 
+            modelBuilder.Entity("PersonalBrandAssistant.Domain.Entities.SubstackDetection", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Confidence")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ContentHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<Guid?>("ContentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("DetectedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("PublishedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("RssGuid")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("SubstackUrl")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ContentId");
+
+                    b.HasIndex("RssGuid")
+                        .IsUnique();
+
+                    b.HasIndex("SubstackUrl")
+                        .IsUnique();
+
+                    b.ToTable("SubstackDetections", (string)null);
+                });
+
             modelBuilder.Entity("PersonalBrandAssistant.Domain.Entities.TrendItem", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1431,6 +1631,45 @@ namespace PersonalBrandAssistant.Infrastructure.Migrations
                     b.ToTable("Users", (string)null);
                 });
 
+            modelBuilder.Entity("PersonalBrandAssistant.Domain.Entities.UserNotification", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("AcknowledgedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ContentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<int>("Status")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ContentId", "Type")
+                        .IsUnique()
+                        .HasFilter("\"Status\" = 0");
+
+                    b.ToTable("UserNotifications", (string)null);
+                });
+
             modelBuilder.Entity("PersonalBrandAssistant.Domain.Entities.WorkflowTransitionLog", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1487,6 +1726,15 @@ namespace PersonalBrandAssistant.Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("PersonalBrandAssistant.Domain.Entities.BlogPublishRequest", b =>
+                {
+                    b.HasOne("PersonalBrandAssistant.Domain.Entities.Content", null)
+                        .WithMany()
+                        .HasForeignKey("ContentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("PersonalBrandAssistant.Domain.Entities.CalendarSlot", b =>
                 {
                     b.HasOne("PersonalBrandAssistant.Domain.Entities.Content", null)
@@ -1498,6 +1746,15 @@ namespace PersonalBrandAssistant.Infrastructure.Migrations
                         .WithMany()
                         .HasForeignKey("ContentSeriesId")
                         .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("PersonalBrandAssistant.Domain.Entities.ChatConversation", b =>
+                {
+                    b.HasOne("PersonalBrandAssistant.Domain.Entities.Content", null)
+                        .WithMany()
+                        .HasForeignKey("ContentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("PersonalBrandAssistant.Domain.Entities.Content", b =>
@@ -1573,6 +1830,14 @@ namespace PersonalBrandAssistant.Infrastructure.Migrations
                     b.Navigation("TrendItem");
                 });
 
+            modelBuilder.Entity("PersonalBrandAssistant.Domain.Entities.SubstackDetection", b =>
+                {
+                    b.HasOne("PersonalBrandAssistant.Domain.Entities.Content", null)
+                        .WithMany()
+                        .HasForeignKey("ContentId")
+                        .OnDelete(DeleteBehavior.SetNull);
+                });
+
             modelBuilder.Entity("PersonalBrandAssistant.Domain.Entities.TrendItem", b =>
                 {
                     b.HasOne("PersonalBrandAssistant.Domain.Entities.TrendSource", null)
@@ -1596,6 +1861,14 @@ namespace PersonalBrandAssistant.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("TrendItem");
+                });
+
+            modelBuilder.Entity("PersonalBrandAssistant.Domain.Entities.UserNotification", b =>
+                {
+                    b.HasOne("PersonalBrandAssistant.Domain.Entities.Content", null)
+                        .WithMany()
+                        .HasForeignKey("ContentId")
+                        .OnDelete(DeleteBehavior.SetNull);
                 });
 
             modelBuilder.Entity("PersonalBrandAssistant.Domain.Entities.WorkflowTransitionLog", b =>

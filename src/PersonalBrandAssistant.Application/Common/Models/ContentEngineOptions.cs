@@ -14,5 +14,11 @@ public class ContentEngineOptions
 
     public int EngagementAggregationIntervalHours { get; set; } = 4;
 
+    /// <summary>
+    /// How often (in minutes) to check for newly published posts that need
+    /// their initial engagement data seeded. Defaults to 15 minutes.
+    /// </summary>
+    public int NewPostEngagementCheckMinutes { get; set; } = 15;
+
     public int SlotMaterializationDays { get; set; } = 7;
 }

@@ -8,8 +8,10 @@ public static class BlogPipelineEndpoints
 {
     public static void MapBlogPipelineEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/blog-pipeline").WithTags("BlogPipeline");
+        var group = app.MapGroup("/api/blog-pipeline").WithTags("BlogPipeline").RequireAuthorization();
         group.MapGet("/", GetBlogPipeline);
+        group.MapPut("/{contentId:guid}/advance", AdvanceStage);
+        group.MapPut("/{contentId:guid}/stage", SetStage);
         group.MapPost("/{contentId:guid}/schedule", ConfirmSchedule);
         group.MapPut("/{contentId:guid}/delay", UpdateDelay);
         group.MapPost("/{contentId:guid}/skip-blog", SkipBlog);
@@ -46,7 +48,9 @@ public static class BlogPipelineEndpoints
                 c.BlogPostUrl,
                 c.BlogDeployCommitSha,
                 c.BlogSkipped,
-                c.BlogDelayOverride
+                c.BlogDelayOverride,
+                c.CurrentBlogStage,
+                c.BlogStageHistory
             })
             .ToListAsync(ct);
 
@@ -68,6 +72,8 @@ public static class BlogPipelineEndpoints
             c.BlogDeployCommitSha,
             c.BlogSkipped,
             BlogDelayDays = c.BlogDelayOverride?.TotalDays,
+            c.CurrentBlogStage,
+            c.BlogStageHistory,
             Substack = platformStatuses
                 .Where(s => s.ContentId == c.Id && s.Platform == PlatformType.Substack)
                 .Select(s => new { s.Status, s.PublishedAt, s.PostUrl })
@@ -79,6 +85,40 @@ public static class BlogPipelineEndpoints
         });
 
         return Results.Ok(result);
+    }
+
+    private static async Task<IResult> AdvanceStage(
+        Guid contentId, IApplicationDbContext db, AdvanceStageRequest? request, CancellationToken ct)
+    {
+        var content = await db.Contents.FirstOrDefaultAsync(c => c.Id == contentId, ct);
+        if (content is null)
+            return Results.NotFound(new { error = "Content not found" });
+
+        try
+        {
+            content.AdvanceBlogStage(request?.Note);
+            await db.SaveChangesAsync(ct);
+            return Results.Ok(new { content.CurrentBlogStage, content.BlogStageHistory });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Results.BadRequest(new { error = ex.Message });
+        }
+    }
+
+    private static async Task<IResult> SetStage(
+        Guid contentId, SetStageRequest request, IApplicationDbContext db, CancellationToken ct)
+    {
+        var content = await db.Contents.FirstOrDefaultAsync(c => c.Id == contentId, ct);
+        if (content is null)
+            return Results.NotFound(new { error = "Content not found" });
+
+        if (!Enum.IsDefined(request.Stage))
+            return Results.BadRequest(new { error = "Invalid pipeline stage" });
+
+        content.SetBlogStage(request.Stage, request.Note);
+        await db.SaveChangesAsync(ct);
+        return Results.Ok(new { content.CurrentBlogStage, content.BlogStageHistory });
     }
 
     private static async Task<IResult> ConfirmSchedule(
@@ -93,19 +133,24 @@ public static class BlogPipelineEndpoints
     private static async Task<IResult> UpdateDelay(
         Guid contentId, DelayUpdateRequest request, IApplicationDbContext db, CancellationToken ct)
     {
-        if (request.DelayDays is < 0 or > 365)
-            return Results.BadRequest(new { error = "DelayDays must be between 0 and 365" });
-
         var content = await db.Contents.FirstOrDefaultAsync(c => c.Id == contentId, ct);
         if (content is null)
             return Results.NotFound(new { error = "Content not found" });
 
-        content.BlogDelayOverride = request.DelayDays.HasValue
-            ? TimeSpan.FromDays(request.DelayDays.Value)
-            : null;
+        try
+        {
+            var delay = request.DelayDays.HasValue
+                ? TimeSpan.FromDays(request.DelayDays.Value)
+                : (TimeSpan?)null;
 
-        await db.SaveChangesAsync(ct);
-        return Results.Ok(new { blogDelayDays = content.BlogDelayOverride?.TotalDays });
+            content.SetBlogDelay(delay);
+            await db.SaveChangesAsync(ct);
+            return Results.Ok(new { blogDelayDays = content.BlogDelayOverride?.TotalDays });
+        }
+        catch (ArgumentOutOfRangeException ex)
+        {
+            return Results.BadRequest(new { error = ex.Message });
+        }
     }
 
     private static async Task<IResult> SkipBlog(
@@ -115,10 +160,12 @@ public static class BlogPipelineEndpoints
         if (content is null)
             return Results.NotFound(new { error = "Content not found" });
 
-        content.BlogSkipped = true;
+        content.SkipBlog();
         await db.SaveChangesAsync(ct);
         return Results.Ok(new { blogSkipped = true });
     }
 }
 
 public record DelayUpdateRequest(double? DelayDays);
+public record AdvanceStageRequest(string? Note = null);
+public record SetStageRequest(BlogPipelineStage Stage, string? Note = null);

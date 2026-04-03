@@ -24,9 +24,12 @@ services:
     environment:
       PORT: "3001"
       SIDECAR_CONFIG_DIR: /config
+      SIDECAR_DATA_DIR: /tmp/sidecar-data
     volumes:
-      - ./prompts:/config/prompts:ro
       - ./prompts/sidecar.config.json:/config/sidecar.config.json:ro
+      - ./CLAUDE.md:/workspace/CLAUDE.md:ro
+      - ./.claude:/workspace/.claude:ro
+      - ./prompts:/workspace/prompts:ro
     networks:
       - internal
     restart: unless-stopped

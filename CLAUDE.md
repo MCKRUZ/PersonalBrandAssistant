@@ -41,7 +41,7 @@ Follow global rules in `~/.claude/rules/coding-style.md`:
 ## Nexus Intelligence
 
 *Auto-updated by Nexus — do not edit this section manually.*
-*Last sync: 2026-03-27*
+*Last sync: 2026-04-03*
 
 ### Portfolio
 | Project | Description | Tech |
@@ -62,6 +62,15 @@ Sage is the AI … | — |
 | _+27 inactive_ | — | — |
 
 ### Project Context
+#### Deployment: Local Docker on Furious
+## PBA Deployment
+
+- **Host:** Furious (local machine)
+- **Runtime:** Docker Compose
+- **Branch deployed:** main
+- **Last known deploy:** manual, nee…
+*Tags: deployment, docker, furious, infrastructure*
+
 #### Website Analytics: Google Search Console + GA4
 ## Website Analytics for matthewkruczek.ai
 
@@ -71,6 +80,13 @@ Sage is the AI … | — |
 *Tags: analytics, google-search-console, ga4, matthewkruczek-ai, seo, website-stats*
 
 ### Context from project-avatar
+#### VoiceBox TTS — Sage Voice Generation (Jennifer Garner Clone)
+## VoiceBox TTS for Sage
+
+**App:** `C:\Users\kruz7\AppData\Local\Voicebox\voicebox.exe` (desktop app, auto-starts server)
+**API:** `http://127.0.0.1:…
+*Tags: voicebox, tts, voice-clone, jennifer-garner, sage-voice, api, furious*
+
 #### Mac Mini SSH & Infrastructure
 ## Mac Mini (PRIMARY — Sage lives here)
 
@@ -78,37 +94,6 @@ Sage is the AI … | — |
 - **SSH:** `ssh matthewkruczek@192.168.50.189`
 - **Platform:** Apple Silicon (arm…
 *Tags: infrastructure, ssh, mac-mini, deployment, neo4j, docker*
-
-### Context from Nexus
-#### Roadmap: Next Features
-User-approved feature ideas (2026-03-24):
-
-1. **MCP Tool Intelligence Layer** — Nexus sits on mcp-hub, learns which tools succeed/fail per project, i…
-*Tags: roadmap, features, mcp-hub, planning*
-
-#### Backlog: Show all active MCP servers in Claude Config tab
-The Claude Config dashboard page only shows MCP servers from settings.json/settings.local.json, not the full set of running servers (plugins + projec…
-*Tags: backlog, dashboard, mcp, claude-config*
-
-#### Token Budget Optimization Session - 2026-03-18
-## Token Budget Optimizations Applied
-
-### 1. Portfolio Table Filter (claude-md-sync.ts)
-- Before: All 35+ projects listed in every CLAUDE.md sync (~…
-*Tags: token-budget, skills, portfolio, optimization*
-
-#### Session Insights - 2026-03-17
-## Session Insights - 2026-03-17
-
-**Scope:** 20 sessions, ~1 month, 670 total messages, 33.5 avg msgs/session
-
-### Top Projects
-1. **OpenClaw** — 5 s…
-*Tags: insights, sessions, analytics*
-
-#### OpenClaw Ollama Fallback & Stop Hook JSON Validation Fix
-(1) OpenClaw agent fallback chain requires tool-capable models; dolphin-llama3 doesn't support tools so was removed; llama3.1:8b being pulled as Olla…
-*Tags: openclaw, ollama, hooks, bug-fix*
 
 > **Cross-project rule**: Before making decisions that affect shared concerns (APIs, auth, data formats, deployment) or asking the user for server/SSH/infrastructure details, run `nexus_query` to check for existing decisions, notes, and conflicts across the portfolio.
 

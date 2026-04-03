@@ -10,7 +10,6 @@ import { PageHeaderComponent, PageAction } from '../../shared/components/page-he
 import { EmptyStateComponent } from '../../shared/components/empty-state/empty-state.component';
 import { LoadingSpinnerComponent } from '../../shared/components/loading-spinner/loading-spinner.component';
 import { StatusBadgeComponent } from '../../shared/components/status-badge/status-badge.component';
-import { PlatformChipComponent } from '../../shared/components/platform-chip/platform-chip.component';
 import { RelativeTimePipe } from '../../shared/pipes/relative-time.pipe';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { ConfirmDialog } from 'primeng/confirmdialog';
@@ -27,7 +26,7 @@ import { PLATFORM_ICONS, PLATFORM_COLORS, PLATFORM_LABELS } from '../../shared/u
   imports: [
     CommonModule, FormsModule, TableModule, ButtonModule, Select, Tag, ConfirmDialog, Toast,
     PageHeaderComponent, EmptyStateComponent, LoadingSpinnerComponent,
-    StatusBadgeComponent, PlatformChipComponent, RelativeTimePipe,
+    StatusBadgeComponent, RelativeTimePipe,
     ContentPipelineDialogComponent,
   ],
   template: `

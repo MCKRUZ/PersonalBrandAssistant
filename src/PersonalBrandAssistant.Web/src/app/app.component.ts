@@ -12,6 +12,11 @@ interface NavItem {
   route: string;
 }
 
+interface NavGroup {
+  label: string;
+  items: NavItem[];
+}
+
 @Component({
   selector: 'app-root',
   standalone: true,
@@ -24,15 +29,20 @@ interface NavItem {
           <span class="logo">PBA</span>
         </div>
         <nav>
-          @for (item of navItems; track item.route) {
-            <a
-              [routerLink]="item.route"
-              routerLinkActive="active"
-              class="nav-item"
-            >
-              <i [class]="item.icon"></i>
-              <span class="nav-label">{{ item.label }}</span>
-            </a>
+          @for (group of navGroups; track group.label) {
+            <div class="nav-group">
+              <span class="nav-group-label">{{ group.label }}</span>
+              @for (item of group.items; track item.route) {
+                <a
+                  [routerLink]="item.route"
+                  routerLinkActive="active"
+                  class="nav-item"
+                >
+                  <i [class]="item.icon"></i>
+                  <span class="nav-label">{{ item.label }}</span>
+                </a>
+              }
+            </div>
           }
         </nav>
       </aside>
@@ -72,16 +82,36 @@ interface NavItem {
 export class AppComponent {
   readonly uiStore = inject(UiStore);
 
-  readonly navItems: NavItem[] = [
-    { label: 'Dashboard', icon: 'pi pi-chart-bar', route: '/dashboard' },
-    { label: 'News', icon: 'pi pi-globe', route: '/news' },
-    { label: 'Content', icon: 'pi pi-file', route: '/content' },
-    { label: 'Calendar', icon: 'pi pi-calendar', route: '/calendar' },
-    { label: 'Analytics', icon: 'pi pi-chart-line', route: '/analytics' },
-    { label: 'Social', icon: 'pi pi-users', route: '/social' },
-    { label: 'Platforms', icon: 'pi pi-share-alt', route: '/platforms' },
-    { label: 'Blog', icon: 'pi pi-book', route: '/blog-publishing' },
-    { label: 'Automation', icon: 'pi pi-bolt', route: '/automation' },
-    { label: 'Settings', icon: 'pi pi-cog', route: '/settings' },
+  readonly navGroups: NavGroup[] = [
+    {
+      label: 'Create',
+      items: [
+        { label: 'Content', icon: 'pi pi-file', route: '/content' },
+        { label: 'Calendar', icon: 'pi pi-calendar', route: '/calendar' },
+      ],
+    },
+    {
+      label: 'Monitor',
+      items: [
+        { label: 'Dashboard', icon: 'pi pi-chart-bar', route: '/dashboard' },
+        { label: 'Blog Pipeline', icon: 'pi pi-arrows-h', route: '/blog-pipeline' },
+        { label: 'Analytics', icon: 'pi pi-chart-line', route: '/analytics' },
+        { label: 'News', icon: 'pi pi-globe', route: '/news' },
+      ],
+    },
+    {
+      label: 'Distribute',
+      items: [
+        { label: 'Social', icon: 'pi pi-users', route: '/social' },
+        { label: 'Platforms', icon: 'pi pi-share-alt', route: '/platforms' },
+      ],
+    },
+    {
+      label: 'System',
+      items: [
+        { label: 'Automation', icon: 'pi pi-bolt', route: '/automation' },
+        { label: 'Settings', icon: 'pi pi-cog', route: '/settings' },
+      ],
+    },
   ];
 }

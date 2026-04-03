@@ -8,7 +8,6 @@ import { TextareaModule } from 'primeng/textarea';
 import { Select } from 'primeng/select';
 import { MultiSelect } from 'primeng/multiselect';
 import { ButtonModule } from 'primeng/button';
-import { Chip } from 'primeng/chip';
 import { Card } from 'primeng/card';
 import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
 import { ContentService } from '../services/content.service';
@@ -20,7 +19,7 @@ import { ContentType, PlatformType } from '../../../shared/models';
   standalone: true,
   imports: [
     CommonModule, ReactiveFormsModule, InputTextModule, TextareaModule,
-    Select, MultiSelect, ButtonModule, Chip, Card, PageHeaderComponent,
+    Select, MultiSelect, ButtonModule, Card, PageHeaderComponent,
   ],
   template: `
     <app-page-header [title]="isEdit ? 'Edit Content' : 'New Content'" />

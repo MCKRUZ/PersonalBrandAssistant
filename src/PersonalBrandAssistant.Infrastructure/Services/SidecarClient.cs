@@ -11,6 +11,7 @@ namespace PersonalBrandAssistant.Infrastructure.Services;
 public sealed class SidecarClient : ISidecarClient, IDisposable
 {
     private const int MaxMessageSize = 1_048_576; // 1 MB
+    private const int MaxSessionUpdateAttempts = 50;
 
     private readonly SidecarOptions _options;
     private readonly ILogger<SidecarClient> _logger;
@@ -50,19 +51,32 @@ public sealed class SidecarClient : ISidecarClient, IDisposable
 
         await SendMessageAsync(new { type = "new-session" }, timeoutCts.Token);
 
-        // Wait for session-update response, skipping non-session events (e.g. config)
-        string eventType;
-        JsonElement payload;
-        do
-        {
-            (eventType, payload) = await ReceiveFrameAsync(timeoutCts.Token);
-        } while (eventType != "session-update");
+        var (_, payload) = await WaitForSessionUpdateAsync(timeoutCts.Token);
 
         _currentSessionId = payload.GetProperty("sessionId").GetString()
             ?? throw new InvalidOperationException("session-update missing sessionId");
 
         _isConnected = true;
         _logger.LogInformation("Connected to sidecar, session {SessionId}", _currentSessionId);
+        return new SidecarSession(_currentSessionId, DateTimeOffset.UtcNow);
+    }
+
+    public async Task<SidecarSession> NewSessionAsync(CancellationToken ct)
+    {
+        if (_ws is null || _ws.State != WebSocketState.Open)
+            throw new InvalidOperationException("Not connected to sidecar");
+
+        if (Interlocked.CompareExchange(ref _activeStream, 0, 0) == 1)
+            throw new InvalidOperationException("Cannot create new session while a stream is active");
+
+        await SendMessageAsync(new { type = "new-session" }, ct);
+
+        var (_, payload) = await WaitForSessionUpdateAsync(ct);
+
+        _currentSessionId = payload.GetProperty("sessionId").GetString()
+            ?? throw new InvalidOperationException("session-update missing sessionId");
+
+        _logger.LogInformation("New sidecar session {SessionId}", _currentSessionId);
         return new SidecarSession(_currentSessionId, DateTimeOffset.UtcNow);
     }
 
@@ -161,6 +175,19 @@ public sealed class SidecarClient : ISidecarClient, IDisposable
             throw new InvalidOperationException("Not connected to sidecar");
 
         await SendMessageAsync(new { type = "abort", sessionId = sessionId ?? _currentSessionId }, ct);
+    }
+
+    private async Task<(string eventType, JsonElement payload)> WaitForSessionUpdateAsync(CancellationToken ct)
+    {
+        for (var attempt = 0; attempt < MaxSessionUpdateAttempts; attempt++)
+        {
+            var (eventType, payload) = await ReceiveFrameAsync(ct);
+            if (eventType == "session-update")
+                return (eventType, payload);
+        }
+
+        throw new TimeoutException(
+            $"Sidecar did not send a session-update event within {MaxSessionUpdateAttempts} frames.");
     }
 
     private async Task SendMessageAsync(object message, CancellationToken ct)

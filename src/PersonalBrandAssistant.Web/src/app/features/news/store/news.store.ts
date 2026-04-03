@@ -241,52 +241,35 @@ export const NewsStore = signalStore(
       );
     })(),
 
-    dismiss: rxMethod<string>(
-      pipe(
-        switchMap((feedItemId) => {
-          const [suggestionId, idxStr] = feedItemId.split('-').reduce(
-            (acc, part, i, arr) => {
-              if (i < arr.length - 1) {
-                acc[0] = acc[0] ? `${acc[0]}-${part}` : part;
-              } else {
-                acc[1] = part;
-              }
-              return acc;
-            },
-            ['', ''] as [string, string]
-          );
-          const idx = parseInt(idxStr, 10);
-
-          const suggestion = store.suggestions().find((s) => s.id === suggestionId);
-          if (!suggestion) return of(undefined);
-
-          const updatedTrends = suggestion.relatedTrends.filter((_, i) => i !== idx);
-
-          if (updatedTrends.length === 0) {
-            // Optimistic: remove from state immediately to avoid scroll jump
-            const prev = store.suggestions();
-            patchState(store, {
-              suggestions: prev.filter((s) => s.id !== suggestionId),
-            });
-            return newsService.dismissSuggestion(suggestionId).pipe(
-              tapResponse({
-                next: () => {},
-                error: () => patchState(store, { suggestions: prev }),
-              })
-            );
+    dismiss(feedItemId: string) {
+      const [suggestionId] = feedItemId.split('-').reduce(
+        (acc, part, i, arr) => {
+          if (i < arr.length - 1) {
+            acc[0] = acc[0] ? `${acc[0]}-${part}` : part;
+          } else {
+            acc[1] = part;
           }
+          return acc;
+        },
+        ['', ''] as [string, string]
+      );
 
-          patchState(store, {
-            suggestions: store.suggestions().map((s) =>
-              s.id === suggestionId
-                ? { ...s, relatedTrends: updatedTrends }
-                : s
-            ),
-          });
-          return of(undefined);
-        })
-      )
-    ),
+      const suggestion = store.suggestions().find((s) => s.id === suggestionId);
+      if (!suggestion) {
+        return;
+      }
+
+      // Optimistic: remove entire suggestion from state
+      const prev = store.suggestions();
+      patchState(store, {
+        suggestions: prev.filter((s) => s.id !== suggestionId),
+      });
+
+      // Fire API call, rollback on error
+      newsService.dismissSuggestion(suggestionId).subscribe({
+        error: () => patchState(store, { suggestions: prev }),
+      });
+    },
 
     updateFilters(filters: Partial<NewsFeedFilters>) {
       const merged = { ...store.filters(), ...filters };

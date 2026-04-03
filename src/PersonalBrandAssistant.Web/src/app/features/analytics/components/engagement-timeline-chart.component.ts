@@ -17,14 +17,24 @@ import { PLATFORM_COLORS, PLATFORM_LABELS } from '../../../shared/utils/platform
         <div style="position: relative; height: 280px;">
           <p-chart type="line" [data]="chartData()" [options]="chartOptions" height="280px" />
         </div>
-      } @else {
+      } @else if (loading()) {
         <p-skeleton height="280px" borderRadius="8px" />
+      } @else {
+        <div class="empty-chart">
+          <i class="pi pi-chart-line"></i>
+          <span>No engagement data for this period</span>
+        </div>
       }
     </p-card>
+  `,
+  styles: `
+    @use '../../../shared/styles/empty-state' as *;
+    .empty-chart { @include empty-state(); }
   `,
 })
 export class EngagementTimelineChartComponent {
   readonly timeline = input<readonly DailyEngagement[]>([]);
+  readonly loading = input(false);
 
   readonly chartData = computed(() => {
     const data = this.timeline();
@@ -83,7 +93,7 @@ export class EngagementTimelineChartComponent {
     },
     scales: {
       x: { grid: { display: false }, ticks: { maxTicksLimit: 8, font: { size: 10 } } },
-      y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { font: { size: 10 } } },
+      y: { min: 0, grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { font: { size: 10 } } },
     },
   };
 }

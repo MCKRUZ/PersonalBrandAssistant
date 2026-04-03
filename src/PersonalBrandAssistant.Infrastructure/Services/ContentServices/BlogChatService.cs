@@ -14,6 +14,12 @@ namespace PersonalBrandAssistant.Infrastructure.Services.ContentServices;
 
 public class BlogChatService : IBlogChatService
 {
+    private static readonly HashSet<string> ToolEventTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "thinking", "file-edit", "file-read", "bash-command", "bash-output",
+        "tool-use", "tool-result", "status", "error",
+    };
+
     private readonly ISidecarClient _sidecar;
     private readonly IApplicationDbContext _db;
     private readonly BlogChatOptions _options;
@@ -37,6 +43,10 @@ public class BlogChatService : IBlogChatService
         _options = options.Value;
         _logger = logger;
         _systemPrompt = LoadSystemPrompt(_options.SystemPromptPath);
+        _logger.LogInformation("BlogChatService initialized — SystemPromptPath={Path}, PromptSource={Source}, PromptLength={Len}",
+            _options.SystemPromptPath,
+            File.Exists(_options.SystemPromptPath) ? "file" : "fallback",
+            _systemPrompt.Length);
     }
 
     public async IAsyncEnumerable<string> SendMessageAsync(
@@ -62,27 +72,62 @@ public class BlogChatService : IBlogChatService
         await _db.SaveChangesAsync(ct);
 
         var contextMessages = BuildContextString(conversation);
-        var task = $"{contextMessages}\n\nUser: {userMessage}";
+        var task = $"[Conversation]\n{contextMessages}\n\nUser: {userMessage}\n\nRespond with blog content directly. Do NOT use tools.";
         var fullResponse = new StringBuilder();
 
+        _logger.LogInformation(
+            "BlogChat SendMessage — ContentId={ContentId}, ConversationMsgCount={MsgCount}, TaskLength={TaskLen}, PromptLen={PromptLen}, SidecarConnected={Connected}",
+            contentId, conversation.Messages.Count, task.Length, _systemPrompt.Length, _sidecar.IsConnected);
+
         if (!_sidecar.IsConnected)
+        {
+            _logger.LogInformation("BlogChat connecting to sidecar...");
             await _sidecar.ConnectAsync(ct);
+            _logger.LogInformation("BlogChat sidecar connected");
+        }
+        else if (conversation.Messages.Count <= 1)
+        {
+            _logger.LogInformation("BlogChat creating new session for new conversation");
+            await _sidecar.NewSessionAsync(ct);
+        }
+
+        var eventCount = 0;
+        var filteredCount = 0;
 
         await foreach (var evt in _sidecar.SendTaskAsync(task, _systemPrompt, null, ct))
         {
-            if (evt is ChatEvent chatEvt && chatEvt.Text is not null)
+            eventCount++;
+
+            if (evt is ChatEvent chatEvt)
             {
-                fullResponse.Append(chatEvt.Text);
-                yield return chatEvt.Text;
+                if (chatEvt.Text is not null && !ToolEventTypes.Contains(chatEvt.EventType))
+                {
+                    fullResponse.Append(chatEvt.Text);
+                    yield return chatEvt.Text;
+                }
+                else
+                {
+                    filteredCount++;
+                    if (filteredCount <= 5)
+                        _logger.LogDebug("BlogChat filtered event — Type={EventType}, HasText={HasText}, Tool={Tool}",
+                            chatEvt.EventType, chatEvt.Text is not null, chatEvt.ToolName);
+                }
             }
             else if (evt is ErrorEvent errorEvt)
             {
                 _logger.LogWarning("Sidecar error during chat: {Error}", errorEvt.Message);
                 break;
             }
-            else if (evt is TaskCompleteEvent)
+            else if (evt is TaskCompleteEvent tc)
             {
+                _logger.LogInformation(
+                    "BlogChat task complete — Events={Total}, Filtered={Filtered}, ResponseLen={RespLen}, InputTokens={In}, OutputTokens={Out}, Cost=${Cost:F4}",
+                    eventCount, filteredCount, fullResponse.Length, tc.InputTokens, tc.OutputTokens, tc.Cost);
                 break;
+            }
+            else if (evt is StatusEvent se)
+            {
+                _logger.LogDebug("BlogChat status event: {Status}", se.Status);
             }
         }
 
@@ -112,7 +157,8 @@ public class BlogChatService : IBlogChatService
             return Result<FinalizedDraft>.Failure(ErrorCode.NotFound, "No conversation found for this content");
 
         var contextMessages = BuildContextString(conversation);
-        var finalizationTask = $"{contextMessages}\n\n{FinalizationPrompt}";
+        var finalizationTask = $"[Conversation]\n{contextMessages}\n\n{FinalizationPrompt}\n\nRespond with JSON only. Do NOT use tools.";
+        var finalizationSystemPrompt = _systemPrompt;
 
         for (var attempt = 0; attempt <= _options.FinalizationMaxRetries; attempt++)
         {
@@ -122,9 +168,10 @@ public class BlogChatService : IBlogChatService
                     await _sidecar.ConnectAsync(ct);
 
                 var responseSb = new StringBuilder();
-                await foreach (var evt in _sidecar.SendTaskAsync(finalizationTask, _systemPrompt, null, ct))
+                await foreach (var evt in _sidecar.SendTaskAsync(finalizationTask, finalizationSystemPrompt, null, ct))
                 {
-                    if (evt is ChatEvent chatEvt && chatEvt.Text is not null)
+                    if (evt is ChatEvent chatEvt && chatEvt.Text is not null
+                        && !ToolEventTypes.Contains(chatEvt.EventType))
                         responseSb.Append(chatEvt.Text);
                     else if (evt is TaskCompleteEvent)
                         break;
@@ -136,6 +183,7 @@ public class BlogChatService : IBlogChatService
                 if (jsonStart < 0 || jsonEnd < 0)
                 {
                     finalizationTask = $"{response}\n\nYour response did not contain valid JSON. Please respond with ONLY the JSON object, no markdown fences.";
+                    finalizationSystemPrompt = null;
                     continue;
                 }
 
@@ -145,6 +193,7 @@ public class BlogChatService : IBlogChatService
                 if (draft is null || string.IsNullOrWhiteSpace(draft.Title) || string.IsNullOrWhiteSpace(draft.BodyMarkdown))
                 {
                     finalizationTask = $"{response}\n\nJSON was missing required fields (title, body_markdown). Please include all fields.";
+                    finalizationSystemPrompt = null;
                     continue;
                 }
 
@@ -166,6 +215,7 @@ public class BlogChatService : IBlogChatService
             {
                 _logger.LogWarning(ex, "Failed to parse finalization JSON (attempt {Attempt})", attempt + 1);
                 finalizationTask = $"JSON parsing error: {ex.Message}. Please respond with valid JSON only.";
+                finalizationSystemPrompt = null;
             }
         }
 
@@ -211,7 +261,8 @@ public class BlogChatService : IBlogChatService
                 await _sidecar.ConnectAsync(ct);
 
             var sb = new StringBuilder();
-            await foreach (var evt in _sidecar.SendTaskAsync(task, "You are a conversation summarizer. Be concise.", null, ct))
+            var summarizeSystemPrompt = "You are a conversation summarizer. Be concise. Do NOT use any tools.";
+            await foreach (var evt in _sidecar.SendTaskAsync(task, summarizeSystemPrompt, null, ct))
             {
                 if (evt is ChatEvent chatEvt && chatEvt.Text is not null)
                     sb.Append(chatEvt.Text);
@@ -235,7 +286,9 @@ public class BlogChatService : IBlogChatService
     }
 
     private const string DefaultSystemPrompt = """
-        You are a blog writing assistant for Matt Kruczek, an enterprise AI thought leader.
+        You are a blog writing assistant. Your ONLY job is to write blog content.
+        Do NOT use any tools, read files, run commands, or explore the filesystem. Just write text responses directly.
+        You write for Matt Kruczek, an enterprise AI thought leader.
         Help craft blog posts that are direct, technically grounded, and avoid AI slop.
         Never use em dashes. Write in Matt's authentic voice: developer-to-executive authority.
         Focus on practical enterprise AI insights, not hype.
