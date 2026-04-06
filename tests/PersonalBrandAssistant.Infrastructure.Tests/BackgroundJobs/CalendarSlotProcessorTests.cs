@@ -38,6 +38,7 @@ public class CalendarSlotProcessorTests
         _scopeFactory.Object,
         _dateTimeProvider.Object,
         Options.Create(_options),
+        Options.Create(new BackgroundJobsOptions { CalendarSlotProcessingEnabled = true }),
         _logger.Object);
 
     private void SetupDbSets(

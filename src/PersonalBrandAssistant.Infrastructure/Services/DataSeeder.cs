@@ -140,10 +140,10 @@ public class DataSeeder : IHostedService
         {
             Platform = PlatformType.Reddit,
             TaskType = EngagementTaskType.Comment,
-            TargetCriteria = """{"subreddits":["dotnet","csharp","angular","MachineLearning"],"keywords":["Claude","AI agents","MCP","LLM"],"sort":"hot"}""",
-            CronExpression = "0 */4 * * *",
+            TargetCriteria = """{"subreddits":["dotnet","csharp","ExperiencedDevs","ModelContextProtocol","MachineLearning","ChatGPTCoding","devops","programming","ClaudeAI","ClaudeCode","LocalLLaMA","selfhosted","homelab","comfyui"],"keywords":["Claude","AI agents","MCP","LLM","Claude Code","agentic","Semantic Kernel",".NET","self-hosted","ComfyUI"],"sort":"hot"}""",
+            CronExpression = "0 * * * *",
             IsEnabled = true,
-            AutoRespond = false,
+            AutoRespond = true,
             MaxActionsPerExecution = 3,
             SchedulingMode = SchedulingMode.HumanLike,
         }, cancellationToken);

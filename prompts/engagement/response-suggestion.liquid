@@ -5,8 +5,28 @@ Platform: {{ task.platform }}
 {% if task.original_post %}Original post: {{ task.original_post }}{% endif %}
 {% if task.comment %}Comment to respond to: {{ task.comment }}{% endif %}
 
+Engagement mode: {{ task.mode | default: "helpful" }}
+
+{% if task.mode == "funny" %}
 Requirements:
-- Provide a thoughtful, on-brand response
+- Drop a witty, genuinely funny remark (dev humor, self-deprecating, observational)
+- Keep it to 1-2 sentences max
+- Do NOT be instructive or add technical advice
+- Match the thread's vibe
+- Think "comment that gets upvoted because people laughed", not "comment that gets upvoted because it's useful"
+{% elsif task.mode == "post" %}
+Requirements:
+- Write an original Reddit post (title + body)
+- Use "I built X because Y" or "TIL" or "lesson learned" framing
+- Include enough technical detail to be credible
+- End with a question or invitation for discussion
+- Format: first line is the TITLE, then a blank line, then the BODY
+{% else %}
+Requirements:
+- Provide a thoughtful, technically valuable response
+- Share specific experience or working code snippets where relevant
+- Keep it conversational and authentic
 - Add value beyond a simple acknowledgment
-- Keep the response conversational and authentic
-- Suggest 2-3 response options with different tones (casual, professional, insightful)
+{% endif %}
+
+Reply with ONLY the response text, no explanation or meta-commentary.

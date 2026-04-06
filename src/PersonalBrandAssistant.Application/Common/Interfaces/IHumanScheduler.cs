@@ -10,4 +10,5 @@ public interface IHumanScheduler
     bool ShouldSkipExecution(EngagementTask task);
     TimeSpan GetInterActionDelay(EngagementTask task);
     int GetActionsForSession(EngagementTask task);
+    int GetDailySessionTarget(EngagementTask task);
 }

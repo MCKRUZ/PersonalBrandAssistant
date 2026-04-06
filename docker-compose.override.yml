@@ -26,6 +26,7 @@ services:
       - ./secrets:/app/secrets:ro
     environment:
       ASPNETCORE_ENVIRONMENT: Development
+      Sidecar__WebSocketUrl: ws://sidecar:3001/ws
       ApiKey: pba-dev-write-key
       ApiKeys__ReadonlyKey: pba-dev-readonly-key
       ApiKeys__WriteKey: pba-dev-write-key

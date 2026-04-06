@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using MockQueryable.Moq;
 using Moq;
 using PersonalBrandAssistant.Application.Common.Interfaces;
@@ -37,6 +38,7 @@ public class RepurposeOnPublishProcessorTests
     private RepurposeOnPublishProcessor CreateSut() => new(
         _scopeFactory.Object,
         _dateTimeProvider.Object,
+        Options.Create(new BackgroundJobsOptions { RepurposeOnPublishEnabled = true }),
         _logger.Object);
 
     private void SetupDbSets(

@@ -13,6 +13,7 @@ public class EngagementAggregationProcessor : BackgroundService
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IDateTimeProvider _dateTimeProvider;
     private readonly ContentEngineOptions _options;
+    private readonly BackgroundJobsOptions _jobsOptions;
     private readonly ILogger<EngagementAggregationProcessor> _logger;
 
     /// <summary>
@@ -25,16 +26,24 @@ public class EngagementAggregationProcessor : BackgroundService
         IServiceScopeFactory scopeFactory,
         IDateTimeProvider dateTimeProvider,
         IOptions<ContentEngineOptions> options,
+        IOptions<BackgroundJobsOptions> jobsOptions,
         ILogger<EngagementAggregationProcessor> logger)
     {
         _scopeFactory = scopeFactory;
         _dateTimeProvider = dateTimeProvider;
         _options = options.Value;
+        _jobsOptions = jobsOptions.Value;
         _logger = logger;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        if (!_jobsOptions.EngagementAggregationEnabled)
+        {
+            _logger.LogInformation("EngagementAggregation processor is disabled");
+            return;
+        }
+
         var bulkInterval = TimeSpan.FromHours(Math.Max(1, _options.EngagementAggregationIntervalHours));
         var newPostInterval = TimeSpan.FromMinutes(Math.Max(5, _options.NewPostEngagementCheckMinutes));
 

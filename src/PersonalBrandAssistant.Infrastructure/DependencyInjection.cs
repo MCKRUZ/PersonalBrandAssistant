@@ -94,6 +94,8 @@ public static class DependencyInjection
             configuration.GetSection(SidecarOptions.SectionName));
         services.Configure<ContentEngineOptions>(
             configuration.GetSection(ContentEngineOptions.SectionName));
+        services.Configure<BackgroundJobsOptions>(
+            configuration.GetSection(BackgroundJobsOptions.SectionName));
         services.Configure<TrendMonitoringOptions>(
             configuration.GetSection(TrendMonitoringOptions.SectionName));
         services.Configure<FirecrawlOptions>(

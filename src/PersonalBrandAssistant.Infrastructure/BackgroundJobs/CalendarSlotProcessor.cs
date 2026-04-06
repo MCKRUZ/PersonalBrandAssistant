@@ -16,22 +16,31 @@ public class CalendarSlotProcessor : BackgroundService
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IDateTimeProvider _dateTimeProvider;
     private readonly ContentEngineOptions _options;
+    private readonly BackgroundJobsOptions _jobsOptions;
     private readonly ILogger<CalendarSlotProcessor> _logger;
 
     public CalendarSlotProcessor(
         IServiceScopeFactory scopeFactory,
         IDateTimeProvider dateTimeProvider,
         IOptions<ContentEngineOptions> options,
+        IOptions<BackgroundJobsOptions> jobsOptions,
         ILogger<CalendarSlotProcessor> logger)
     {
         _scopeFactory = scopeFactory;
         _dateTimeProvider = dateTimeProvider;
         _options = options.Value;
+        _jobsOptions = jobsOptions.Value;
         _logger = logger;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        if (!_jobsOptions.CalendarSlotProcessingEnabled)
+        {
+            _logger.LogInformation("CalendarSlotProcessing processor is disabled");
+            return;
+        }
+
         using var timer = new PeriodicTimer(TimeSpan.FromMinutes(15));
 
         while (await timer.WaitForNextTickAsync(stoppingToken))

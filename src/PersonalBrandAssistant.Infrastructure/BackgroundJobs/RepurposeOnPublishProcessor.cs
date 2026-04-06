@@ -2,7 +2,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using PersonalBrandAssistant.Application.Common.Interfaces;
+using PersonalBrandAssistant.Application.Common.Models;
 using PersonalBrandAssistant.Domain.Entities;
 using PersonalBrandAssistant.Domain.Enums;
 namespace PersonalBrandAssistant.Infrastructure.BackgroundJobs;
@@ -11,6 +13,7 @@ public class RepurposeOnPublishProcessor : BackgroundService
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IDateTimeProvider _dateTimeProvider;
+    private readonly BackgroundJobsOptions _jobsOptions;
     private readonly ILogger<RepurposeOnPublishProcessor> _logger;
 
     // Fixed lookback window instead of volatile watermark.
@@ -20,15 +23,23 @@ public class RepurposeOnPublishProcessor : BackgroundService
     public RepurposeOnPublishProcessor(
         IServiceScopeFactory scopeFactory,
         IDateTimeProvider dateTimeProvider,
+        IOptions<BackgroundJobsOptions> jobsOptions,
         ILogger<RepurposeOnPublishProcessor> logger)
     {
         _scopeFactory = scopeFactory;
         _dateTimeProvider = dateTimeProvider;
+        _jobsOptions = jobsOptions.Value;
         _logger = logger;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        if (!_jobsOptions.RepurposeOnPublishEnabled)
+        {
+            _logger.LogInformation("RepurposeOnPublish processor is disabled");
+            return;
+        }
+
         using var timer = new PeriodicTimer(TimeSpan.FromSeconds(60));
 
         while (await timer.WaitForNextTickAsync(stoppingToken))

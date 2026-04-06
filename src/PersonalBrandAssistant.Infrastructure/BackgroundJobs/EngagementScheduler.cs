@@ -2,8 +2,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using NCrontab;
 using PersonalBrandAssistant.Application.Common.Interfaces;
+using PersonalBrandAssistant.Application.Common.Models;
 using PersonalBrandAssistant.Domain.Enums;
 using PersonalBrandAssistant.Infrastructure.Data;
 
@@ -13,20 +15,29 @@ public class EngagementScheduler : BackgroundService
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IDateTimeProvider _dateTimeProvider;
+    private readonly BackgroundJobsOptions _jobsOptions;
     private readonly ILogger<EngagementScheduler> _logger;
 
     public EngagementScheduler(
         IServiceScopeFactory scopeFactory,
         IDateTimeProvider dateTimeProvider,
+        IOptions<BackgroundJobsOptions> jobsOptions,
         ILogger<EngagementScheduler> logger)
     {
         _scopeFactory = scopeFactory;
         _dateTimeProvider = dateTimeProvider;
+        _jobsOptions = jobsOptions.Value;
         _logger = logger;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        if (!_jobsOptions.EngagementSchedulerEnabled)
+        {
+            _logger.LogInformation("EngagementScheduler is disabled");
+            return;
+        }
+
         using var timer = new PeriodicTimer(TimeSpan.FromSeconds(60));
 
         while (await timer.WaitForNextTickAsync(stoppingToken))
@@ -52,25 +63,46 @@ public class EngagementScheduler : BackgroundService
         using var scope = _scopeFactory.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         var engagementService = scope.ServiceProvider.GetRequiredService<ISocialEngagementService>();
+        var humanScheduler = scope.ServiceProvider.GetRequiredService<IHumanScheduler>();
         var now = _dateTimeProvider.UtcNow;
 
         var dueTasks = await context.EngagementTasks
             .Where(t => t.IsEnabled && t.AutoRespond && t.NextExecutionAt != null && t.NextExecutionAt <= now)
             .ToListAsync(ct);
 
-        var humanScheduler = scope.ServiceProvider.GetRequiredService<IHumanScheduler>();
-
         foreach (var task in dueTasks)
         {
-            if (task.SchedulingMode == SchedulingMode.HumanLike && humanScheduler.ShouldSkipExecution(task))
+            if (task.SchedulingMode == SchedulingMode.HumanLike)
             {
-                task.SkippedLastExecution = true;
-                var baseCronNext = CrontabSchedule.Parse(task.CronExpression).GetNextOccurrence(now.DateTime);
-                task.NextExecutionAt = humanScheduler.ComputeNextHumanExecution(
-                    task, new DateTimeOffset(baseCronNext, TimeSpan.Zero));
-                await context.SaveChangesAsync(ct);
-                _logger.LogInformation("Skipped engagement task {TaskId} (human-like scheduling)", task.Id);
-                continue;
+                // Check daily session cap: skip if today's target already reached
+                var todayStart = new DateTimeOffset(now.Date, TimeSpan.Zero);
+                var todayExecutions = await context.EngagementExecutions
+                    .CountAsync(e => e.EngagementTaskId == task.Id && e.ExecutedAt >= todayStart, ct);
+
+                var dailyTarget = humanScheduler.GetDailySessionTarget(task);
+
+                if (todayExecutions >= dailyTarget)
+                {
+                    // Schedule next execution for tomorrow's first active window
+                    var tomorrowBase = todayStart.AddDays(1).AddHours(7);
+                    task.NextExecutionAt = humanScheduler.ComputeNextHumanExecution(task, tomorrowBase);
+                    await context.SaveChangesAsync(ct);
+                    _logger.LogInformation(
+                        "Daily target reached for task {TaskId} ({Executed}/{Target}), next at {Next}",
+                        task.Id, todayExecutions, dailyTarget, task.NextExecutionAt);
+                    continue;
+                }
+
+                if (humanScheduler.ShouldSkipExecution(task))
+                {
+                    task.SkippedLastExecution = true;
+                    var baseCronNext = CrontabSchedule.Parse(task.CronExpression).GetNextOccurrence(now.DateTime);
+                    task.NextExecutionAt = humanScheduler.ComputeNextHumanExecution(
+                        task, new DateTimeOffset(baseCronNext, TimeSpan.Zero));
+                    await context.SaveChangesAsync(ct);
+                    _logger.LogInformation("Skipped engagement task {TaskId} (human-like scheduling)", task.Id);
+                    continue;
+                }
             }
 
             task.SkippedLastExecution = false;

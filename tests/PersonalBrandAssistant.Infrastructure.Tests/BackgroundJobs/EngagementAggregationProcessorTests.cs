@@ -39,6 +39,7 @@ public class EngagementAggregationProcessorTests
         _scopeFactory.Object,
         _dateTimeProvider.Object,
         Options.Create(_options),
+        Options.Create(new BackgroundJobsOptions { EngagementAggregationEnabled = true }),
         _logger.Object);
 
     private void SetupDbSets(ContentPlatformStatus[]? statuses = null)

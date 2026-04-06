@@ -159,6 +159,18 @@ public sealed class HumanScheduler : IHumanScheduler
         return time.AddHours(1);
     }
 
+    /// <summary>
+    /// Returns a daily session target (5-8) seeded by task + date for consistency within a day
+    /// but variation across days.
+    /// </summary>
+    public int GetDailySessionTarget(EngagementTask task)
+    {
+        var now = _dateTime.UtcNow;
+        var seed = HashCode.Combine(task.Id, now.DayOfYear, now.Year, "daily-target");
+        var rng = new Random(seed);
+        return rng.Next(5, 9); // 5, 6, 7, or 8
+    }
+
     private static double GaussianRandom(Random rng, double mean, double stdDev)
     {
         // Box-Muller transform

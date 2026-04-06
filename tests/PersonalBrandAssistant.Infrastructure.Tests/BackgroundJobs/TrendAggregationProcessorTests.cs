@@ -28,6 +28,7 @@ public class TrendAggregationProcessorTests
     private TrendAggregationProcessor CreateSut() => new(
         _scopeFactory.Object,
         Options.Create(_options),
+        Options.Create(new BackgroundJobsOptions { TrendAggregationEnabled = true }),
         _logger.Object);
 
     [Fact]
