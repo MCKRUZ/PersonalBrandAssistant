@@ -54,13 +54,9 @@ public static class DependencyInjection
         services.AddScoped<IApplicationDbContext>(sp =>
             sp.GetRequiredService<ApplicationDbContext>());
 
-        var dpBuilder = services.AddDataProtection()
-            .SetApplicationName("PersonalBrandAssistant");
-
-        var keyPath = configuration["DataProtection:KeyPath"];
-        if (!string.IsNullOrWhiteSpace(keyPath) && IsDirectoryWritable(keyPath))
-            dpBuilder.PersistKeysToFileSystem(new DirectoryInfo(keyPath));
-        // else: ephemeral (in-memory) keys — fine for dev/single-instance
+        services.AddDataProtection()
+            .SetApplicationName("PersonalBrandAssistant")
+            .PersistKeysToDbContext<ApplicationDbContext>();
 
         services.AddSingleton<IEncryptionService, EncryptionService>();
 
@@ -409,16 +405,4 @@ public static class DependencyInjection
         return services;
     }
 
-    private static bool IsDirectoryWritable(string path)
-    {
-        try
-        {
-            Directory.CreateDirectory(path);
-            var probe = System.IO.Path.Combine(path, ".write-test");
-            File.WriteAllText(probe, "");
-            File.Delete(probe);
-            return true;
-        }
-        catch { return false; }
-    }
 }

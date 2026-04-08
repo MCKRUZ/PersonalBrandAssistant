@@ -42,7 +42,6 @@ services:
       PlatformIntegrations__Instagram__CallbackUrl: http://localhost:4201/platforms/instagram/callback
       PlatformIntegrations__YouTube__CallbackUrl: http://localhost:4201/platforms/youtube/callback
       GoogleAnalytics__CredentialsPath: /app/secrets/google-analytics-sa.json
-      DataProtection__KeyPath: /data-protection-keys
       DOTNET_USE_POLLING_FILE_WATCHER: "true"
     # dotnet watch disabled — doesn't work with Docker volume mounts on Windows
     # For dev: use `docker compose up -d --build api` after code changes

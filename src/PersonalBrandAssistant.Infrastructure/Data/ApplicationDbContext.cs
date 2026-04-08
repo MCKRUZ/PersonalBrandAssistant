@@ -1,13 +1,16 @@
 using System.Reflection;
+using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using PersonalBrandAssistant.Application.Common.Interfaces;
 using PersonalBrandAssistant.Domain.Entities;
 
 namespace PersonalBrandAssistant.Infrastructure.Data;
 
-public class ApplicationDbContext : DbContext, IApplicationDbContext
+public class ApplicationDbContext : DbContext, IApplicationDbContext, IDataProtectionKeyContext
 {
     public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options) { }
+
+    public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
     public DbSet<Content> Contents => Set<Content>();
     public DbSet<Platform> Platforms => Set<Platform>();
