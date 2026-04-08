@@ -259,6 +259,34 @@ public sealed class SocialEngagementService : ISocialEngagementService
 
         execution.ActionsSucceeded = execution.Actions.Count(a => a.Succeeded);
 
+        // Auto-disable subreddits that return 500 (likely banned)
+        var bannedCommunities = execution.Actions
+            .Where(a => !a.Succeeded && a.ErrorMessage?.Contains("status 500") == true)
+            .Select(a => ExtractCommunity(a.TargetUrl))
+            .Where(c => !string.IsNullOrEmpty(c))
+            .Distinct()
+            .ToList();
+
+        if (bannedCommunities.Count > 0)
+        {
+            var criteria = JsonSerializer.Deserialize<JsonElement>(task.TargetCriteria);
+            if (criteria.TryGetProperty("subreddits", out var subsEl))
+            {
+                var currentSubs = subsEl.EnumerateArray()
+                    .Select(s => s.GetString()!)
+                    .Where(s => !bannedCommunities.Contains(s, StringComparer.OrdinalIgnoreCase))
+                    .ToList();
+
+                var updated = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(task.TargetCriteria)!;
+                updated["subreddits"] = JsonSerializer.SerializeToElement(currentSubs);
+                task.TargetCriteria = JsonSerializer.Serialize(updated);
+
+                _logger.LogWarning(
+                    "Removed banned subreddits from task {TaskId}: {Banned}. Remaining: {Count}",
+                    task.Id, string.Join(", ", bannedCommunities), currentSubs.Count);
+            }
+        }
+
         _db.EngagementExecutions.Add(execution);
         await UpdateTaskTimestamps(task, ct);
 
