@@ -513,14 +513,21 @@ public sealed class SocialEngagementService : ISocialEngagementService
 
         if (!_sidecar.IsConnected)
         {
-            _logger.LogWarning("Sidecar not connected, skipping engagement comment generation");
-            return string.Empty;
+            try
+            {
+                await _sidecar.ConnectAsync(ct);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Sidecar not connected and connect failed, skipping engagement comment generation");
+                return string.Empty;
+            }
         }
 
         var response = new System.Text.StringBuilder();
         await foreach (var evt in _sidecar.SendTaskAsync(prompt, null, null, ct))
         {
-            if (evt is ChatEvent { Text: not null } chat)
+            if (evt is ChatEvent { EventType: "summary", Text: not null } chat)
                 response.Append(chat.Text);
         }
 

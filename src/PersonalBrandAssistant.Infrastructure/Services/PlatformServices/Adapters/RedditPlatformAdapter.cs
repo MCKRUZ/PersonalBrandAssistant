@@ -246,12 +246,29 @@ public sealed class RedditPlatformAdapter : PlatformAdapterBase, ISocialEngageme
 
         var response = await _httpClient.SendAsync(request, ct);
 
-        if (!response.IsSuccessStatusCode)
-            return HandleHttpError<string>(response, "Reddit comment");
-
         var json = await response.Content.ReadFromJsonAsync<JsonElement>(ct);
-        var commentId = json.GetProperty("json").GetProperty("data")
-            .GetProperty("things")[0].GetProperty("data")
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var body = json.ToString();
+            Logger.LogWarning("Reddit comment failed ({Status}): {Body}",
+                (int)response.StatusCode, body.Length > 500 ? body[..500] : body);
+            return HandleHttpError<string>(response, "Reddit comment");
+        }
+
+        // Reddit may return 200 with errors in the JSON body
+        if (json.TryGetProperty("json", out var jsonObj) &&
+            jsonObj.TryGetProperty("errors", out var errors) &&
+            errors.GetArrayLength() > 0)
+        {
+            var errorText = errors.ToString();
+            Logger.LogWarning("Reddit comment returned errors: {Errors}", errorText);
+            return Result.Failure<string>(ErrorCode.InternalError,
+                $"Reddit comment: {errorText}");
+        }
+
+        var data = json.GetProperty("json").GetProperty("data");
+        var commentId = data.GetProperty("things")[0].GetProperty("data")
             .GetProperty("id").GetString()!;
 
         return Result.Success(commentId);
