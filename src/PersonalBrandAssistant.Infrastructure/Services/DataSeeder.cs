@@ -193,21 +193,8 @@ public class DataSeeder : IHostedService
         var platform = await context.Platforms.FirstOrDefaultAsync(p => p.Type == PlatformType.Reddit, ct);
         if (platform is null) return;
 
-        if (platform.IsConnected && platform.EncryptedAccessToken is not null)
-        {
-            // Verify the token is still decryptable (ephemeral keys change on every container restart)
-            try
-            {
-                var enc = services.GetRequiredService<IEncryptionService>();
-                enc.Decrypt(platform.EncryptedAccessToken);
-                _logger.LogDebug("Reddit already connected with valid token, skipping auto-connect");
-                return;
-            }
-            catch
-            {
-                _logger.LogInformation("Reddit token unreadable (key rotation), re-authenticating");
-            }
-        }
+        // Always get a fresh token — password grant tokens expire in 1 hour
+        // and there's no refresh token to renew them
 
         try
         {
@@ -264,6 +251,7 @@ public class DataSeeder : IHostedService
             platform.IsConnected = true;
             platform.DisplayName = $"Reddit (u/{username})";
             platform.GrantedScopes = grantedScope?.Split(' ') ?? [];
+            platform.TokenExpiresAt = DateTimeOffset.UtcNow.AddMinutes(55);
 
             await context.SaveChangesAsync(ct);
             _logger.LogInformation("Reddit auto-connected via password grant for u/{Username}", username);

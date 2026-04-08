@@ -10,6 +10,7 @@ namespace PersonalBrandAssistant.Infrastructure.BackgroundJobs;
 public class TokenRefreshProcessor : BackgroundService
 {
     private static readonly TimeSpan TwitterRefreshThreshold = TimeSpan.FromMinutes(30);
+    private static readonly TimeSpan RedditRefreshThreshold = TimeSpan.FromMinutes(10);
     private static readonly TimeSpan LongLivedRefreshThreshold = TimeSpan.FromDays(10);
 
     private readonly IServiceScopeFactory _scopeFactory;
@@ -57,13 +58,15 @@ public class TokenRefreshProcessor : BackgroundService
         var now = _dateTimeProvider.UtcNow;
 
         var twitterThreshold = now.Add(TwitterRefreshThreshold);
+        var redditThreshold = now.Add(RedditRefreshThreshold);
         var longLivedThreshold = now.Add(LongLivedRefreshThreshold);
 
         var platformsNeedingRefresh = await db.Platforms
             .Where(p => p.IsConnected && p.TokenExpiresAt != null && p.Type != PlatformType.YouTube)
             .Where(p =>
                 (p.Type == PlatformType.TwitterX && p.TokenExpiresAt < twitterThreshold) ||
-                (p.Type != PlatformType.TwitterX && p.TokenExpiresAt < longLivedThreshold))
+                (p.Type == PlatformType.Reddit && p.TokenExpiresAt < redditThreshold) ||
+                (p.Type != PlatformType.TwitterX && p.Type != PlatformType.Reddit && p.TokenExpiresAt < longLivedThreshold))
             .ToListAsync(ct);
 
         foreach (var platform in platformsNeedingRefresh)
