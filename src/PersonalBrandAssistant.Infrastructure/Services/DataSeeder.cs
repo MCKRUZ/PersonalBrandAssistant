@@ -241,11 +241,29 @@ public class DataSeeder : IHostedService
             }
 
             var accessToken = tokenProp.GetString()!;
+            var grantedScope = json.TryGetProperty("scope", out var scopeProp)
+                ? scopeProp.GetString() : null;
+            _logger.LogInformation("Reddit token granted scopes: {Scopes}", grantedScope ?? "(none)");
+
+            // Verify token works by calling /api/v1/me
+            http.DefaultRequestHeaders.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
+            var meResponse = await http.GetAsync("https://oauth.reddit.com/api/v1/me", ct);
+            if (meResponse.IsSuccessStatusCode)
+            {
+                var meJson = await meResponse.Content.ReadFromJsonAsync<JsonElement>(ct);
+                var name = meJson.TryGetProperty("name", out var n) ? n.GetString() : "unknown";
+                var verified = meJson.TryGetProperty("has_verified_email", out var v) && v.GetBoolean();
+                _logger.LogInformation("Reddit verified: name={Name}, emailVerified={Verified}",
+                    name, verified);
+            }
+
             var encryption  = services.GetRequiredService<IEncryptionService>();
 
             platform.EncryptedAccessToken = encryption.Encrypt(accessToken);
             platform.IsConnected = true;
             platform.DisplayName = $"Reddit (u/{username})";
+            platform.GrantedScopes = grantedScope?.Split(' ') ?? [];
 
             await context.SaveChangesAsync(ct);
             _logger.LogInformation("Reddit auto-connected via password grant for u/{Username}", username);

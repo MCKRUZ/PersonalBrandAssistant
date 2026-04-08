@@ -246,15 +246,16 @@ public sealed class RedditPlatformAdapter : PlatformAdapterBase, ISocialEngageme
 
         var response = await _httpClient.SendAsync(request, ct);
 
-        var json = await response.Content.ReadFromJsonAsync<JsonElement>(ct);
-
         if (!response.IsSuccessStatusCode)
         {
-            var body = json.ToString();
-            Logger.LogWarning("Reddit comment failed ({Status}): {Body}",
-                (int)response.StatusCode, body.Length > 500 ? body[..500] : body);
+            var errorBody = await response.Content.ReadAsStringAsync(ct);
+            Logger.LogWarning("Reddit comment failed ({Status}) for {ThingId}: {Body}",
+                (int)response.StatusCode, postId,
+                errorBody.Length > 500 ? errorBody[..500] : errorBody);
             return HandleHttpError<string>(response, "Reddit comment");
         }
+
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>(ct);
 
         // Reddit may return 200 with errors in the JSON body
         if (json.TryGetProperty("json", out var jsonObj) &&
