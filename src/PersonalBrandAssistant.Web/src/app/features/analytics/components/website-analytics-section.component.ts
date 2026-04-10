@@ -24,14 +24,18 @@ function formatDuration(seconds: number): string {
       </div>
 
       @if (data(); as d) {
-        <div class="overview-grid">
-          @for (m of overviewMetrics(); track m.label) {
-            <div class="metric-card">
-              <div class="metric-label">{{ m.label }}</div>
-              <div class="metric-value">{{ m.value }}</div>
-            </div>
-          }
-        </div>
+        @if (d.overview) {
+          <div class="overview-grid">
+            @for (m of overviewMetrics(); track m.label) {
+              <div class="metric-card">
+                <div class="metric-label">{{ m.label }}</div>
+                <div class="metric-value">{{ m.value }}</div>
+              </div>
+            }
+          </div>
+        } @else {
+          <p class="empty-text">Website overview unavailable — GA4 may not be configured or reachable</p>
+        }
 
         @if (mutableTopPages().length > 0) {
           <div class="table-section">
@@ -204,9 +208,8 @@ export class WebsiteAnalyticsSectionComponent {
   readonly skeletonCards = [1, 2, 3, 4, 5, 6];
 
   readonly overviewMetrics = computed(() => {
-    const d = this.data();
-    if (!d) return [];
-    const o = d.overview;
+    const o = this.data()?.overview;
+    if (!o) return [];
     return [
       { label: 'Active Users', value: o.activeUsers.toLocaleString('en-US') },
       { label: 'Sessions', value: o.sessions.toLocaleString('en-US') },

@@ -72,7 +72,7 @@ export interface SearchQueryEntry {
 }
 
 export interface WebsiteAnalyticsResponse {
-  readonly overview: WebsiteOverview;
+  readonly overview: WebsiteOverview | null;
   readonly topPages: readonly PageViewEntry[];
   readonly trafficSources: readonly TrafficSourceEntry[];
   readonly searchQueries: readonly SearchQueryEntry[];

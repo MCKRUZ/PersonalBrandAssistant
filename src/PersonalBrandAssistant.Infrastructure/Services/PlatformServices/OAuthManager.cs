@@ -305,7 +305,6 @@ public sealed class OAuthManager : IOAuthManager
                 ["grant_type"] = "password",
                 ["username"] = username!,
                 ["password"] = password!,
-                ["scope"] = "identity read submit privatemessages history",
             }), ct);
 
         if (!response.IsSuccessStatusCode)

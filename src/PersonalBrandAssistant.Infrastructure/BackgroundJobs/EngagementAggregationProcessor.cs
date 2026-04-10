@@ -90,6 +90,9 @@ public class EngagementAggregationProcessor : BackgroundService
     {
         using var timer = new PeriodicTimer(interval);
 
+        // Run immediately on startup so imported posts get snapshots without waiting for the interval
+        await ProcessBulkAsync(ct);
+
         while (await timer.WaitForNextTickAsync(ct))
         {
             try

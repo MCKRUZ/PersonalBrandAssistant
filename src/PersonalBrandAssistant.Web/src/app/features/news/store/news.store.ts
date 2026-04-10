@@ -102,7 +102,7 @@ function buildSourceGroups(items: readonly NewsFeedItem[]): readonly SourceGroup
     source: sourceTypes.get(sourceName) ?? sourceName,
     sourceName,
     items: groupItems,
-  }));
+  })).sort((a, b) => a.sourceName.localeCompare(b.sourceName));
 }
 
 export const NewsStore = signalStore(
@@ -175,11 +175,12 @@ export const NewsStore = signalStore(
             result.push({ category, items: categoryItems, sourceGroups: buildSourceGroups(categoryItems) });
           }
         }
-        // Include any categories not in CATEGORY_ORDER
-        for (const [category, categoryItems] of grouped) {
-          if (!CATEGORY_ORDER.includes(category) && categoryItems.length > 0) {
-            result.push({ category, items: categoryItems, sourceGroups: buildSourceGroups(categoryItems) });
-          }
+        // Include any categories not in CATEGORY_ORDER, sorted for stable order
+        const overflow = [...grouped.entries()]
+          .filter(([category, categoryItems]) => !CATEGORY_ORDER.includes(category) && categoryItems.length > 0)
+          .sort(([a], [b]) => a.localeCompare(b));
+        for (const [category, categoryItems] of overflow) {
+          result.push({ category, items: categoryItems, sourceGroups: buildSourceGroups(categoryItems) });
         }
         return result;
       }),

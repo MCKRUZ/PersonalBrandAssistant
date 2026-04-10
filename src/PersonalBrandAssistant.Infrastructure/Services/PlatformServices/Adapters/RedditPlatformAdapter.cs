@@ -241,7 +241,6 @@ public sealed class RedditPlatformAdapter : PlatformAdapterBase, ISocialEngageme
         {
             ["thing_id"] = postId,
             ["text"] = text,
-            ["api_type"] = "json",
         });
 
         var response = await _httpClient.SendAsync(request, ct);
@@ -255,24 +254,38 @@ public sealed class RedditPlatformAdapter : PlatformAdapterBase, ISocialEngageme
             return HandleHttpError<string>(response, "Reddit comment");
         }
 
-        var json = await response.Content.ReadFromJsonAsync<JsonElement>(ct);
+        var rawBody = await response.Content.ReadAsStringAsync(ct);
+        var json = JsonSerializer.Deserialize<JsonElement>(rawBody);
 
-        // Reddit may return 200 with errors in the JSON body
-        if (json.TryGetProperty("json", out var jsonObj) &&
-            jsonObj.TryGetProperty("errors", out var errors) &&
-            errors.GetArrayLength() > 0)
+        // api_type=json format: { "json": { "errors": [], "data": { "things": [...] } } }
+        if (json.TryGetProperty("json", out var jsonObj))
         {
-            var errorText = errors.ToString();
-            Logger.LogWarning("Reddit comment returned errors: {Errors}", errorText);
-            return Result.Failure<string>(ErrorCode.InternalError,
-                $"Reddit comment: {errorText}");
+            if (jsonObj.TryGetProperty("errors", out var errors) && errors.GetArrayLength() > 0)
+            {
+                var errorText = errors.ToString();
+                Logger.LogWarning("Reddit comment returned errors: {Errors}", errorText);
+                return Result.Failure<string>(ErrorCode.InternalError, $"Reddit comment: {errorText}");
+            }
+
+            if (jsonObj.TryGetProperty("data", out var data) &&
+                data.TryGetProperty("things", out var things) && things.GetArrayLength() > 0)
+            {
+                return Result.Success(things[0].GetProperty("data").GetProperty("id").GetString()!);
+            }
         }
 
-        var data = json.GetProperty("json").GetProperty("data");
-        var commentId = data.GetProperty("things")[0].GetProperty("data")
-            .GetProperty("id").GetString()!;
+        // jQuery/raw format — extract comment ID from response body
+        if (rawBody.Contains("\"id\""))
+        {
+            // Try to find any comment ID (t1_xxxxx pattern)
+            var match = System.Text.RegularExpressions.Regex.Match(rawBody, @"""id"":\s*""(t1_\w+)""");
+            if (match.Success)
+                return Result.Success(match.Groups[1].Value);
+        }
 
-        return Result.Success(commentId);
+        Logger.LogInformation("Reddit comment posted (no ID extracted): {Body}",
+            rawBody.Length > 300 ? rawBody[..300] : rawBody);
+        return Result.Success("posted");
     }
 
     public async Task<Result<IReadOnlyList<InboxEntry>>> PollInboxAsync(
