@@ -12,6 +12,7 @@ public sealed class PromptTemplateService : IPromptTemplateService, IDisposable
     private readonly string _promptsPath;
     private readonly IHostEnvironment _environment;
     private readonly ILogger<PromptTemplateService> _logger;
+    private static readonly FluidParser _parser = new();
     private readonly ConcurrentDictionary<string, Lazy<IFluidTemplate>> _cache = new();
     private readonly TemplateOptions _templateOptions;
     private readonly FileSystemWatcher? _watcher;
@@ -56,32 +57,31 @@ public sealed class PromptTemplateService : IPromptTemplateService, IDisposable
 
         var context = new TemplateContext(_templateOptions);
 
-        // Inject brand voice block if shared template exists (check cache first to avoid filesystem hit)
-        var brandVoiceKey = "shared/brand-voice";
-        if (_cache.ContainsKey(brandVoiceKey) || File.Exists(Path.Combine(_promptsPath, "shared", "brand-voice.liquid")))
-        {
-            var brandVoiceTemplate = GetOrParseTemplate(brandVoiceKey);
-            var brandVoiceContext = new TemplateContext(_templateOptions);
-            foreach (var (key, value) in variables)
-            {
-                brandVoiceContext.SetValue(key, value);
-            }
-            var brandVoiceBlock = await brandVoiceTemplate.RenderAsync(brandVoiceContext);
-            context.SetValue("brand_voice_block", brandVoiceBlock);
-        }
+        await InjectBrandVoiceAsync(context, variables);
 
         foreach (var (key, value) in variables)
-        {
             context.SetValue(key, value);
-        }
 
-        var result = await template.RenderAsync(context);
-        return result;
+        return await template.RenderAsync(context);
     }
 
-    // Full implementation in section-06-sidecar-prompt-extensions
-    public Task<string> RenderRawAsync(string templateContent, Dictionary<string, object> variables)
-        => throw new NotImplementedException("RenderRawAsync implemented in section-06");
+    public async Task<string> RenderRawAsync(string templateContent, Dictionary<string, object> variables)
+    {
+        if (string.IsNullOrEmpty(templateContent))
+            return string.Empty;
+
+        var parser = _parser;
+        if (!parser.TryParse(templateContent, out var template, out var error))
+            throw new InvalidOperationException($"Failed to parse raw template: {error}");
+
+        var context = new TemplateContext(_templateOptions);
+        await InjectBrandVoiceAsync(context, variables);
+
+        foreach (var (key, value) in variables)
+            context.SetValue(key, value);
+
+        return await template.RenderAsync(context);
+    }
 
     public string[] ListTemplates(string agentName)
     {
@@ -95,6 +95,20 @@ public sealed class PromptTemplateService : IPromptTemplateService, IDisposable
             .Select(f => Path.GetFileNameWithoutExtension(f))
             .Order()
             .ToArray();
+    }
+
+    private async Task InjectBrandVoiceAsync(TemplateContext context, Dictionary<string, object> variables)
+    {
+        var brandVoiceKey = "shared/brand-voice";
+        if (_cache.ContainsKey(brandVoiceKey) || File.Exists(Path.Combine(_promptsPath, "shared", "brand-voice.liquid")))
+        {
+            var brandVoiceTemplate = GetOrParseTemplate(brandVoiceKey);
+            var brandVoiceContext = new TemplateContext(_templateOptions);
+            foreach (var (key, value) in variables)
+                brandVoiceContext.SetValue(key, value);
+            var brandVoiceBlock = await brandVoiceTemplate.RenderAsync(brandVoiceContext);
+            context.SetValue("brand_voice_block", brandVoiceBlock);
+        }
     }
 
     private IFluidTemplate GetOrParseTemplate(string cacheKey)
@@ -111,7 +125,7 @@ public sealed class PromptTemplateService : IPromptTemplateService, IDisposable
                 throw new FileNotFoundException($"Prompt template not found: {fullPath}", fullPath);
 
             var content = File.ReadAllText(fullPath);
-            var parser = new FluidParser();
+            var parser = _parser;
             if (!parser.TryParse(content, out var template, out var error))
                 throw new InvalidOperationException($"Failed to parse template '{key}': {error}");
 

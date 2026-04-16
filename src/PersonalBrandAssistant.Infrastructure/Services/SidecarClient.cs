@@ -87,9 +87,6 @@ public sealed class SidecarClient : ISidecarClient, IDisposable
         string? modelId,
         [EnumeratorCancellation] CancellationToken ct)
     {
-        if (modelId is not null)
-            _logger.LogWarning("modelId '{ModelId}' provided but not yet wired to sidecar protocol", modelId);
-
         if (_ws is null || _ws.State != WebSocketState.Open)
             throw new InvalidOperationException("Not connected to sidecar");
 
@@ -98,15 +95,12 @@ public sealed class SidecarClient : ISidecarClient, IDisposable
 
         try
         {
-            object message = (systemPrompt, sessionId) switch
-            {
-                (not null, not null) => new { type = "send-message", payload = new { message = task, systemPrompt, sessionId } },
-                (not null, null) => new { type = "send-message", payload = new { message = task, systemPrompt } },
-                (null, not null) => new { type = "send-message", payload = new { message = task, sessionId } },
-                _ => new { type = "send-message", payload = new { message = task } },
-            };
+            var requestPayload = new Dictionary<string, object> { ["message"] = task };
+            if (systemPrompt is not null) requestPayload["systemPrompt"] = systemPrompt;
+            if (sessionId is not null) requestPayload["sessionId"] = sessionId;
+            if (modelId is not null) requestPayload["modelId"] = modelId;
 
-            await SendMessageAsync(message, ct);
+            await SendMessageAsync(new { type = "send-message", payload = requestPayload }, ct);
 
             while (true)
             {

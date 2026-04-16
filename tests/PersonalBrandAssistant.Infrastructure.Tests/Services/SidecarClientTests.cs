@@ -440,6 +440,108 @@ public class SidecarClientTests : IAsyncDisposable
         Assert.Equal("something went wrong", error.Message);
     }
 
+    // --- modelId wire format tests ---
+
+    [Fact]
+    public async Task SendTaskAsync_WithModelId_IncludesModelIdInPayload()
+    {
+        var payloadCaptured = new TaskCompletionSource<JsonElement>();
+
+        (_server, _serverPort) = await StartTestServer(async (ws, ct) =>
+        {
+            await ReceiveJson(ws, ct);
+            await SendJson(ws, new { type = "session-update", payload = new { sessionId = "s-mid" } }, ct);
+
+            var msg = await ReceiveJson(ws, ct);
+            payloadCaptured.SetResult(msg.GetProperty("payload"));
+
+            await SendJson(ws, new { type = "status", payload = new { status = "idle", inputTokens = 0, outputTokens = 0 } }, ct);
+            try { var buf = new byte[1024]; await ws.ReceiveAsync(buf, ct); } catch (WebSocketException) { }
+        });
+
+        using var client = CreateClient(_serverPort);
+        await client.ConnectAsync(CancellationToken.None);
+        await foreach (var _ in client.SendTaskAsync("task", null, null, "claude-opus-4-5", CancellationToken.None)) { }
+
+        var payload = await payloadCaptured.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.True(payload.TryGetProperty("modelId", out var modelIdProp));
+        Assert.Equal("claude-opus-4-5", modelIdProp.GetString());
+    }
+
+    [Fact]
+    public async Task SendTaskAsync_WithModelId_UsesExactFieldNameModelIdCamelCase()
+    {
+        var payloadCaptured = new TaskCompletionSource<JsonElement>();
+
+        (_server, _serverPort) = await StartTestServer(async (ws, ct) =>
+        {
+            await ReceiveJson(ws, ct);
+            await SendJson(ws, new { type = "session-update", payload = new { sessionId = "s-mid2" } }, ct);
+
+            var msg = await ReceiveJson(ws, ct);
+            payloadCaptured.SetResult(msg.GetProperty("payload"));
+
+            await SendJson(ws, new { type = "status", payload = new { status = "idle", inputTokens = 0, outputTokens = 0 } }, ct);
+            try { var buf = new byte[1024]; await ws.ReceiveAsync(buf, ct); } catch (WebSocketException) { }
+        });
+
+        using var client = CreateClient(_serverPort);
+        await client.ConnectAsync(CancellationToken.None);
+        await foreach (var _ in client.SendTaskAsync("task", null, null, "claude-sonnet-4-6", CancellationToken.None)) { }
+
+        var payload = await payloadCaptured.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.True(payload.TryGetProperty("modelId", out _), "Expected camelCase 'modelId' field");
+        Assert.False(payload.TryGetProperty("model_id", out _), "Snake case 'model_id' must not appear");
+    }
+
+    [Fact]
+    public async Task SendTaskAsync_NullModelId_OmitsFieldFromPayload()
+    {
+        var payloadCaptured = new TaskCompletionSource<JsonElement>();
+
+        (_server, _serverPort) = await StartTestServer(async (ws, ct) =>
+        {
+            await ReceiveJson(ws, ct);
+            await SendJson(ws, new { type = "session-update", payload = new { sessionId = "s-mid3" } }, ct);
+
+            var msg = await ReceiveJson(ws, ct);
+            payloadCaptured.SetResult(msg.GetProperty("payload"));
+
+            await SendJson(ws, new { type = "status", payload = new { status = "idle", inputTokens = 0, outputTokens = 0 } }, ct);
+            try { var buf = new byte[1024]; await ws.ReceiveAsync(buf, ct); } catch (WebSocketException) { }
+        });
+
+        using var client = CreateClient(_serverPort);
+        await client.ConnectAsync(CancellationToken.None);
+        await foreach (var _ in client.SendTaskAsync("task", null, null, null, CancellationToken.None)) { }
+
+        var payload = await payloadCaptured.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.False(payload.TryGetProperty("modelId", out _), "modelId must not appear in payload when null");
+    }
+
+    [Fact]
+    public async Task SendTaskAsync_NullModelId_BackwardCompatible()
+    {
+        (_server, _serverPort) = await StartTestServer(async (ws, ct) =>
+        {
+            await ReceiveJson(ws, ct);
+            await SendJson(ws, new { type = "session-update", payload = new { sessionId = "s-compat" } }, ct);
+
+            await ReceiveJson(ws, ct);
+            await SendJson(ws, new { type = "status", payload = new { status = "idle", inputTokens = 10, outputTokens = 5 } }, ct);
+            try { var buf = new byte[1024]; await ws.ReceiveAsync(buf, ct); } catch (WebSocketException) { }
+        });
+
+        using var client = CreateClient(_serverPort);
+        await client.ConnectAsync(CancellationToken.None);
+
+        SidecarEvent? lastEvent = null;
+        await foreach (var evt in client.SendTaskAsync("task", null, null, null, CancellationToken.None))
+            lastEvent = evt;
+
+        Assert.IsType<TaskCompleteEvent>(lastEvent);
+    }
+
     public async ValueTask DisposeAsync()
     {
         if (_server is not null)
