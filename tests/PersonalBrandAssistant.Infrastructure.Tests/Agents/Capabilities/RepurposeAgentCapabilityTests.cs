@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using PersonalBrandAssistant.Application.Common.Interfaces;
 using PersonalBrandAssistant.Application.Common.Models;
+using PersonalBrandAssistant.Application.Common.Models.Skills;
 using PersonalBrandAssistant.Domain.Enums;
 using PersonalBrandAssistant.Infrastructure.Agents.Capabilities;
 
@@ -10,15 +11,18 @@ namespace PersonalBrandAssistant.Infrastructure.Tests.Agents.Capabilities;
 
 public class RepurposeAgentCapabilityTests
 {
+    private readonly Mock<ISkillRegistry> _skillRegistry;
     private readonly Mock<IPromptTemplateService> _promptService;
     private readonly Mock<ISidecarClient> _sidecarClient;
     private readonly RepurposeAgentCapability _capability;
 
     public RepurposeAgentCapabilityTests()
     {
+        _skillRegistry = new Mock<ISkillRegistry>();
         _promptService = new Mock<IPromptTemplateService>();
         _sidecarClient = new Mock<ISidecarClient>();
         _capability = new RepurposeAgentCapability(
+            _skillRegistry.Object,
             new Mock<ILogger<RepurposeAgentCapability>>().Object);
     }
 
@@ -61,7 +65,9 @@ public class RepurposeAgentCapabilityTests
         var context = CreateContext();
         await _capability.ExecuteAsync(context, CancellationToken.None);
 
-        _promptService.Verify(p => p.RenderAsync("repurpose", "system", It.IsAny<Dictionary<string, object>>()), Times.Once);
+        _skillRegistry.Verify(r => r.GetSkillById("repurpose"), Times.Once);
+        _skillRegistry.Verify(r => r.LoadLevel2("repurpose"), Times.Once);
+        _promptService.Verify(p => p.RenderRawAsync(It.IsAny<string>(), It.IsAny<Dictionary<string, object>>()), Times.Once);
         _promptService.Verify(p => p.RenderAsync("repurpose", "blog-to-thread", It.IsAny<Dictionary<string, object>>()), Times.Once);
     }
 
@@ -82,12 +88,20 @@ public class RepurposeAgentCapabilityTests
     public async Task ExecuteAsync_PassesSourceContentInVariables()
     {
         Dictionary<string, object>? capturedVars = null;
+        var definition = new SkillDefinition
+        {
+            Id = "repurpose", Name = "repurpose", Description = "test",
+            Category = "test", SkillType = "test",
+            Tags = Array.Empty<string>(), AllowedTools = Array.Empty<string>(),
+            SchemaVersion = 1,
+        };
+        _skillRegistry.Setup(r => r.GetSkillById("repurpose")).Returns(definition);
+        _skillRegistry.Setup(r => r.LoadLevel2("repurpose")).Returns("System body");
+        _promptService.Setup(p => p.RenderRawAsync(It.IsAny<string>(), It.IsAny<Dictionary<string, object>>()))
+            .ReturnsAsync("system prompt");
         _promptService.Setup(p => p.RenderAsync("repurpose", "blog-to-thread", It.IsAny<Dictionary<string, object>>()))
             .Callback<string, string, Dictionary<string, object>>((_, _, v) => capturedVars = v)
             .ReturnsAsync("task prompt");
-        _promptService.Setup(p => p.RenderAsync("repurpose", "system", It.IsAny<Dictionary<string, object>>()))
-            .ReturnsAsync("system prompt");
-
         SetupSidecarResponse("Repurposed content.");
 
         var context = CreateContext();
@@ -99,7 +113,16 @@ public class RepurposeAgentCapabilityTests
 
     private void SetupPrompts(string agent, string template)
     {
-        _promptService.Setup(p => p.RenderAsync(agent, "system", It.IsAny<Dictionary<string, object>>()))
+        var definition = new SkillDefinition
+        {
+            Id = agent, Name = agent, Description = "test",
+            Category = "test", SkillType = "test",
+            Tags = Array.Empty<string>(), AllowedTools = Array.Empty<string>(),
+            SchemaVersion = 1,
+        };
+        _skillRegistry.Setup(r => r.GetSkillById(agent)).Returns(definition);
+        _skillRegistry.Setup(r => r.LoadLevel2(agent)).Returns("Skill body {{ brand_voice_block }}");
+        _promptService.Setup(p => p.RenderRawAsync(It.IsAny<string>(), It.IsAny<Dictionary<string, object>>()))
             .ReturnsAsync("system prompt");
         _promptService.Setup(p => p.RenderAsync(agent, template, It.IsAny<Dictionary<string, object>>()))
             .ReturnsAsync("task prompt");

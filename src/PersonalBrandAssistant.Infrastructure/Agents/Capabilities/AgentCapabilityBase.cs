@@ -9,16 +9,19 @@ namespace PersonalBrandAssistant.Infrastructure.Agents.Capabilities;
 
 public abstract class AgentCapabilityBase : IAgentCapability
 {
+    private readonly ISkillRegistry _skillRegistry;
     private readonly ILogger _logger;
 
-    protected AgentCapabilityBase(ILogger logger)
+    protected AgentCapabilityBase(ISkillRegistry skillRegistry, ILogger logger)
     {
+        _skillRegistry = skillRegistry;
         _logger = logger;
     }
 
     public abstract AgentCapabilityType Type { get; }
     public abstract ModelTier DefaultModelTier { get; }
     protected abstract string AgentName { get; }
+    protected abstract string SkillName { get; }
     protected abstract string DefaultTemplate { get; }
     protected abstract bool CreatesContent { get; }
 
@@ -29,7 +32,13 @@ public abstract class AgentCapabilityBase : IAgentCapability
             var templateName = context.Parameters.GetValueOrDefault("template", DefaultTemplate);
             var variables = BuildVariables(context);
 
-            var systemPrompt = await context.PromptService.RenderAsync(AgentName, "system", variables);
+            var skill = _skillRegistry.GetSkillById(SkillName);
+            if (skill is null)
+                return Result<AgentOutput>.Failure(ErrorCode.InternalError,
+                    $"Skill '{SkillName}' not found in registry. Ensure the SKILL.md file is present.");
+
+            var level2Body = _skillRegistry.LoadLevel2(SkillName);
+            var systemPrompt = await context.PromptService.RenderRawAsync(level2Body, variables);
             var taskPrompt = await context.PromptService.RenderAsync(AgentName, templateName, variables);
 
             var responseBuilder = new StringBuilder();
@@ -40,7 +49,7 @@ public abstract class AgentCapabilityBase : IAgentCapability
             var cost = 0m;
             var fileChanges = new List<string>();
 
-            await foreach (var evt in context.SidecarClient.SendTaskAsync(taskPrompt, systemPrompt, context.SessionId, null, ct))
+            await foreach (var evt in context.SidecarClient.SendTaskAsync(taskPrompt, systemPrompt, context.SessionId, skill.ModelId, ct))
             {
                 switch (evt)
                 {
