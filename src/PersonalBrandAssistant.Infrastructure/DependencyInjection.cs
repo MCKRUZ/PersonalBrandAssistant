@@ -10,8 +10,10 @@ using Microsoft.Extensions.Options;
 using Polly;
 using PersonalBrandAssistant.Application.Common.Interfaces;
 using PersonalBrandAssistant.Application.Common.Models;
+using PersonalBrandAssistant.Application.Common.Models.Skills;
 using PersonalBrandAssistant.Infrastructure.Agents;
 using PersonalBrandAssistant.Infrastructure.Agents.Capabilities;
+using PersonalBrandAssistant.Infrastructure.Skills;
 using PersonalBrandAssistant.Infrastructure.BackgroundJobs;
 using PersonalBrandAssistant.Infrastructure.Data;
 using PersonalBrandAssistant.Infrastructure.Data.Interceptors;
@@ -63,7 +65,15 @@ public static class DependencyInjection
         // Agent orchestration
         services.Configure<AgentOrchestrationOptions>(
             configuration.GetSection(AgentOrchestrationOptions.SectionName));
-        services.AddSingleton<ISidecarClient, SidecarClient>();
+        services.Configure<SkillOptions>(configuration.GetSection(SkillOptions.SectionName));
+        services.Configure<ContextBudgetOptions>(configuration.GetSection(ContextBudgetOptions.SectionName));
+        services.AddSingleton<ISkillRegistry, SkillRegistry>();
+        // Concrete registration for decorator wiring only — never inject SidecarClient directly.
+        // All consumers should depend on ISidecarClient, which resolves to ObservabilityMiddleware.
+        services.AddSingleton<SidecarClient>();
+        services.AddSingleton<ISidecarClient>(sp =>
+            new ObservabilityMiddleware(sp.GetRequiredService<SidecarClient>()));
+        services.AddScoped<IContextBudgetTracker, ContextBudgetTracker>();
         services.AddSingleton<IPromptTemplateService>(sp =>
         {
             var opts = sp.GetRequiredService<IOptions<AgentOrchestrationOptions>>().Value;

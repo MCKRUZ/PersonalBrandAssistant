@@ -27,12 +27,17 @@ public sealed class SkillRegistry : ISkillRegistry
         _logger = logger;
         var opts = options.Value;
 
-        if (!Directory.Exists(opts.SkillsPath))
+        // Empty string means "use default" — config can override without knowing the runtime base directory
+        var skillsPath = string.IsNullOrEmpty(opts.SkillsPath)
+            ? Path.Combine(AppContext.BaseDirectory, "skills")
+            : opts.SkillsPath;
+
+        if (!Directory.Exists(skillsPath))
             throw new DirectoryNotFoundException(
-                $"Skills directory not found: '{opts.SkillsPath}'. " +
+                $"Skills directory not found: '{skillsPath}'. " +
                 "Ensure the skills/ directory is published with the application.");
 
-        _skills = Discover(opts.SkillsPath, logger);
+        _skills = Discover(skillsPath, logger);
         _allSkills = _skills.Values.Select(e => e.Definition).ToList().AsReadOnly();
 
         ValidateRequired(opts.RequiredSkillIds, environment, logger);

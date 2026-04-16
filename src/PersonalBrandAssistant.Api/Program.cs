@@ -4,7 +4,9 @@ using PersonalBrandAssistant.Api.Endpoints;
 using PersonalBrandAssistant.Api.Handlers;
 using PersonalBrandAssistant.Api.Middleware;
 using PersonalBrandAssistant.Application;
+using OpenTelemetry.Trace;
 using PersonalBrandAssistant.Infrastructure;
+using PersonalBrandAssistant.Infrastructure.Agents;
 using Serilog;
 
 var isMcpMode = args.Contains("--mcp");
@@ -50,6 +52,17 @@ else
 
     builder.Services.AddApplication();
     builder.Services.AddInfrastructure(builder.Configuration);
+
+    builder.Services.AddOpenTelemetry()
+        .WithTracing(tracing =>
+        {
+            tracing.AddAspNetCoreInstrumentation();
+            tracing.AddSource(AgentTelemetry.SourceName); // REQUIRED — without this, custom spans are silently dropped
+            if (builder.Configuration.GetValue<bool>("Telemetry:ConsoleExporter"))
+                tracing.AddConsoleExporter();
+            if (builder.Configuration["Telemetry:OtlpEndpoint"] is { } endpoint)
+                tracing.AddOtlpExporter(o => o.Endpoint = new Uri(endpoint));
+        });
 
     builder.Services.AddSignalR();
 

@@ -13,9 +13,12 @@
   <ItemGroup>
     <PackageReference Include="MediatR" Version="14.1.0" />
     <PackageReference Include="ModelContextProtocol" Version="1.1.0" />
+    <PackageReference Include="OpenTelemetry.Exporter.Console" Version="1.11.2" />
     <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.11.2" />
-    <!-- Explicit: AddOpenTelemetry() registered in Program.cs requires this in the Api project -->
+    <!-- Explicit: extension methods in Program.cs require direct package refs in the Api project -->
     <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.11.2" />
+    <!-- 1.11.2 not published for this package — intentional version gap vs other OTel packages at 1.11.2 -->
+    <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.11.1" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.5">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>

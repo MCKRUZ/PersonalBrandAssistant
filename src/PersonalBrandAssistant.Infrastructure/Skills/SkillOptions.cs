@@ -6,11 +6,10 @@ public class SkillOptions
 
     /// <summary>
     /// Root path for SKILL.md discovery.
-    /// Defaults to AppContext.BaseDirectory/skills at runtime.
+    /// Empty string (default) means SkillRegistry falls back to AppContext.BaseDirectory/skills at runtime.
     /// Single-file publish is NOT supported in Phase 1.
     /// </summary>
-    public string SkillsPath { get; init; } =
-        Path.Combine(AppContext.BaseDirectory, "skills");
+    public string SkillsPath { get; init; } = "";
 
     /// <summary>
     /// Skill IDs that must be present at startup.
