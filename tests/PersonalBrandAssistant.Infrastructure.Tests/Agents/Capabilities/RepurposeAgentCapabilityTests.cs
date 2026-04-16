@@ -111,6 +111,7 @@ public class RepurposeAgentCapabilityTests
                 It.IsAny<string>(),
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
+                It.IsAny<string?>(),
                 It.IsAny<CancellationToken>()))
             .Returns(CreateSidecarEvents(text));
     }

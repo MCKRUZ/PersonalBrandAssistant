@@ -84,6 +84,7 @@ public class AnalyticsAgentCapabilityTests
                 It.IsAny<string>(),
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
+                It.IsAny<string?>(),
                 It.IsAny<CancellationToken>()))
             .Returns(CreateSidecarEvents(text));
     }

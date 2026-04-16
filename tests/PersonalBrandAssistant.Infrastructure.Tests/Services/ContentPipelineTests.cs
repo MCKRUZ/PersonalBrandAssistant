@@ -81,6 +81,7 @@ public class ContentPipelineTests
                 It.IsAny<string>(),
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
+                It.IsAny<string?>(),
                 It.IsAny<CancellationToken>()))
             .Returns(CreateSidecarEvents(text));
     }
@@ -182,6 +183,7 @@ public class ContentPipelineTests
             It.Is<string>(s => s.Contains("AI trends") && s.Contains("outline", StringComparison.OrdinalIgnoreCase)),
             It.IsAny<string?>(),
             It.IsAny<string?>(),
+            It.IsAny<string?>(),
             It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -256,6 +258,7 @@ public class ContentPipelineTests
         SetupBrandProfiles();
         _sidecarClient.Setup(c => c.SendTaskAsync(
                 It.IsAny<string>(),
+                It.IsAny<string?>(),
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
                 It.IsAny<CancellationToken>()))

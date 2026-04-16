@@ -40,7 +40,7 @@ public abstract class AgentCapabilityBase : IAgentCapability
             var cost = 0m;
             var fileChanges = new List<string>();
 
-            await foreach (var evt in context.SidecarClient.SendTaskAsync(taskPrompt, systemPrompt, context.SessionId, ct))
+            await foreach (var evt in context.SidecarClient.SendTaskAsync(taskPrompt, systemPrompt, context.SessionId, null, ct))
             {
                 switch (evt)
                 {

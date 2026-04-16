@@ -79,6 +79,10 @@ public sealed class PromptTemplateService : IPromptTemplateService, IDisposable
         return result;
     }
 
+    // Full implementation in section-06-sidecar-prompt-extensions
+    public Task<string> RenderRawAsync(string templateContent, Dictionary<string, object> variables)
+        => throw new NotImplementedException("RenderRawAsync implemented in section-06");
+
     public string[] ListTemplates(string agentName)
     {
         ValidatePathSegment(agentName, nameof(agentName));

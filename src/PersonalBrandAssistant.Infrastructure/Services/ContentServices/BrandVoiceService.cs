@@ -203,7 +203,7 @@ public sealed partial class BrandVoiceService : IBrandVoiceService
         try
         {
             var textParts = new List<string>();
-            await foreach (var evt in _sidecar.SendTaskAsync(prompt, null, null, ct))
+            await foreach (var evt in _sidecar.SendTaskAsync(prompt, null, null, null, ct))
             {
                 switch (evt)
                 {

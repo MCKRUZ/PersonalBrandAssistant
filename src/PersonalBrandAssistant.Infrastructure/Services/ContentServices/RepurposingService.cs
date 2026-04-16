@@ -222,7 +222,7 @@ public sealed class RepurposingService : IRepurposingService
     {
         var textBuilder = new StringBuilder();
 
-        await foreach (var evt in _sidecarClient.SendTaskAsync(prompt, null, null, ct))
+        await foreach (var evt in _sidecarClient.SendTaskAsync(prompt, null, null, null, ct))
         {
             switch (evt)
             {

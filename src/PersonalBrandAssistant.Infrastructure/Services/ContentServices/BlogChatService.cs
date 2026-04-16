@@ -94,7 +94,7 @@ public class BlogChatService : IBlogChatService
         var eventCount = 0;
         var filteredCount = 0;
 
-        await foreach (var evt in _sidecar.SendTaskAsync(task, _systemPrompt, null, ct))
+        await foreach (var evt in _sidecar.SendTaskAsync(task, _systemPrompt, null, null, ct))
         {
             eventCount++;
 
@@ -168,7 +168,7 @@ public class BlogChatService : IBlogChatService
                     await _sidecar.ConnectAsync(ct);
 
                 var responseSb = new StringBuilder();
-                await foreach (var evt in _sidecar.SendTaskAsync(finalizationTask, finalizationSystemPrompt, null, ct))
+                await foreach (var evt in _sidecar.SendTaskAsync(finalizationTask, finalizationSystemPrompt, null, null, ct))
                 {
                     if (evt is ChatEvent chatEvt && chatEvt.Text is not null
                         && !ToolEventTypes.Contains(chatEvt.EventType))
@@ -262,7 +262,7 @@ public class BlogChatService : IBlogChatService
 
             var sb = new StringBuilder();
             var summarizeSystemPrompt = "You are a conversation summarizer. Be concise. Do NOT use any tools.";
-            await foreach (var evt in _sidecar.SendTaskAsync(task, summarizeSystemPrompt, null, ct))
+            await foreach (var evt in _sidecar.SendTaskAsync(task, summarizeSystemPrompt, null, null, ct))
             {
                 if (evt is ChatEvent chatEvt && chatEvt.Text is not null)
                     sb.Append(chatEvt.Text);

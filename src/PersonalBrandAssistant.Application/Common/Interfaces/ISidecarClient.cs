@@ -8,7 +8,7 @@ public interface ISidecarClient
 
     Task<SidecarSession> NewSessionAsync(CancellationToken ct);
 
-    IAsyncEnumerable<SidecarEvent> SendTaskAsync(string task, string? systemPrompt, string? sessionId, CancellationToken ct);
+    IAsyncEnumerable<SidecarEvent> SendTaskAsync(string task, string? systemPrompt, string? sessionId, string? modelId, CancellationToken ct);
 
     Task AbortAsync(string? sessionId, CancellationToken ct);
 

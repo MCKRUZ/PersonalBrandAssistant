@@ -47,7 +47,7 @@ public sealed class ImagePromptService : IImagePromptService
         var task = $"Generate a FLUX image prompt for the following content:\n\n{postContent}";
         var sb = new StringBuilder();
 
-        await foreach (var evt in _sidecarClient.SendTaskAsync(task, SystemPrompt, null, ct))
+        await foreach (var evt in _sidecarClient.SendTaskAsync(task, SystemPrompt, null, null, ct))
         {
             switch (evt)
             {

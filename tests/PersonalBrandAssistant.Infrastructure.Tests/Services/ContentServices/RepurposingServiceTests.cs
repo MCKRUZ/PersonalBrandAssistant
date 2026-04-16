@@ -47,7 +47,7 @@ public class RepurposingServiceTests
     private void SetupSidecarResponse(string text)
     {
         _sidecarClient
-            .Setup(s => s.SendTaskAsync(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .Setup(s => s.SendTaskAsync(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .Returns(ToAsyncEnumerable(
                 new ChatEvent("text", text, null, null),
                 new TaskCompleteEvent("session", 100, 50)));

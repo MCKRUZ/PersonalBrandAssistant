@@ -62,6 +62,7 @@ public class ConversationWindowingTests
         var callCount = 0;
         _mockSidecar.Setup(s => s.SendTaskAsync(
                 It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<string?>(),
+                It.IsAny<string?>(),
                 It.IsAny<CancellationToken>()))
             .Returns(() =>
             {
@@ -99,9 +100,10 @@ public class ConversationWindowingTests
         string? capturedTask = null;
         _mockSidecar.Setup(s => s.SendTaskAsync(
                 It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<string?>(),
+                It.IsAny<string?>(),
                 It.IsAny<CancellationToken>()))
-            .Callback<string, string?, string?, CancellationToken>(
-                (task, _, _, _) => capturedTask = task)
+            .Callback<string, string?, string?, string?, CancellationToken>(
+                (task, _, _, _, _) => capturedTask = task)
             .Returns(ToSidecarEvents("Response"));
 
         await foreach (var _ in sut.SendMessageAsync(content.Id, "Continue writing", default)) { }

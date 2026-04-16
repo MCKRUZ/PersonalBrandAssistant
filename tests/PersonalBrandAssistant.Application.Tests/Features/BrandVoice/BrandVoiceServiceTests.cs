@@ -69,7 +69,7 @@ public class BrandVoiceServiceTests
     private void SetupSidecarResponse(string jsonResponse)
     {
         _sidecar.Setup(s => s.SendTaskAsync(
-                It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+                It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .Returns(CreateAsyncEnumerable(
                 new ChatEvent("text", jsonResponse, null, null),
                 new TaskCompleteEvent("session-1", 100, 50)));
@@ -251,7 +251,7 @@ public class BrandVoiceServiceTests
 
         _sidecar.Verify(s => s.SendTaskAsync(
             It.Is<string>(p => p.Contains("AI content") && p.Contains("professional")),
-            It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Once);
+            It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     // --- ValidateAndGateAsync ---
@@ -278,7 +278,7 @@ public class BrandVoiceServiceTests
 
         var callCount = 0;
         _sidecar.Setup(s => s.SendTaskAsync(
-                It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+                It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .Returns(() =>
             {
                 callCount++;

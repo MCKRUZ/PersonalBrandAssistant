@@ -84,8 +84,12 @@ public sealed class SidecarClient : ISidecarClient, IDisposable
         string task,
         string? systemPrompt,
         string? sessionId,
+        string? modelId,
         [EnumeratorCancellation] CancellationToken ct)
     {
+        if (modelId is not null)
+            _logger.LogWarning("modelId '{ModelId}' provided but not yet wired to sidecar protocol", modelId);
+
         if (_ws is null || _ws.State != WebSocketState.Open)
             throw new InvalidOperationException("Not connected to sidecar");
 

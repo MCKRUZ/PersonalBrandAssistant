@@ -262,7 +262,7 @@ public sealed class ContentPipeline : IContentPipeline
         string? filePath = null;
         int inputTokens = 0, outputTokens = 0;
 
-        await foreach (var evt in _sidecarClient.SendTaskAsync(prompt, systemPrompt, null, ct))
+        await foreach (var evt in _sidecarClient.SendTaskAsync(prompt, systemPrompt, null, null, ct))
         {
             switch (evt)
             {

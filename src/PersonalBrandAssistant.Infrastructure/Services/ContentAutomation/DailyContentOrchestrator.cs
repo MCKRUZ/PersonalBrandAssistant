@@ -316,7 +316,7 @@ public sealed class DailyContentOrchestrator : IDailyContentOrchestrator
         string task, string? systemPrompt, CancellationToken ct)
     {
         var sb = new StringBuilder();
-        await foreach (var evt in _sidecarClient.SendTaskAsync(task, systemPrompt, null, ct))
+        await foreach (var evt in _sidecarClient.SendTaskAsync(task, systemPrompt, null, null, ct))
         {
             switch (evt)
             {

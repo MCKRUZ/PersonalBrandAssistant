@@ -143,6 +143,7 @@ public class WriterAgentCapabilityTests
                 It.IsAny<string>(),
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
+                It.IsAny<string?>(),
                 It.IsAny<CancellationToken>()))
             .Throws(new InvalidOperationException("Sidecar connection lost"));
 
@@ -186,6 +187,7 @@ public class WriterAgentCapabilityTests
     {
         _sidecarClient.Setup(c => c.SendTaskAsync(
                 It.IsAny<string>(),
+                It.IsAny<string?>(),
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
                 It.IsAny<CancellationToken>()))
