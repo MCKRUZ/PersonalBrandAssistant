@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using PersonalBrandAssistant.Application.Common.Interfaces;
 using PersonalBrandAssistant.Application.Common.Models.Skills;
+using PersonalBrandAssistant.Infrastructure.Agents;
 
 namespace PersonalBrandAssistant.Infrastructure.Skills;
 
@@ -55,8 +56,13 @@ public sealed class SkillRegistry : ISkillRegistry
 
         return _level2Cache.GetOrAdd(
             skillId,
-            _ => new Lazy<string>(
-                () => ExtractLevel2Body(entry.RawContent, entry.FilePath),
+            key => new Lazy<string>(
+                () =>
+                {
+                    using var activity = AgentTelemetry.Source.StartActivity("skill.load");
+                    activity?.SetTag("skill_id", key);
+                    return ExtractLevel2Body(entry.RawContent, entry.FilePath);
+                },
                 LazyThreadSafetyMode.ExecutionAndPublication)
         ).Value;
     }

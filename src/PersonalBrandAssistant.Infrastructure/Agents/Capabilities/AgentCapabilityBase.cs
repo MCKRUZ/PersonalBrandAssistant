@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text;
 using Microsoft.Extensions.Logging;
 using PersonalBrandAssistant.Application.Common.Errors;
@@ -27,6 +28,10 @@ public abstract class AgentCapabilityBase : IAgentCapability
 
     public async Task<Result<AgentOutput>> ExecuteAsync(AgentContext context, CancellationToken ct)
     {
+        using var activity = AgentTelemetry.Source.StartActivity($"agent.{AgentName}.execute");
+        activity?.SetTag("capability_type", Type.ToString());
+        activity?.SetTag("skill_id", SkillName);
+
         try
         {
             var templateName = context.Parameters.GetValueOrDefault("template", DefaultTemplate);
@@ -84,14 +89,17 @@ public abstract class AgentCapabilityBase : IAgentCapability
                     $"{Type} capability received empty response from sidecar");
             }
 
+            activity?.SetTag("cost_usd", cost);
             return BuildOutput(responseText, inputTokens, outputTokens, cacheReadTokens, cacheCreationTokens, cost, fileChanges);
         }
         catch (OperationCanceledException)
         {
+            activity?.SetStatus(ActivityStatusCode.Error, "cancelled");
             throw;
         }
         catch (Exception ex)
         {
+            activity?.SetStatus(ActivityStatusCode.Error, "agent execution failed");
             _logger.LogError(ex, "{Capability} failed during execution", Type);
             return Result<AgentOutput>.Failure(ErrorCode.InternalError,
                 $"{Type} capability encountered an unexpected error");
