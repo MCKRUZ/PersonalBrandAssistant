@@ -8,7 +8,7 @@ public static class BlogPipelineEndpoints
 {
     public static void MapBlogPipelineEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/blog-pipeline").WithTags("BlogPipeline").RequireAuthorization();
+        var group = app.MapGroup("/api/blog-pipeline").WithTags("BlogPipeline");
         group.MapGet("/", GetBlogPipeline);
         group.MapPut("/{contentId:guid}/advance", AdvanceStage);
         group.MapPut("/{contentId:guid}/stage", SetStage);
