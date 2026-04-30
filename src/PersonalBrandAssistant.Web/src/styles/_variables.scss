@@ -1,13 +1,52 @@
-$brand-primary: #3b82f6;
-$brand-secondary: #6366f1;
-$brand-accent: #8b5cf6;
+// Brand colors
+$brand-primary: #c87156;
+$brand-primary-hover: #d4836a;
+$brand-primary-active: #b5624a;
 
-$spacing-xs: 0.25rem;
-$spacing-sm: 0.5rem;
-$spacing-md: 1rem;
-$spacing-lg: 1.5rem;
-$spacing-xl: 2rem;
+// Surface palette (obsidian)
+$surface-base: #0e0e10;
+$surface-card: #141418;
+$surface-elevated: #1a1a20;
+$surface-hover: #22222a;
+$surface-border: #2c2c36;
+$surface-disabled: #3a3a46;
 
+// Text
+$text-primary: #f0f0f5;
+$text-secondary: #8a8a96;
+$text-muted: #5a5a66;
+
+// Status colors
+$status-draft: #5a5a66;
+$status-review: #c87156;
+$status-approved: #4ade80;
+$status-scheduled: #60a5fa;
+$status-published: #4ade80;
+$status-failed: #f87171;
+
+// Score thresholds
+$score-success: #4ade80;
+$score-warning: #fbbf24;
+$score-danger: #f87171;
+
+// Fonts
+$font-body: 'DM Sans', sans-serif;
+$font-display: 'DM Serif Display', serif;
+$font-mono: 'JetBrains Mono', monospace;
+
+// Spacing scale (4px base)
+$space-1: 4px;
+$space-2: 8px;
+$space-3: 12px;
+$space-4: 16px;
+$space-5: 20px;
+$space-6: 24px;
+$space-8: 32px;
+$space-10: 40px;
+$space-12: 48px;
+
+// Layout dimensions
 $sidebar-width: 250px;
 $sidebar-collapsed-width: 60px;
 $header-height: 60px;
+$sidecar-width: 380px;
