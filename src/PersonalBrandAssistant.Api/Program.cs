@@ -1,7 +1,9 @@
 using System.Text.Json.Serialization;
 using ModelContextProtocol;
+using Microsoft.AspNetCore.Authentication;
 using PersonalBrandAssistant.Api.Endpoints;
 using PersonalBrandAssistant.Api.Handlers;
+using PersonalBrandAssistant.Api.Hubs;
 using PersonalBrandAssistant.Api.Middleware;
 using PersonalBrandAssistant.Application;
 using OpenTelemetry.Trace;
@@ -64,6 +66,9 @@ else
                 tracing.AddOtlpExporter(o => o.Endpoint = new Uri(endpoint));
         });
 
+    builder.Services.AddAuthentication()
+        .AddScheme<AuthenticationSchemeOptions, HubTokenAuthHandler>(HubTokenAuthHandler.SchemeName, null);
+
     builder.Services.AddSignalR();
 
     builder.Services.AddCors(options =>
@@ -120,6 +125,8 @@ else
     app.MapBlogPipelineEndpoints();
     app.MapSettingsEndpoints();
     app.MapAuthEndpoints();
+
+    app.MapHub<SidecarHub>("/hubs/sidecar");
 
     app.Run();
 }
