@@ -1,0 +1,221 @@
+@use '../../../styles/variables' as *;
+
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.dashboard-content {
+  padding: $space-6 $space-8 $space-12;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: $space-6;
+}
+
+.breadcrumb {
+  font-size: 0.75rem;
+  color: $text-muted;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.page-title {
+  font-family: $font-display;
+  font-size: 1.75rem;
+  font-weight: 400;
+  color: $text-primary;
+  margin: $space-1 0 0;
+}
+
+.header-actions {
+  display: flex;
+  gap: $space-2;
+}
+
+.kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: $space-4;
+  margin-bottom: $space-6;
+}
+
+.dashboard-body {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: $space-6;
+}
+
+.card-section {
+  background: $surface-card;
+  border: 1px solid $surface-border;
+  border-radius: 8px;
+  padding: $space-4;
+  margin-bottom: $space-4;
+}
+
+.section-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: $text-primary;
+  margin: 0 0 $space-3;
+}
+
+.schedule-timeline {
+  display: flex;
+  flex-direction: column;
+
+  .slot {
+    display: flex;
+    align-items: center;
+    gap: $space-3;
+    padding: $space-3 $space-4;
+    border-left: 2px solid $surface-border;
+    cursor: pointer;
+    transition: background 150ms;
+
+    &:hover {
+      background: $surface-hover;
+    }
+
+    &.empty {
+      opacity: 0.5;
+    }
+  }
+
+  .slot-time {
+    font-family: $font-mono;
+    font-size: 0.75rem;
+    color: $text-secondary;
+    min-width: 48px;
+  }
+
+  .slot-title {
+    flex: 1;
+    font-size: 0.875rem;
+    color: $text-primary;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .slot-platform {
+    font-size: 0.7rem;
+    color: $text-muted;
+    text-transform: uppercase;
+  }
+
+  .slot-empty {
+    flex: 1;
+    font-size: 0.8rem;
+    color: $text-muted;
+    font-style: italic;
+  }
+
+  .slot-add-icon {
+    font-size: 0.7rem;
+    color: $text-muted;
+  }
+}
+
+.suggestion-item {
+  display: flex;
+  align-items: center;
+  gap: $space-3;
+  padding: $space-2 $space-3;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 150ms;
+
+  &:hover {
+    background: $surface-hover;
+  }
+
+  .suggestion-topic {
+    flex: 1;
+    font-size: 0.875rem;
+    color: $text-primary;
+  }
+
+  .suggestion-platform {
+    font-size: 0.7rem;
+    color: $brand-primary;
+    text-transform: uppercase;
+    font-weight: 500;
+  }
+
+  .suggestion-source {
+    font-size: 0.7rem;
+    color: $text-muted;
+  }
+}
+
+.recent-list {
+  .recent-item {
+    display: flex;
+    align-items: center;
+    gap: $space-3;
+    padding: $space-2 $space-3;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 150ms;
+
+    &:hover {
+      background: $surface-hover;
+    }
+  }
+
+  .item-title {
+    flex: 1;
+    font-size: 0.875rem;
+    color: $text-primary;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .item-platform {
+    font-size: 0.7rem;
+    color: $text-muted;
+    text-transform: uppercase;
+  }
+
+  .item-date {
+    font-size: 0.7rem;
+    color: $text-secondary;
+    min-width: 60px;
+    text-align: right;
+  }
+}
+
+.empty-state {
+  text-align: center;
+  padding: $space-6 $space-4;
+  color: $text-muted;
+  font-size: 0.875rem;
+
+  p {
+    margin: 0 0 $space-3;
+  }
+}
+
+.error-state {
+  text-align: center;
+  padding: $space-10 $space-4;
+  color: $status-failed;
+
+  i {
+    font-size: 2rem;
+    margin-bottom: $space-3;
+  }
+
+  p {
+    margin: 0 0 $space-4;
+    color: $text-secondary;
+  }
+}
