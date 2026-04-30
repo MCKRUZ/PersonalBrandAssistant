@@ -1,71 +1,27 @@
-import { Component, inject } from '@angular/core';
-import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
+import { Component, computed, inject } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { Router, RouterOutlet, NavigationEnd, ActivatedRoute } from '@angular/router';
+import { filter, map } from 'rxjs';
 import { Toast } from 'primeng/toast';
-import { ButtonModule } from 'primeng/button';
 import { UiStore } from './core/store/ui.store';
-import { NotificationBellComponent } from './shared/components/notification-bell/notification-bell.component';
+import { SidebarComponent } from './shell/sidebar/sidebar.component';
+import { TopbarComponent } from './shell/topbar/topbar.component';
 import { SidecarChatPanelComponent } from './features/sidecar/sidecar-chat-panel.component';
-
-interface NavItem {
-  label: string;
-  icon: string;
-  route: string;
-}
-
-interface NavGroup {
-  label: string;
-  items: NavItem[];
-}
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, Toast, ButtonModule, NotificationBellComponent, SidecarChatPanelComponent],
+  imports: [RouterOutlet, Toast, SidebarComponent, TopbarComponent, SidecarChatPanelComponent],
   template: `
     <p-toast />
     <div class="app-layout" [class.sidebar-collapsed]="uiStore.sidebarCollapsed()" [class.sidecar-open]="uiStore.sidecarOpen()">
-      <aside class="sidebar" role="navigation" aria-label="Main navigation">
-        <div class="sidebar-header">
-          <span class="logo">PBA</span>
-        </div>
-        <nav>
-          @for (group of navGroups; track group.label) {
-            <div class="nav-group">
-              <span class="nav-group-label">{{ group.label }}</span>
-              @for (item of group.items; track item.route) {
-                <a
-                  [routerLink]="item.route"
-                  routerLinkActive="active"
-                  class="nav-item"
-                >
-                  <i [class]="item.icon"></i>
-                  <span class="nav-label">{{ item.label }}</span>
-                </a>
-              }
-            </div>
-          }
-        </nav>
-      </aside>
+      <app-sidebar [collapsed]="uiStore.sidebarCollapsed()" (toggleCollapse)="uiStore.toggleSidebar()" />
       <div class="main-area">
-        <header class="top-bar">
-          <p-button
-            icon="pi pi-bars"
-            [text]="true"
-            (onClick)="uiStore.toggleSidebar()"
-            [attr.aria-label]="uiStore.sidebarCollapsed() ? 'Expand sidebar' : 'Collapse sidebar'"
-            [attr.aria-expanded]="!uiStore.sidebarCollapsed()"
-          />
-          <span class="app-title">Personal Brand Assistant</span>
-          <div class="flex-1"></div>
-          <app-notification-bell />
-          <p-button
-            [icon]="uiStore.sidecarOpen() ? 'pi pi-times' : 'pi pi-comment'"
-            [text]="true"
-            [severity]="uiStore.sidecarOpen() ? 'secondary' : 'help'"
-            (onClick)="uiStore.toggleSidecar()"
-            aria-label="Toggle Claude assistant"
-          ></p-button>
-        </header>
+        <app-topbar
+          [pageTitle]="pageTitle()"
+          [sidebarCollapsed]="uiStore.sidebarCollapsed()"
+          (toggleSidebar)="uiStore.toggleSidebar()"
+          (toggleSidecar)="uiStore.toggleSidecar()" />
         <main class="content">
           <router-outlet />
         </main>
@@ -81,37 +37,18 @@ interface NavGroup {
 })
 export class AppComponent {
   readonly uiStore = inject(UiStore);
+  private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
 
-  readonly navGroups: NavGroup[] = [
-    {
-      label: 'Create',
-      items: [
-        { label: 'Content', icon: 'pi pi-file', route: '/content' },
-        { label: 'Calendar', icon: 'pi pi-calendar', route: '/calendar' },
-      ],
-    },
-    {
-      label: 'Monitor',
-      items: [
-        { label: 'Dashboard', icon: 'pi pi-chart-bar', route: '/dashboard' },
-        { label: 'Blog Pipeline', icon: 'pi pi-arrows-h', route: '/blog-pipeline' },
-        { label: 'Analytics', icon: 'pi pi-chart-line', route: '/analytics' },
-        { label: 'News', icon: 'pi pi-globe', route: '/news' },
-      ],
-    },
-    {
-      label: 'Distribute',
-      items: [
-        { label: 'Social', icon: 'pi pi-users', route: '/social' },
-        { label: 'Platforms', icon: 'pi pi-share-alt', route: '/platforms' },
-      ],
-    },
-    {
-      label: 'System',
-      items: [
-        { label: 'Automation', icon: 'pi pi-bolt', route: '/automation' },
-        { label: 'Settings', icon: 'pi pi-cog', route: '/settings' },
-      ],
-    },
-  ];
+  private readonly navEnd$ = this.router.events.pipe(
+    filter((e): e is NavigationEnd => e instanceof NavigationEnd),
+    map(() => {
+      let r = this.route;
+      while (r.firstChild) r = r.firstChild;
+      return r.snapshot.data['title'] as string | undefined;
+    }),
+  );
+
+  private readonly routeTitle = toSignal(this.navEnd$, { initialValue: undefined });
+  pageTitle = computed(() => this.routeTitle() ?? 'Dashboard');
 }

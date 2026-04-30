@@ -4,73 +4,63 @@ export const routes: Routes = [
   { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
   {
     path: 'dashboard',
-    loadComponent: () =>
-      import('./features/dashboard/dashboard.component').then(
-        (m) => m.DashboardComponent
-      ),
-  },
-  {
-    path: 'news',
-    loadChildren: () =>
-      import('./features/news/news.routes').then(
-        (m) => m.NEWS_ROUTES
-      ),
+    loadComponent: () => import('./features/dashboard/dashboard.component').then(m => m.DashboardComponent),
+    data: { title: 'Dashboard', sidecarContext: 'dashboard' },
   },
   {
     path: 'content',
-    loadChildren: () =>
-      import('./features/content/content.routes').then(
-        (m) => m.CONTENT_ROUTES
-      ),
+    loadChildren: () => import('./features/content/content.routes').then(m => m.CONTENT_ROUTES),
+    data: { title: 'Content', sidecarContext: 'content-list' },
   },
   {
-    path: 'calendar',
-    loadChildren: () =>
-      import('./features/calendar/calendar.routes').then(
-        (m) => m.CALENDAR_ROUTES
-      ),
-  },
-  {
-    path: 'analytics',
-    loadChildren: () =>
-      import('./features/analytics/analytics.routes').then(
-        (m) => m.ANALYTICS_ROUTES
-      ),
-  },
-  {
-    path: 'platforms',
-    loadChildren: () =>
-      import('./features/platforms/platforms.routes').then(
-        (m) => m.PLATFORMS_ROUTES
-      ),
-  },
-  {
-    path: 'social',
-    loadChildren: () =>
-      import('./features/social/social.routes').then(
-        (m) => m.SOCIAL_ROUTES
-      ),
+    path: 'blog',
+    loadComponent: () => import('./features/blog/blog.component').then(m => m.BlogComponent),
+    data: { title: 'Blog', sidecarContext: 'blog-editor' },
   },
   {
     path: 'blog-pipeline',
-    loadChildren: () =>
-      import('./features/blog-pipeline/blog-pipeline.routes').then(
-        (m) => m.BLOG_PIPELINE_ROUTES
-      ),
+    redirectTo: 'blog',
+    pathMatch: 'full',
   },
   {
-    path: 'settings',
-    loadChildren: () =>
-      import('./features/settings/settings.routes').then(
-        (m) => m.SETTINGS_ROUTES
-      ),
+    path: 'calendar',
+    loadChildren: () => import('./features/calendar/calendar.routes').then(m => m.CALENDAR_ROUTES),
+    data: { title: 'Calendar', sidecarContext: 'calendar' },
+  },
+  {
+    path: 'approval-queue',
+    loadComponent: () => import('./features/approval-queue/approval-queue.component').then(m => m.ApprovalQueueComponent),
+    data: { title: 'Approval Queue', sidecarContext: 'approval-queue' },
+  },
+  {
+    path: 'social',
+    loadChildren: () => import('./features/social/social.routes').then(m => m.SOCIAL_ROUTES),
+    data: { title: 'Social', sidecarContext: 'social' },
+  },
+  {
+    path: 'platforms',
+    loadChildren: () => import('./features/platforms/platforms.routes').then(m => m.PLATFORMS_ROUTES),
+    data: { title: 'Platforms', sidecarContext: 'platforms' },
+  },
+  {
+    path: 'analytics',
+    loadChildren: () => import('./features/analytics/analytics.routes').then(m => m.ANALYTICS_ROUTES),
+    data: { title: 'Analytics', sidecarContext: 'analytics' },
+  },
+  {
+    path: 'news',
+    loadChildren: () => import('./features/news/news.routes').then(m => m.NEWS_ROUTES),
+    data: { title: 'News', sidecarContext: 'news' },
   },
   {
     path: 'automation',
-    loadChildren: () =>
-      import('./features/automation/automation.routes').then(
-        (m) => m.AUTOMATION_ROUTES
-      ),
+    loadChildren: () => import('./features/automation/automation.routes').then(m => m.AUTOMATION_ROUTES),
+    data: { title: 'Automation', sidecarContext: 'automation' },
+  },
+  {
+    path: 'settings',
+    loadChildren: () => import('./features/settings/settings.routes').then(m => m.SETTINGS_ROUTES),
+    data: { title: 'Settings', sidecarContext: 'settings' },
   },
   { path: '**', redirectTo: 'dashboard' },
 ];

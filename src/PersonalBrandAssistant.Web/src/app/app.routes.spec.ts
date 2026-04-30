@@ -56,8 +56,39 @@ describe('App Routes', () => {
     expect(location.path()).toBe('/settings');
   });
 
+  it('should navigate to /approval-queue', async () => {
+    const success = await router.navigateByUrl('/approval-queue');
+    expect(success).toBeTrue();
+    expect(location.path()).toBe('/approval-queue');
+  });
+
+  it('should navigate to /blog', async () => {
+    const success = await router.navigateByUrl('/blog');
+    expect(success).toBeTrue();
+    expect(location.path()).toBe('/blog');
+  });
+
+  it('should redirect /blog-pipeline to /blog', async () => {
+    await router.navigateByUrl('/blog-pipeline');
+    expect(location.path()).toBe('/blog');
+  });
+
   it('should redirect unknown paths to /dashboard', async () => {
     await router.navigateByUrl('/nonexistent');
     expect(location.path()).toBe('/dashboard');
+  });
+
+  it('should include route data with title', async () => {
+    await router.navigateByUrl('/settings');
+    let r = router.routerState.root;
+    while (r.firstChild) r = r.firstChild;
+    expect(r.snapshot.data['title']).toBeTruthy();
+  });
+
+  it('should include route data with sidecarContext', async () => {
+    await router.navigateByUrl('/dashboard');
+    let r = router.routerState.root;
+    while (r.firstChild) r = r.firstChild;
+    expect(r.snapshot.data['sidecarContext']).toBe('dashboard');
   });
 });
