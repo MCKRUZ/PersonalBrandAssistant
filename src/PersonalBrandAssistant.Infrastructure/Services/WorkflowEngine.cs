@@ -131,8 +131,8 @@ public class WorkflowEngine : IWorkflowEngine
 
         return content.CapturedAutonomyLevel switch
         {
-            AutonomyLevel.Autonomous => true,
-            AutonomyLevel.SemiAuto when content.ParentContentId is not null =>
+            AutonomyLevel.FullAuto => true,
+            AutonomyLevel.Draft when content.ParentContentId is not null =>
                 await IsParentPublishedOrApproved(content.ParentContentId.Value, ct),
             _ => false,
         };

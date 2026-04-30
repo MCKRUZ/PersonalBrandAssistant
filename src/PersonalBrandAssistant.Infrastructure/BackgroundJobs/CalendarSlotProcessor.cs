@@ -124,7 +124,7 @@ public class CalendarSlotProcessor : BackgroundService
         var autonomyConfig = await context.AutonomyConfigurations.FirstOrDefaultAsync(ct)
                              ?? AutonomyConfiguration.CreateDefault();
 
-        if (autonomyConfig.GlobalLevel == AutonomyLevel.Autonomous)
+        if (autonomyConfig.GlobalLevel == AutonomyLevel.FullAuto)
         {
             var fillResult = await calendarService.AutoFillSlotsAsync(now, windowEnd, ct);
 

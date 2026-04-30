@@ -14,7 +14,7 @@ public class ContentAutomationOptionsTests
         Assert.Equal("Eastern Standard Time", options.TimeZone);
         Assert.True(options.Enabled);
         Assert.Equal(5, options.TopTrendsToConsider);
-        Assert.Equal("SemiAuto", options.AutonomyLevel);
+        Assert.Equal("Draft", options.AutonomyLevel);
         Assert.Single(options.TargetPlatforms);
         Assert.Equal("LinkedIn", options.TargetPlatforms[0]);
     }

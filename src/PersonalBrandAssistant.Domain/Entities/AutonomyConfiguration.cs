@@ -11,9 +11,10 @@ public class AutonomyConfiguration : AuditableEntityBase
         Id = Guid.Empty;
     }
 
-    public AutonomyLevel GlobalLevel { get; set; } = AutonomyLevel.SemiAuto;
+    public AutonomyLevel GlobalLevel { get; set; } = AutonomyLevel.Draft;
     public bool AutoPublishEnabled { get; private set; }
     public bool RequireApprovalForSocial { get; private set; } = true;
+    public int AutoPublishThreshold { get; private set; } = 90;
     public int MaxAutoPostsPerDay { get; private set; } = 5;
     public string DefaultTone { get; private set; } = "Professional";
     public bool AutoScheduleEnabled { get; private set; }
@@ -29,7 +30,8 @@ public class AutonomyConfiguration : AuditableEntityBase
         bool requireApprovalForSocial,
         int maxAutoPostsPerDay,
         string defaultTone,
-        bool autoScheduleEnabled)
+        bool autoScheduleEnabled,
+        int? autoPublishThreshold = null)
     {
         GlobalLevel = globalLevel;
         AutoPublishEnabled = autoPublishEnabled;
@@ -37,6 +39,8 @@ public class AutonomyConfiguration : AuditableEntityBase
         MaxAutoPostsPerDay = maxAutoPostsPerDay;
         DefaultTone = defaultTone;
         AutoScheduleEnabled = autoScheduleEnabled;
+        if (autoPublishThreshold is not null)
+            AutoPublishThreshold = Math.Clamp(autoPublishThreshold.Value, 0, 100);
     }
 
     public AutonomyLevel ResolveLevel(ContentType type, PlatformType? platform)

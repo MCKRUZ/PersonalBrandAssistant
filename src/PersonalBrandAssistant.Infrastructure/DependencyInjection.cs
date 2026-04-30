@@ -109,6 +109,7 @@ public static class DependencyInjection
 
         // Content engine services
         services.AddScoped<IBrandVoiceService, BrandVoiceService>();
+        services.AddScoped<IAutoPublishGateService, AutoPublishGateService>();
         services.AddScoped<IContentPipeline, ContentPipeline>();
         services.AddScoped<IRepurposingService, RepurposingService>();
         services.AddScoped<IContentCalendarService, ContentCalendarService>();

@@ -83,7 +83,7 @@ public static class CalendarEndpoints
                        ?? AutonomyConfiguration.CreateDefault();
 
         if (autonomy.GlobalLevel == AutonomyLevel.Manual)
-            return Results.Problem(statusCode: 403, detail: "Operation requires SemiAuto or higher autonomy level.");
+            return Results.Problem(statusCode: 403, detail: "Operation requires Draft or higher autonomy level.");
 
         var result = await calendar.AutoFillSlotsAsync(from, to, ct);
         return result.ToHttpResult();

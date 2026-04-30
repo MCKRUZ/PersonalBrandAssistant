@@ -34,6 +34,7 @@ public sealed class GetAutonomySettingsQueryHandler
             config.RequireApprovalForSocial,
             config.MaxAutoPostsPerDay,
             config.DefaultTone,
-            config.AutoScheduleEnabled));
+            config.AutoScheduleEnabled,
+            config.AutoPublishThreshold));
     }
 }

@@ -60,7 +60,7 @@ public sealed class SocialEngagementService : ISocialEngagementService
     public async Task<Result<SafetyStatusDto>> GetSafetyStatusAsync(CancellationToken ct)
     {
         var autonomy = await _db.AutonomyConfigurations.FirstOrDefaultAsync(ct);
-        var autonomyLevel = autonomy?.GlobalLevel.ToString() ?? "SemiAuto";
+        var autonomyLevel = autonomy?.GlobalLevel.ToString() ?? "Draft";
 
         var enabledCount = await _db.EngagementTasks.CountAsync(t => t.IsEnabled, ct);
         var autoRespondCount = await _db.EngagementTasks.CountAsync(t => t.IsEnabled && t.AutoRespond, ct);

@@ -123,7 +123,7 @@ public static class TrendEndpoints
                        ?? AutonomyConfiguration.CreateDefault();
 
         if (autonomy.GlobalLevel == AutonomyLevel.Manual)
-            return Results.Problem(statusCode: 403, detail: "Trend refresh requires SemiAuto or higher autonomy level.");
+            return Results.Problem(statusCode: 403, detail: "Trend refresh requires Draft or higher autonomy level.");
 
         var result = await monitor.RefreshTrendsAsync(ct);
         if (!result.IsSuccess)

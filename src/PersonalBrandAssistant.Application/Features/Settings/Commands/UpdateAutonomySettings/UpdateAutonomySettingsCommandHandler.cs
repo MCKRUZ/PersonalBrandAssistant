@@ -35,7 +35,8 @@ public sealed class UpdateAutonomySettingsCommandHandler
             request.RequireApprovalForSocial,
             request.MaxAutoPostsPerDay,
             request.DefaultTone,
-            request.AutoScheduleEnabled);
+            request.AutoScheduleEnabled,
+            request.AutoPublishThreshold);
 
         await _dbContext.SaveChangesAsync(cancellationToken);
 
@@ -46,6 +47,7 @@ public sealed class UpdateAutonomySettingsCommandHandler
             config.RequireApprovalForSocial,
             config.MaxAutoPostsPerDay,
             config.DefaultTone,
-            config.AutoScheduleEnabled));
+            config.AutoScheduleEnabled,
+            config.AutoPublishThreshold));
     }
 }

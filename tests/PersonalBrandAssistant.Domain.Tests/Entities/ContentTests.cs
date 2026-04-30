@@ -96,8 +96,8 @@ public class ContentTests
     public void CapturedAutonomyLevel_SetViaCreate()
     {
         var content = Content.Create(ContentType.BlogPost, "Test",
-            capturedAutonomyLevel: AutonomyLevel.SemiAuto);
-        Assert.Equal(AutonomyLevel.SemiAuto, content.CapturedAutonomyLevel);
+            capturedAutonomyLevel: AutonomyLevel.Draft);
+        Assert.Equal(AutonomyLevel.Draft, content.CapturedAutonomyLevel);
     }
 
     [Fact]

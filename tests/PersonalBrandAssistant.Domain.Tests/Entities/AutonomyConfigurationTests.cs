@@ -17,11 +17,11 @@ public class AutonomyConfigurationTests
     public void ResolveLevel_ReturnsGlobalLevel_WhenNoOverridesExist()
     {
         var config = AutonomyConfiguration.CreateDefault();
-        config.GlobalLevel = AutonomyLevel.Assisted;
+        config.GlobalLevel = AutonomyLevel.Suggest;
 
         var result = config.ResolveLevel(ContentType.BlogPost, PlatformType.LinkedIn);
 
-        Assert.Equal(AutonomyLevel.Assisted, result);
+        Assert.Equal(AutonomyLevel.Suggest, result);
     }
 
     [Fact]
@@ -30,12 +30,12 @@ public class AutonomyConfigurationTests
         var config = AutonomyConfiguration.CreateDefault();
         config.ContentTypeOverrides =
         [
-            new ContentTypeOverride(ContentType.BlogPost, AutonomyLevel.SemiAuto),
+            new ContentTypeOverride(ContentType.BlogPost, AutonomyLevel.Draft),
         ];
 
         var result = config.ResolveLevel(ContentType.BlogPost, null);
 
-        Assert.Equal(AutonomyLevel.SemiAuto, result);
+        Assert.Equal(AutonomyLevel.Draft, result);
     }
 
     [Fact]
@@ -44,16 +44,16 @@ public class AutonomyConfigurationTests
         var config = AutonomyConfiguration.CreateDefault();
         config.ContentTypeOverrides =
         [
-            new ContentTypeOverride(ContentType.BlogPost, AutonomyLevel.SemiAuto),
+            new ContentTypeOverride(ContentType.BlogPost, AutonomyLevel.Draft),
         ];
         config.PlatformOverrides =
         [
-            new PlatformOverride(PlatformType.LinkedIn, AutonomyLevel.Autonomous),
+            new PlatformOverride(PlatformType.LinkedIn, AutonomyLevel.FullAuto),
         ];
 
         var result = config.ResolveLevel(ContentType.BlogPost, PlatformType.LinkedIn);
 
-        Assert.Equal(AutonomyLevel.Autonomous, result);
+        Assert.Equal(AutonomyLevel.FullAuto, result);
     }
 
     [Fact]
@@ -63,20 +63,20 @@ public class AutonomyConfigurationTests
         config.GlobalLevel = AutonomyLevel.Manual;
         config.ContentTypeOverrides =
         [
-            new ContentTypeOverride(ContentType.BlogPost, AutonomyLevel.Assisted),
+            new ContentTypeOverride(ContentType.BlogPost, AutonomyLevel.Suggest),
         ];
         config.PlatformOverrides =
         [
-            new PlatformOverride(PlatformType.LinkedIn, AutonomyLevel.SemiAuto),
+            new PlatformOverride(PlatformType.LinkedIn, AutonomyLevel.Draft),
         ];
         config.ContentTypePlatformOverrides =
         [
-            new ContentTypePlatformOverride(ContentType.BlogPost, PlatformType.LinkedIn, AutonomyLevel.Autonomous),
+            new ContentTypePlatformOverride(ContentType.BlogPost, PlatformType.LinkedIn, AutonomyLevel.FullAuto),
         ];
 
         var result = config.ResolveLevel(ContentType.BlogPost, PlatformType.LinkedIn);
 
-        Assert.Equal(AutonomyLevel.Autonomous, result);
+        Assert.Equal(AutonomyLevel.FullAuto, result);
     }
 
     [Fact]
@@ -86,49 +86,49 @@ public class AutonomyConfigurationTests
         config.GlobalLevel = AutonomyLevel.Manual;
         config.PlatformOverrides =
         [
-            new PlatformOverride(PlatformType.LinkedIn, AutonomyLevel.SemiAuto),
+            new PlatformOverride(PlatformType.LinkedIn, AutonomyLevel.Draft),
         ];
         config.ContentTypePlatformOverrides =
         [
-            new ContentTypePlatformOverride(ContentType.BlogPost, PlatformType.LinkedIn, AutonomyLevel.Autonomous),
+            new ContentTypePlatformOverride(ContentType.BlogPost, PlatformType.LinkedIn, AutonomyLevel.FullAuto),
         ];
 
         // SocialPost + LinkedIn: no CTP match, falls to Platform override
         var result = config.ResolveLevel(ContentType.SocialPost, PlatformType.LinkedIn);
 
-        Assert.Equal(AutonomyLevel.SemiAuto, result);
+        Assert.Equal(AutonomyLevel.Draft, result);
     }
 
     [Fact]
     public void ResolveLevel_FallsToGlobal_WhenNoPlatformProvided_AndNoContentTypeOverride()
     {
         var config = AutonomyConfiguration.CreateDefault();
-        config.GlobalLevel = AutonomyLevel.Assisted;
+        config.GlobalLevel = AutonomyLevel.Suggest;
         config.PlatformOverrides =
         [
-            new PlatformOverride(PlatformType.LinkedIn, AutonomyLevel.Autonomous),
+            new PlatformOverride(PlatformType.LinkedIn, AutonomyLevel.FullAuto),
         ];
 
         var result = config.ResolveLevel(ContentType.SocialPost, null);
 
-        Assert.Equal(AutonomyLevel.Assisted, result);
+        Assert.Equal(AutonomyLevel.Suggest, result);
     }
 
     [Fact]
     public void OverrideValueObjects_HaveValueEquality()
     {
-        var a = new ContentTypeOverride(ContentType.BlogPost, AutonomyLevel.SemiAuto);
-        var b = new ContentTypeOverride(ContentType.BlogPost, AutonomyLevel.SemiAuto);
+        var a = new ContentTypeOverride(ContentType.BlogPost, AutonomyLevel.Draft);
+        var b = new ContentTypeOverride(ContentType.BlogPost, AutonomyLevel.Draft);
 
         Assert.Equal(a, b);
 
-        var c = new PlatformOverride(PlatformType.LinkedIn, AutonomyLevel.Autonomous);
-        var d = new PlatformOverride(PlatformType.LinkedIn, AutonomyLevel.Autonomous);
+        var c = new PlatformOverride(PlatformType.LinkedIn, AutonomyLevel.FullAuto);
+        var d = new PlatformOverride(PlatformType.LinkedIn, AutonomyLevel.FullAuto);
 
         Assert.Equal(c, d);
 
-        var e = new ContentTypePlatformOverride(ContentType.BlogPost, PlatformType.LinkedIn, AutonomyLevel.SemiAuto);
-        var f = new ContentTypePlatformOverride(ContentType.BlogPost, PlatformType.LinkedIn, AutonomyLevel.SemiAuto);
+        var e = new ContentTypePlatformOverride(ContentType.BlogPost, PlatformType.LinkedIn, AutonomyLevel.Draft);
+        var f = new ContentTypePlatformOverride(ContentType.BlogPost, PlatformType.LinkedIn, AutonomyLevel.Draft);
 
         Assert.Equal(e, f);
     }

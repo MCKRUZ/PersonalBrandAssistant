@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MockQueryable.Moq;
@@ -155,7 +154,7 @@ public class BrandVoiceServiceTests
     // --- ScoreContentAsync ---
 
     [Fact]
-    public async Task ScoreContentAsync_ParsesJsonResponseIntoBrandVoiceScore()
+    public async Task ScoreContentAsync_ParsesJsonResponseWith4Axes()
     {
         var content = Content.Create(ContentType.SocialPost, "Great AI content");
         var profile = CreateProfile();
@@ -163,10 +162,10 @@ public class BrandVoiceServiceTests
 
         var json = JsonSerializer.Serialize(new
         {
-            overallScore = 85,
-            toneAlignment = 90,
-            vocabularyConsistency = 80,
-            personaFidelity = 85,
+            authoritative = 80,
+            pragmatic = 60,
+            concise = 100,
+            practitioner = 40,
             issues = new[] { "Minor tone shift" },
         });
         SetupSidecarResponse(json);
@@ -175,10 +174,11 @@ public class BrandVoiceServiceTests
         var result = await sut.ScoreContentAsync(content.Id, CancellationToken.None);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal(85, result.Value!.OverallScore);
-        Assert.Equal(90, result.Value.ToneAlignment);
-        Assert.Equal(80, result.Value.VocabularyConsistency);
-        Assert.Equal(85, result.Value.PersonaFidelity);
+        Assert.Equal(70, result.Value!.OverallScore); // (80+60+100+40)/4
+        Assert.Equal(80, result.Value.Authoritative);
+        Assert.Equal(60, result.Value.Pragmatic);
+        Assert.Equal(100, result.Value.Concise);
+        Assert.Equal(40, result.Value.Practitioner);
     }
 
     [Fact]
@@ -217,10 +217,10 @@ public class BrandVoiceServiceTests
 
         var json = JsonSerializer.Serialize(new
         {
-            overallScore = 85,
-            toneAlignment = 90,
-            vocabularyConsistency = 80,
-            personaFidelity = 85,
+            authoritative = 85,
+            pragmatic = 80,
+            concise = 90,
+            practitioner = 75,
             issues = Array.Empty<string>(),
         });
         SetupSidecarResponse(json);
@@ -232,7 +232,7 @@ public class BrandVoiceServiceTests
     }
 
     [Fact]
-    public async Task ScoreContentAsync_SendsPromptToSidecar()
+    public async Task ScoreContentAsync_PromptIncludes4AxisInstructions()
     {
         var content = Content.Create(ContentType.SocialPost, "AI content");
         var profile = CreateProfile();
@@ -240,8 +240,8 @@ public class BrandVoiceServiceTests
 
         var json = JsonSerializer.Serialize(new
         {
-            overallScore = 85, toneAlignment = 90,
-            vocabularyConsistency = 80, personaFidelity = 85,
+            authoritative = 85, pragmatic = 80,
+            concise = 90, practitioner = 75,
             issues = Array.Empty<string>(),
         });
         SetupSidecarResponse(json);
@@ -250,14 +250,18 @@ public class BrandVoiceServiceTests
         await sut.ScoreContentAsync(content.Id, CancellationToken.None);
 
         _sidecar.Verify(s => s.SendTaskAsync(
-            It.Is<string>(p => p.Contains("AI content") && p.Contains("professional")),
+            It.Is<string>(p =>
+                p.Contains("Authoritative") &&
+                p.Contains("Pragmatic") &&
+                p.Contains("Concise") &&
+                p.Contains("Practitioner")),
             It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     // --- ValidateAndGateAsync ---
 
     [Fact]
-    public async Task ValidateAndGateAsync_AutonomousAutoRegeneratesBelowThreshold()
+    public async Task ValidateAndGateAsync_FullAutoRegeneratesBelowThreshold()
     {
         var content = Content.Create(ContentType.SocialPost, "Bad content");
         var profile = CreateProfile();
@@ -265,14 +269,14 @@ public class BrandVoiceServiceTests
 
         var lowJson = JsonSerializer.Serialize(new
         {
-            overallScore = 50, toneAlignment = 50,
-            vocabularyConsistency = 50, personaFidelity = 50,
+            authoritative = 40, pragmatic = 40,
+            concise = 40, practitioner = 40,
             issues = Array.Empty<string>(),
         });
         var highJson = JsonSerializer.Serialize(new
         {
-            overallScore = 80, toneAlignment = 80,
-            vocabularyConsistency = 80, personaFidelity = 80,
+            authoritative = 80, pragmatic = 80,
+            concise = 80, practitioner = 80,
             issues = Array.Empty<string>(),
         });
 
@@ -292,14 +296,14 @@ public class BrandVoiceServiceTests
             .ReturnsAsync(Result<string>.Success("Regenerated"));
 
         var sut = CreateSut();
-        var result = await sut.ValidateAndGateAsync(content.Id, AutonomyLevel.Autonomous, CancellationToken.None);
+        var result = await sut.ValidateAndGateAsync(content.Id, AutonomyLevel.FullAuto, CancellationToken.None);
 
         Assert.True(result.IsSuccess);
         _pipeline.Verify(p => p.GenerateDraftAsync(content.Id, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
-    public async Task ValidateAndGateAsync_AutonomousFailsAfterMaxAttempts()
+    public async Task ValidateAndGateAsync_FullAutoFailsAfterMaxAttempts()
     {
         var content = Content.Create(ContentType.SocialPost, "Bad content");
         var profile = CreateProfile();
@@ -307,8 +311,8 @@ public class BrandVoiceServiceTests
 
         var lowJson = JsonSerializer.Serialize(new
         {
-            overallScore = 40, toneAlignment = 40,
-            vocabularyConsistency = 40, personaFidelity = 40,
+            authoritative = 30, pragmatic = 30,
+            concise = 30, practitioner = 30,
             issues = Array.Empty<string>(),
         });
         SetupSidecarResponse(lowJson);
@@ -319,7 +323,7 @@ public class BrandVoiceServiceTests
         _options.MaxAutoRegenerateAttempts = 3;
 
         var sut = CreateSut();
-        var result = await sut.ValidateAndGateAsync(content.Id, AutonomyLevel.Autonomous, CancellationToken.None);
+        var result = await sut.ValidateAndGateAsync(content.Id, AutonomyLevel.FullAuto, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ErrorCode.ValidationFailed, result.ErrorCode);
@@ -327,7 +331,7 @@ public class BrandVoiceServiceTests
     }
 
     [Fact]
-    public async Task ValidateAndGateAsync_SemiAutoReturnsAdvisoryScore()
+    public async Task ValidateAndGateAsync_DraftReturnsAdvisoryScore()
     {
         var content = Content.Create(ContentType.SocialPost, "Content");
         var profile = CreateProfile();
@@ -335,14 +339,14 @@ public class BrandVoiceServiceTests
 
         var lowJson = JsonSerializer.Serialize(new
         {
-            overallScore = 30, toneAlignment = 30,
-            vocabularyConsistency = 30, personaFidelity = 30,
+            authoritative = 20, pragmatic = 20,
+            concise = 20, practitioner = 20,
             issues = Array.Empty<string>(),
         });
         SetupSidecarResponse(lowJson);
 
         var sut = CreateSut();
-        var result = await sut.ValidateAndGateAsync(content.Id, AutonomyLevel.SemiAuto, CancellationToken.None);
+        var result = await sut.ValidateAndGateAsync(content.Id, AutonomyLevel.Draft, CancellationToken.None);
 
         Assert.True(result.IsSuccess);
         _pipeline.Verify(p => p.GenerateDraftAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
@@ -357,8 +361,8 @@ public class BrandVoiceServiceTests
 
         var lowJson = JsonSerializer.Serialize(new
         {
-            overallScore = 20, toneAlignment = 20,
-            vocabularyConsistency = 20, personaFidelity = 20,
+            authoritative = 15, pragmatic = 15,
+            concise = 15, practitioner = 15,
             issues = Array.Empty<string>(),
         });
         SetupSidecarResponse(lowJson);

@@ -289,7 +289,7 @@ public class ContentPipelineTests
     {
         var content = Content.Create(ContentType.BlogPost, "Some content");
         SetupContentsDbSet([content]);
-        var score = new BrandVoiceScore(85, 90, 80, 85, [], []);
+        var score = BrandVoiceScore.Create(90, 80, 85, 85, [], []);
         _brandVoiceService.Setup(s => s.ScoreContentAsync(content.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Result<BrandVoiceScore>.Success(score));
 
@@ -304,7 +304,7 @@ public class ContentPipelineTests
     {
         var content = Content.Create(ContentType.BlogPost, "Some content");
         SetupContentsDbSet([content]);
-        var score = new BrandVoiceScore(85, 90, 80, 85, [], []);
+        var score = BrandVoiceScore.Create(90, 80, 85, 85, [], []);
         _brandVoiceService.Setup(s => s.ScoreContentAsync(content.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Result<BrandVoiceScore>.Success(score));
 
@@ -351,7 +351,7 @@ public class ContentPipelineTests
     }
 
     [Fact]
-    public async Task SubmitForReviewAsync_AutonomousLevel_AutoApproves()
+    public async Task SubmitForReviewAsync_FullAutoLevel_AutoApproves()
     {
         var content = Content.Create(ContentType.BlogPost, "Content body");
         SetupContentsDbSet([content]);

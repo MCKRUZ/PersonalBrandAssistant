@@ -14,7 +14,7 @@ public class ValidateVoiceCommandHandlerTests
     public async Task Handle_ValidContentId_DelegatesToContentPipeline()
     {
         var contentId = Guid.NewGuid();
-        var score = new BrandVoiceScore(90, 85, 88, 92, [], []);
+        var score = BrandVoiceScore.Create(85, 88, 92, 90, [], []);
         _pipeline.Setup(p => p.ValidateVoiceAsync(contentId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Result<BrandVoiceScore>.Success(score));
 
@@ -22,7 +22,7 @@ public class ValidateVoiceCommandHandlerTests
         var result = await handler.Handle(new ValidateVoiceCommand(contentId), CancellationToken.None);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal(90, result.Value!.OverallScore);
+        Assert.Equal(88, result.Value!.OverallScore);
         _pipeline.Verify(p => p.ValidateVoiceAsync(contentId, It.IsAny<CancellationToken>()), Times.Once);
     }
 

@@ -91,7 +91,7 @@ public sealed class DailyContentOrchestrator : IDailyContentOrchestrator
             var parentBody = primaryContent!.Body;
 
             // Step 3: Platform-specific content generation
-            var isSemiAuto = string.Equals(options.AutonomyLevel, "SemiAuto", StringComparison.OrdinalIgnoreCase);
+            var isDraft = string.Equals(options.AutonomyLevel, "Draft", StringComparison.OrdinalIgnoreCase);
             var children = new List<(Guid ContentId, PlatformType Platform)>();
             var parsedPlatforms = new List<PlatformType>();
 
@@ -104,7 +104,7 @@ public sealed class DailyContentOrchestrator : IDailyContentOrchestrator
                 }
 
                 parsedPlatforms.Add(platform);
-                var autonomy = isSemiAuto ? AutonomyLevel.Manual : AutonomyLevel.Autonomous;
+                var autonomy = isDraft ? AutonomyLevel.Manual : AutonomyLevel.FullAuto;
                 var child = Content.Create(
                     primaryContent.ContentType, "", primaryContent.Title,
                     [platform], autonomy);
@@ -180,9 +180,9 @@ public sealed class DailyContentOrchestrator : IDailyContentOrchestrator
             {
                 await _contentPipeline.SubmitForReviewAsync(contentId, ct);
 
-                if (!isSemiAuto)
+                if (!isDraft)
                 {
-                    // Autonomous: transition to Scheduled for immediate publish
+                    // FullAuto: transition to Scheduled for immediate publish
                     await _workflowEngine.TransitionAsync(
                         contentId, ContentStatus.Scheduled,
                         "Auto-scheduled by automation pipeline", ActorType.System, ct);
@@ -198,7 +198,7 @@ public sealed class DailyContentOrchestrator : IDailyContentOrchestrator
             await _dbContext.SaveChangesAsync(ct);
 
             // Send notification
-            if (isSemiAuto)
+            if (isDraft)
             {
                 await _notificationService.SendAsync(
                     NotificationType.ContentReadyForReview,

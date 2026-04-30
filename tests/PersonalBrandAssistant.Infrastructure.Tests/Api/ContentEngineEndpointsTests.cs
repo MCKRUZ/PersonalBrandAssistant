@@ -220,7 +220,7 @@ public class ContentEngineEndpointsTests : IClassFixture<ContentEngineEndpointsT
     {
         var id = Guid.NewGuid();
         _brandVoice.Setup(b => b.ScoreContentAsync(id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Result.Success(new BrandVoiceScore(85, 80, 90, 85, [], [])));
+            .ReturnsAsync(Result.Success(BrandVoiceScore.Create(80, 90, 85, 85, [], [])));
 
         using var client = CreateAuthClient();
         var response = await client.GetAsync($"/api/brand-voice/score/{id}");

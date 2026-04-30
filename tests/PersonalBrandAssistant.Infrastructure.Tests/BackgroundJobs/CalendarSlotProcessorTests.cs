@@ -124,11 +124,11 @@ public class CalendarSlotProcessorTests
     }
 
     [Fact]
-    public async Task ProcessAsync_AutonomousLevel_TriggersAutoFill()
+    public async Task ProcessAsync_FullAutoLevel_TriggersAutoFill()
     {
         // Arrange
         var autonomy = AutonomyConfiguration.CreateDefault();
-        autonomy.GlobalLevel = AutonomyLevel.Autonomous;
+        autonomy.GlobalLevel = AutonomyLevel.FullAuto;
 
         SetupDbSets(series: [], autonomy: autonomy);
 

@@ -10,5 +10,6 @@ public sealed class UpdateAutonomySettingsCommandValidator
         RuleFor(x => x.GlobalLevel).IsInEnum();
         RuleFor(x => x.MaxAutoPostsPerDay).InclusiveBetween(0, 100);
         RuleFor(x => x.DefaultTone).NotEmpty().MaximumLength(50);
+        RuleFor(x => x.AutoPublishThreshold).InclusiveBetween(0, 100);
     }
 }

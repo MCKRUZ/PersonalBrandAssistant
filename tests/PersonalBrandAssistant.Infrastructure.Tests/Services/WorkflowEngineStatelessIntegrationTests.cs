@@ -24,7 +24,7 @@ public class WorkflowEngineStatelessIntegrationTests
     public void StateMachine_GuardClauses_AllowsTransitions()
     {
         var content = Content.Create(ContentType.BlogPost, "Test body",
-            capturedAutonomyLevel: AutonomyLevel.Autonomous);
+            capturedAutonomyLevel: AutonomyLevel.FullAuto);
         var machine = WorkflowEngine.BuildStateMachine(content);
 
         // Draft -> Review should be allowed

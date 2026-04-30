@@ -9,14 +9,16 @@ public sealed record AutonomySettingsResponse(
     bool RequireApprovalForSocial,
     int MaxAutoPostsPerDay,
     string DefaultTone,
-    bool AutoScheduleEnabled)
+    bool AutoScheduleEnabled,
+    int AutoPublishThreshold)
 {
     public static AutonomySettingsResponse Default => new(
         Guid.Empty,
-        AutonomyLevel.SemiAuto,
+        AutonomyLevel.Draft,
         AutoPublishEnabled: false,
         RequireApprovalForSocial: true,
         MaxAutoPostsPerDay: 5,
         DefaultTone: "Professional",
-        AutoScheduleEnabled: false);
+        AutoScheduleEnabled: false,
+        AutoPublishThreshold: 90);
 }

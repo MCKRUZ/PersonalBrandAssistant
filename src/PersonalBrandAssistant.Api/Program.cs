@@ -119,6 +119,7 @@ else
     app.MapBlogPublishEndpoints();
     app.MapBlogPipelineEndpoints();
     app.MapSettingsEndpoints();
+    app.MapAuthEndpoints();
 
     app.Run();
 }

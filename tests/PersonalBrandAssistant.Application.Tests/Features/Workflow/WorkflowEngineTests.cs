@@ -183,9 +183,9 @@ public class WorkflowEngineTests
     // -- Autonomy guard tests --
 
     [Fact]
-    public async Task TransitionAsync_Autonomous_AutoApprovesFromDraftToReview()
+    public async Task TransitionAsync_FullAuto_AutoApprovesFromDraftToReview()
     {
-        var content = CreateContentInState(ContentStatus.Draft, AutonomyLevel.Autonomous);
+        var content = CreateContentInState(ContentStatus.Draft, AutonomyLevel.FullAuto);
         SetupContents(content);
         var logs = new List<WorkflowTransitionLog>();
         var mockLogDbSet = logs.AsQueryable().BuildMockDbSet();
@@ -201,10 +201,10 @@ public class WorkflowEngineTests
     }
 
     [Fact]
-    public async Task TransitionAsync_SemiAuto_WithPublishedParent_AutoApproves()
+    public async Task TransitionAsync_Draft_WithPublishedParent_AutoApproves()
     {
         var parent = CreateContentInState(ContentStatus.Published);
-        var content = CreateContentInState(ContentStatus.Draft, AutonomyLevel.SemiAuto, parent.Id);
+        var content = CreateContentInState(ContentStatus.Draft, AutonomyLevel.Draft, parent.Id);
         SetupContents(content, parent);
         var logs = new List<WorkflowTransitionLog>();
         var mockLogDbSet = logs.AsQueryable().BuildMockDbSet();
@@ -219,9 +219,9 @@ public class WorkflowEngineTests
     }
 
     [Fact]
-    public async Task TransitionAsync_SemiAuto_WithoutParent_DoesNotAutoApprove()
+    public async Task TransitionAsync_Draft_WithoutParent_DoesNotAutoApprove()
     {
-        var content = CreateContentInState(ContentStatus.Draft, AutonomyLevel.SemiAuto);
+        var content = CreateContentInState(ContentStatus.Draft, AutonomyLevel.Draft);
         SetupContents(content);
         SetupTransitionLogs();
 
@@ -245,9 +245,9 @@ public class WorkflowEngineTests
     }
 
     [Fact]
-    public async Task TransitionAsync_Assisted_RequiresExplicitApproval()
+    public async Task TransitionAsync_Suggest_RequiresExplicitApproval()
     {
-        var content = CreateContentInState(ContentStatus.Draft, AutonomyLevel.Assisted);
+        var content = CreateContentInState(ContentStatus.Draft, AutonomyLevel.Suggest);
         SetupContents(content);
         SetupTransitionLogs();
 
@@ -323,9 +323,9 @@ public class WorkflowEngineTests
     // -- ShouldAutoApprove tests --
 
     [Fact]
-    public async Task ShouldAutoApproveAsync_Autonomous_ReturnsTrue()
+    public async Task ShouldAutoApproveAsync_FullAuto_ReturnsTrue()
     {
-        var content = CreateContentInState(ContentStatus.Review, AutonomyLevel.Autonomous);
+        var content = CreateContentInState(ContentStatus.Review, AutonomyLevel.FullAuto);
         SetupContents(content);
 
         var result = await _engine.ShouldAutoApproveAsync(content.Id);

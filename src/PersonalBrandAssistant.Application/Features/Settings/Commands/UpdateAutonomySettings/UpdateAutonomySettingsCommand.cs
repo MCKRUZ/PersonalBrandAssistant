@@ -10,4 +10,5 @@ public sealed record UpdateAutonomySettingsCommand(
     bool RequireApprovalForSocial,
     int MaxAutoPostsPerDay,
     string DefaultTone,
-    bool AutoScheduleEnabled) : IRequest<Result<AutonomySettingsResponse>>;
+    bool AutoScheduleEnabled,
+    int AutoPublishThreshold = 90) : IRequest<Result<AutonomySettingsResponse>>;
