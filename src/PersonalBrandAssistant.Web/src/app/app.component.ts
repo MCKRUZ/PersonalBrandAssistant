@@ -6,12 +6,12 @@ import { Toast } from 'primeng/toast';
 import { UiStore } from './core/store/ui.store';
 import { SidebarComponent } from './shell/sidebar/sidebar.component';
 import { TopbarComponent } from './shell/topbar/topbar.component';
-import { SidecarChatPanelComponent } from './features/sidecar/sidecar-chat-panel.component';
+import { SidecarComponent } from './shell/sidecar/sidecar.component';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, Toast, SidebarComponent, TopbarComponent, SidecarChatPanelComponent],
+  imports: [RouterOutlet, Toast, SidebarComponent, TopbarComponent, SidecarComponent],
   template: `
     <p-toast />
     <div class="app-layout" [class.sidebar-collapsed]="uiStore.sidebarCollapsed()" [class.sidecar-open]="uiStore.sidecarOpen()">
@@ -28,7 +28,7 @@ import { SidecarChatPanelComponent } from './features/sidecar/sidecar-chat-panel
       </div>
       @if (uiStore.sidecarOpen()) {
         <aside class="sidecar-panel">
-          <app-sidecar-chat-panel />
+          <app-sidecar />
         </aside>
       }
     </div>
