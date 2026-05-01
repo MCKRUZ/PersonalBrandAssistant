@@ -20,8 +20,9 @@ describe('PreviewTabComponent', () => {
 
   it('should truncate text exceeding maxLength', () => {
     const long = 'a'.repeat(200);
-    expect(component.truncate(long, 100).length).toBeLessThanOrEqual(103);
-    expect(component.truncate(long, 100).endsWith('...')).toBe(true);
+    const result = component.truncate(long, 100);
+    expect(result.length).toBe(111);
+    expect(result.endsWith('...see more')).toBe(true);
   });
 
   it('should not truncate text within maxLength', () => {

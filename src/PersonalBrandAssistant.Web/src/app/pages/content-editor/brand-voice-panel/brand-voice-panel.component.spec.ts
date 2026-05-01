@@ -28,7 +28,8 @@ describe('BrandVoicePanelComponent', () => {
     let emitted = false;
     component.scoreRequested.subscribe(() => (emitted = true));
 
-    const button = fixture.nativeElement.querySelector('p-button');
+    fixture.detectChanges();
+    const button = fixture.nativeElement.querySelector('p-button button');
     button?.click();
     fixture.detectChanges();
 

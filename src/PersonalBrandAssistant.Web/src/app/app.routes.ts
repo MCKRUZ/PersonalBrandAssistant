@@ -29,7 +29,7 @@ export const routes: Routes = [
   },
   {
     path: 'approval-queue',
-    loadComponent: () => import('./features/approval-queue/approval-queue.component').then(m => m.ApprovalQueueComponent),
+    loadComponent: () => import('./pages/approval-queue/approval-queue.component').then(m => m.ApprovalQueueComponent),
     data: { title: 'Approval Queue', sidecarContext: 'approval-queue' },
   },
   {

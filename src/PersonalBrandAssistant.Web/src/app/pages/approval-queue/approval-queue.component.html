@@ -1,0 +1,112 @@
+<div class="approval-content">
+  @if (store.isLoading()) {
+    <div class="loading-state">
+      @for (_ of [1,2,3]; track $index) {
+        <p-skeleton height="72px" styleClass="mb-3" />
+      }
+    </div>
+  } @else {
+    <div class="page-header">
+      <div class="header-left">
+        <h1 class="page-title">Approval Queue</h1>
+        <span class="pending-count">{{ store.pendingCount() }} pending</span>
+      </div>
+    </div>
+
+    <div class="filter-bar">
+      <p-chip
+        label="All"
+        [styleClass]="isActiveFilter(null) ? 'active-chip' : ''"
+        (click)="store.filterByPlatform(null)" />
+      @for (platform of platforms; track platform) {
+        <p-chip
+          [label]="platform"
+          [styleClass]="isActiveFilter(platform) ? 'active-chip' : ''"
+          (click)="store.filterByPlatform(platform)" />
+      }
+    </div>
+
+    @if (store.filteredItems().length === 0) {
+      <div class="empty-state">
+        <i class="pi pi-check-circle"></i>
+        <p>No items pending review</p>
+      </div>
+    } @else {
+      <div class="card-list">
+        @for (item of store.filteredItems(); track item.id) {
+          <div class="approval-card" [class.expanded]="expandedId() === item.id">
+            <div class="card-header" (click)="toggleExpand(item.id)">
+              <p-checkbox
+                [binary]="true"
+                [ngModel]="isSelected(item.id)"
+                (onChange)="store.toggleSelection(item.id)"
+                (click)="$event.stopPropagation()" />
+              <span class="card-title">{{ item.title || 'Untitled' }}</span>
+              <app-status-badge [status]="item.status" />
+              <span class="platform-label">{{ item.platform }}</span>
+              <span class="date">{{ item.createdAt | date:'short' }}</span>
+              <div class="quick-actions">
+                <p-button
+                  icon="pi pi-check"
+                  severity="success"
+                  [text]="true"
+                  [rounded]="true"
+                  (onClick)="onApprove(item.id, $event)" />
+                <p-button
+                  icon="pi pi-times"
+                  severity="danger"
+                  [text]="true"
+                  [rounded]="true"
+                  (onClick)="onRejectOpen(item.id, $event)" />
+              </div>
+              <i class="pi expand-icon" [class.pi-chevron-down]="expandedId() !== item.id" [class.pi-chevron-up]="expandedId() === item.id"></i>
+            </div>
+
+            @if (expandedId() === item.id) {
+              <div class="card-body">
+                <div class="preview-section">
+                  <p class="body-preview">{{ item.body }}</p>
+                </div>
+
+                <div class="reject-section">
+                  <textarea
+                    class="reject-textarea"
+                    [(ngModel)]="rejectFeedback"
+                    placeholder="Rejection feedback (required)..."
+                    rows="3"></textarea>
+                  <p-button
+                    label="Reject with Feedback"
+                    severity="danger"
+                    [outlined]="true"
+                    [disabled]="!rejectFeedback.trim()"
+                    (onClick)="onReject(item.id)" />
+                </div>
+              </div>
+            }
+          </div>
+        }
+      </div>
+    }
+
+    @if (store.hasSelection()) {
+      <div class="bulk-action-bar">
+        <span class="selection-count">{{ store.selectedCount() }} selected</span>
+        <div class="bulk-actions">
+          <p-button
+            label="Approve Selected"
+            icon="pi pi-check"
+            severity="success"
+            (onClick)="onBatchApprove()" />
+          <p-button
+            label="Select All"
+            [outlined]="true"
+            (onClick)="store.selectAll()" />
+          <p-button
+            label="Clear"
+            [text]="true"
+            (onClick)="store.clearSelection()" />
+        </div>
+      </div>
+    }
+  }
+</div>
