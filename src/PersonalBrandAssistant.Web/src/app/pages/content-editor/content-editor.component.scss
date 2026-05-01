@@ -1,0 +1,201 @@
+@use '../../../styles/variables' as *;
+
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.editor-content {
+  padding: $space-4 $space-6;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.loading-state {
+  padding: $space-8;
+}
+
+.editor-header {
+  display: flex;
+  align-items: center;
+  gap: $space-3;
+  padding-bottom: $space-4;
+  border-bottom: 1px solid $surface-border;
+  margin-bottom: $space-4;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: $space-2;
+  flex: 1;
+}
+
+.title-input {
+  flex: 1;
+  font-family: $font-display;
+  font-size: 1.25rem;
+  font-weight: 400;
+  color: $text-primary;
+  background: transparent;
+  border: none;
+  outline: none;
+  padding: $space-1 $space-2;
+  border-bottom: 1px solid transparent;
+  transition: border-color 150ms;
+
+  &:focus {
+    border-bottom-color: $brand-primary;
+  }
+
+  &::placeholder {
+    color: $text-muted;
+  }
+}
+
+.header-center {
+  display: flex;
+  align-items: center;
+  gap: $space-2;
+}
+
+.header-right {
+  margin-left: $space-3;
+}
+
+.save-indicator {
+  font-size: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: $space-1;
+  white-space: nowrap;
+
+  &.saving {
+    color: $text-secondary;
+  }
+
+  &.saved {
+    color: $score-success;
+  }
+
+  &.error {
+    color: $score-danger;
+  }
+}
+
+.editor-body {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: $space-4;
+  flex: 1;
+  min-height: 0;
+}
+
+.editor-main {
+  display: flex;
+  flex-direction: column;
+  gap: $space-3;
+  min-height: 0;
+}
+
+.editor-area {
+  position: relative;
+}
+
+.body-textarea {
+  width: 100%;
+  font-family: $font-body;
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  color: $text-primary;
+  resize: none;
+}
+
+.char-counter {
+  text-align: right;
+  font-family: $font-mono;
+  font-size: 0.75rem;
+  padding: $space-1 0;
+
+  &.within-limit {
+    color: $score-success;
+  }
+
+  &.near-limit {
+    color: $score-warning;
+  }
+
+  &.over-limit {
+    color: $status-failed;
+  }
+}
+
+.action-bar {
+  display: flex;
+  gap: $space-2;
+  padding: $space-2 0;
+  border-top: 1px solid $surface-border;
+  border-bottom: 1px solid $surface-border;
+}
+
+.tab-bar {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid $surface-border;
+}
+
+.tab-btn {
+  padding: $space-2 $space-4;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: $text-secondary;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: color 150ms, border-color 150ms;
+
+  &:hover {
+    color: $text-primary;
+  }
+
+  &.active {
+    color: $brand-primary;
+    border-bottom-color: $brand-primary;
+  }
+}
+
+.tab-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: $space-3 0;
+}
+
+.editor-sidebar {
+  border-left: 1px solid $surface-border;
+  padding-left: $space-4;
+  overflow-y: auto;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: $space-3;
+  color: $text-muted;
+
+  i {
+    font-size: 3rem;
+  }
+
+  p {
+    font-size: 0.875rem;
+    margin: 0;
+  }
+}
