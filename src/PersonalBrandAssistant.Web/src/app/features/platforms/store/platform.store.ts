@@ -1,5 +1,5 @@
 import { inject } from '@angular/core';
-import { signalStore, withState, withMethods, patchState } from '@ngrx/signals';
+import { signalStore, withState, withMethods, withHooks, patchState } from '@ngrx/signals';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { pipe, switchMap, tap } from 'rxjs';
 import { tapResponse } from '@ngrx/operators';
@@ -8,7 +8,6 @@ import { PlatformService } from '../services/platform.service';
 
 interface PlatformState {
   readonly platforms: readonly Platform[];
-  readonly selectedStatus?: Platform;
   readonly loading: boolean;
   readonly connecting: boolean;
 }
@@ -20,7 +19,6 @@ const initialState: PlatformState = {
 };
 
 export const PlatformStore = signalStore(
-  { providedIn: 'root' },
   withState(initialState),
   withMethods((store, platformService = inject(PlatformService)) => ({
     loadPlatforms: rxMethod<void>(
@@ -37,12 +35,14 @@ export const PlatformStore = signalStore(
       ),
     ),
 
-    loadStatus: rxMethod<PlatformType>(
+    disconnect: rxMethod<PlatformType>(
       pipe(
         switchMap(type =>
-          platformService.getStatus(type).pipe(
+          platformService.disconnect(type).pipe(
             tapResponse({
-              next: status => patchState(store, { selectedStatus: status }),
+              next: () => patchState(store, s => ({
+                platforms: s.platforms.filter(p => p.type !== type),
+              })),
               error: () => {},
             }),
           ),
@@ -54,4 +54,9 @@ export const PlatformStore = signalStore(
       patchState(store, { connecting });
     },
   })),
+  withHooks({
+    onInit(store) {
+      store.loadPlatforms();
+    },
+  }),
 );
