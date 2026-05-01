@@ -59,7 +59,7 @@ export const routes: Routes = [
   },
   {
     path: 'settings',
-    loadChildren: () => import('./features/settings/settings.routes').then(m => m.SETTINGS_ROUTES),
+    loadChildren: () => import('./pages/settings/settings.routes').then(m => m.SETTINGS_ROUTES),
     data: { title: 'Settings', sidecarContext: 'settings' },
   },
   { path: '**', redirectTo: 'dashboard' },
