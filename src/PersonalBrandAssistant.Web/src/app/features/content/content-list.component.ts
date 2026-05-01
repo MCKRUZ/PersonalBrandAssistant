@@ -1,10 +1,13 @@
-import { Component, computed, inject, OnInit, ViewChild } from '@angular/core';
+import { Component, inject, OnInit, signal, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
+import { debounceTime, distinctUntilChanged, skip } from 'rxjs';
 import { TableModule } from 'primeng/table';
 import { ButtonModule } from 'primeng/button';
 import { Select } from 'primeng/select';
+import { InputTextModule } from 'primeng/inputtext';
 import { Tag } from 'primeng/tag';
 import { PageHeaderComponent, PageAction } from '../../shared/components/page-header/page-header.component';
 import { EmptyStateComponent } from '../../shared/components/empty-state/empty-state.component';
@@ -17,14 +20,14 @@ import { Toast } from 'primeng/toast';
 import { ContentPipelineDialogComponent } from './components/content-pipeline-dialog.component';
 import { ContentStore } from './store/content.store';
 import { ContentService } from './services/content.service';
-import { ContentStatus, ContentType, Content } from '../../shared/models';
-import { PLATFORM_ICONS, PLATFORM_COLORS, PLATFORM_LABELS } from '../../shared/utils/platform-icons';
+import { Content, ContentStatus, ContentType, PlatformType } from '../../shared/models';
+import { PLATFORM_LABELS } from '../../shared/utils/platform-icons';
 
 @Component({
   selector: 'app-content-list',
   standalone: true,
   imports: [
-    CommonModule, FormsModule, TableModule, ButtonModule, Select, Tag, ConfirmDialog, Toast,
+    CommonModule, FormsModule, TableModule, ButtonModule, Select, InputTextModule, Tag, ConfirmDialog, Toast,
     PageHeaderComponent, EmptyStateComponent, LoadingSpinnerComponent,
     StatusBadgeComponent, RelativeTimePipe,
     ContentPipelineDialogComponent,
@@ -33,7 +36,7 @@ import { PLATFORM_ICONS, PLATFORM_COLORS, PLATFORM_LABELS } from '../../shared/u
     <app-content-pipeline-dialog #pipelineDialog (closed)="store.loadContent(store.filters())" />
     <app-page-header title="Content" [actions]="actions" />
 
-    <div class="flex gap-3 mb-3">
+    <div class="filter-bar">
       <p-select
         [(ngModel)]="statusFilter"
         [options]="statusOptions"
@@ -54,6 +57,20 @@ import { PLATFORM_ICONS, PLATFORM_COLORS, PLATFORM_LABELS } from '../../shared/u
         (onChange)="applyFilters()"
         styleClass="w-12rem"
       />
+      <p-select
+        [(ngModel)]="platformFilter"
+        [options]="platformOptions"
+        optionLabel="label"
+        optionValue="value"
+        placeholder="All Platforms"
+        [showClear]="true"
+        (onChange)="applyFilters()"
+        styleClass="w-12rem"
+      />
+      <span class="search-wrapper">
+        <i class="pi pi-search"></i>
+        <input pInputText [ngModel]="searchText()" (ngModelChange)="searchText.set($event)" placeholder="Search content..." class="search-input" />
+      </span>
     </div>
 
     @if (store.loading() && !store.hasContent()) {
@@ -61,39 +78,31 @@ import { PLATFORM_ICONS, PLATFORM_COLORS, PLATFORM_LABELS } from '../../shared/u
     } @else if (!store.hasContent()) {
       <app-empty-state message="No content yet. Create your first piece!" icon="pi pi-file" />
     } @else {
-      @for (group of groupedContent(); track group.platform) {
-        <div class="platform-group">
-          <div class="platform-group-header">
-            <i [class]="group.icon" [style.color]="group.color"></i>
-            <span>{{ group.label }}</span>
-            <span class="group-count">{{ group.items.length }}</span>
-          </div>
-          <p-table [value]="$any(group.items)" [rowHover]="true" styleClass="p-datatable-sm">
-            <ng-template #header>
-              <tr>
-                <th>Title</th>
-                <th>Type</th>
-                <th>Status</th>
-                <th>Created</th>
-                <th style="width: 6rem">Actions</th>
-              </tr>
-            </ng-template>
-            <ng-template #body let-item>
-              <tr class="cursor-pointer" (click)="viewContent(item)">
-                <td>{{ item.title || 'Untitled' }}</td>
-                <td><p-tag [value]="item.contentType" severity="info" /></td>
-                <td><app-status-badge [status]="item.status" /></td>
-                <td>{{ item.createdAt | relativeTime }}</td>
-                <td>
-                  <p-button icon="pi pi-eye" [text]="true" (onClick)="viewContent(item); $event.stopPropagation()" />
-                  <p-button icon="pi pi-pencil" [text]="true" (onClick)="editContent(item); $event.stopPropagation()" />
-                  <p-button icon="pi pi-trash" [text]="true" severity="danger" (onClick)="deleteContent(item); $event.stopPropagation()" />
-                </td>
-              </tr>
-            </ng-template>
-          </p-table>
-        </div>
-      }
+      <p-table [value]="$any(store.items())" [rowHover]="true" styleClass="p-datatable-sm">
+        <ng-template #header>
+          <tr>
+            <th>Title</th>
+            <th>Type</th>
+            <th>Platform</th>
+            <th>Status</th>
+            <th>Created</th>
+            <th style="width: 7rem">Actions</th>
+          </tr>
+        </ng-template>
+        <ng-template #body let-item>
+          <tr class="cursor-pointer" (click)="viewContent(item)">
+            <td>{{ item.title || 'Untitled' }}</td>
+            <td><p-tag [value]="item.contentType" severity="info" /></td>
+            <td>{{ getPlatformLabel(item.targetPlatforms?.[0]) }}</td>
+            <td><app-status-badge [status]="item.status" /></td>
+            <td>{{ item.createdAt | relativeTime }}</td>
+            <td>
+              <p-button icon="pi pi-pencil" [text]="true" (onClick)="editContent(item); $event.stopPropagation()" />
+              <p-button icon="pi pi-trash" [text]="true" severity="danger" (onClick)="deleteContent(item); $event.stopPropagation()" />
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
 
       @if (store.hasMore()) {
         <div class="flex justify-content-center mt-3">
@@ -106,25 +115,29 @@ import { PLATFORM_ICONS, PLATFORM_COLORS, PLATFORM_LABELS } from '../../shared/u
   `,
   styles: `
     .cursor-pointer { cursor: pointer; }
-    .platform-group { margin-bottom: 1.5rem; }
-    .platform-group-header {
+    .filter-bar {
       display: flex;
       align-items: center;
-      gap: 0.5rem;
-      font-size: 0.9rem;
-      font-weight: 700;
-      margin-bottom: 0.5rem;
-      padding: 0.5rem 0;
-      border-bottom: 2px solid var(--p-surface-700, #25252f);
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
     }
-    .platform-group-header i { font-size: 1.1rem; }
-    .group-count {
-      font-size: 0.75rem;
-      font-weight: 600;
-      background: var(--p-surface-700, #25252f);
-      padding: 0.1rem 0.5rem;
-      border-radius: 10px;
-      color: var(--p-text-muted-color, #71717a);
+    .search-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+      flex: 1;
+      min-width: 200px;
+    }
+    .search-wrapper i {
+      position: absolute;
+      left: 0.75rem;
+      color: var(--p-text-muted-color);
+      pointer-events: none;
+    }
+    .search-input {
+      width: 100%;
+      padding-left: 2.25rem;
     }
   `,
   providers: [ConfirmationService, MessageService],
@@ -140,6 +153,8 @@ export class ContentListComponent implements OnInit {
 
   statusFilter?: ContentStatus;
   typeFilter?: ContentType;
+  platformFilter?: PlatformType;
+  searchText = signal('');
 
   readonly actions: PageAction[] = [
     { label: 'New Content', icon: 'pi pi-plus', command: () => this.router.navigate(['/content/new']) },
@@ -163,31 +178,41 @@ export class ContentListComponent implements OnInit {
     { label: 'Video Description', value: 'VideoDescription' },
   ];
 
-  readonly groupedContent = computed(() => {
-    const items = this.store.items();
-    const groups = new Map<string, Content[]>();
+  readonly platformOptions = [
+    { label: 'Twitter/X', value: 'TwitterX' },
+    { label: 'LinkedIn', value: 'LinkedIn' },
+    { label: 'Instagram', value: 'Instagram' },
+    { label: 'YouTube', value: 'YouTube' },
+    { label: 'Reddit', value: 'Reddit' },
+    { label: 'Personal Blog', value: 'PersonalBlog' },
+    { label: 'Substack', value: 'Substack' },
+  ];
 
-    for (const item of items) {
-      const platform = item.targetPlatforms?.[0] ?? 'Other';
-      if (!groups.has(platform)) groups.set(platform, []);
-      groups.get(platform)!.push(item);
-    }
-
-    return [...groups.entries()].map(([platform, groupItems]) => ({
-      platform,
-      label: (PLATFORM_LABELS as Record<string, string>)[platform] ?? platform,
-      icon: (PLATFORM_ICONS as Record<string, string>)[platform] ?? 'pi pi-file',
-      color: (PLATFORM_COLORS as Record<string, string>)[platform] ?? '#888',
-      items: groupItems,
-    }));
-  });
+  constructor() {
+    toObservable(this.searchText).pipe(
+      skip(1),
+      debounceTime(300),
+      distinctUntilChanged(),
+      takeUntilDestroyed(),
+    ).subscribe(() => this.applyFilters());
+  }
 
   ngOnInit() {
     this.store.loadContent({});
   }
 
   applyFilters() {
-    this.store.loadContent({ status: this.statusFilter, contentType: this.typeFilter });
+    this.store.loadContent({
+      status: this.statusFilter,
+      contentType: this.typeFilter,
+      platform: this.platformFilter,
+      search: this.searchText() || undefined,
+    });
+  }
+
+  getPlatformLabel(platform?: string): string {
+    if (!platform) return '—';
+    return (PLATFORM_LABELS as Record<string, string>)[platform] ?? platform;
   }
 
   viewContent(item: Content) {
@@ -208,7 +233,7 @@ export class ContentListComponent implements OnInit {
         this.contentService.remove(item.id).subscribe({
           next: () => {
             this.messageService.add({ severity: 'success', summary: 'Deleted' });
-            this.store.loadContent({ status: this.statusFilter, contentType: this.typeFilter });
+            this.applyFilters();
           },
           error: () => {
             this.messageService.add({ severity: 'error', summary: 'Failed to delete content' });

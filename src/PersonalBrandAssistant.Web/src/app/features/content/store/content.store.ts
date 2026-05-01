@@ -3,12 +3,14 @@ import { signalStore, withState, withComputed, withMethods, patchState } from '@
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { pipe, switchMap, tap } from 'rxjs';
 import { tapResponse } from '@ngrx/operators';
-import { Content, ContentStatus, ContentType, BrandVoiceScore, WorkflowTransitionLog } from '../../../shared/models';
+import { Content, ContentStatus, ContentType, PlatformType, BrandVoiceScore, WorkflowTransitionLog } from '../../../shared/models';
 import { ContentService } from '../services/content.service';
 
 interface ContentFilters {
   readonly contentType?: ContentType;
   readonly status?: ContentStatus;
+  readonly platform?: PlatformType;
+  readonly search?: string;
 }
 
 interface ContentState {
