@@ -17,8 +17,9 @@ import { InboxListComponent } from './components/inbox-list.component';
   template: `
     <div class="social-hub">
       <div class="page-header">
+        <span class="breadcrumb">ENGAGEMENT</span>
         <h1>Social</h1>
-        <p class="text-secondary">Community engagement, publishing, and unified inbox</p>
+        <p class="subtitle">Community engagement, publishing, and unified inbox</p>
       </div>
 
       <p-tabs [value]="store.activeTab()" (valueChange)="onTabChange($any($event))">
@@ -54,20 +55,27 @@ import { InboxListComponent } from './components/inbox-list.component';
     </div>
   `,
   styles: [`
-    .social-hub {
-      padding: 1.5rem;
-    }
-    .page-header {
-      margin-bottom: 1.5rem;
+    .social-hub { padding: 24px 32px 60px; }
+    .page-header { margin-bottom: 1.5rem; }
+    .breadcrumb {
+      font-family: var(--font-mono, 'JetBrains Mono', monospace);
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 0.25rem;
+      display: block;
     }
     .page-header h1 {
       margin: 0 0 0.25rem 0;
       font-size: 1.5rem;
       font-weight: 600;
+      color: var(--text-color);
     }
-    .text-secondary {
+    .subtitle {
       color: var(--text-color-secondary);
       margin: 0;
+      font-size: 0.9rem;
     }
     .mr-2 { margin-right: 0.5rem; }
     .ml-2 { margin-left: 0.5rem; }

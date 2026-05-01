@@ -8,7 +8,6 @@ import { Card } from 'primeng/card';
 import { Dialog } from 'primeng/dialog';
 import { ConfirmDialog } from 'primeng/confirmdialog';
 import { Tooltip } from 'primeng/tooltip';
-import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { LoadingSpinnerComponent } from '../../shared/components/loading-spinner/loading-spinner.component';
 import { AutomationStore } from './store/automation.store';
 import { AutomationRun, AutomationRunStatus } from '../../shared/models';
@@ -18,11 +17,15 @@ import { AutomationRun, AutomationRunStatus } from '../../shared/models';
   standalone: true,
   imports: [
     CommonModule, DatePipe, TableModule, ButtonModule, Tag, Card, Dialog,
-    ConfirmDialog, Tooltip, PageHeaderComponent, LoadingSpinnerComponent,
+    ConfirmDialog, Tooltip, LoadingSpinnerComponent,
   ],
   providers: [ConfirmationService],
   template: `
-    <app-page-header title="Content Automation" />
+    <div class="auto-header">
+      <span class="breadcrumb">SETTINGS / AUTOMATION</span>
+      <h1 class="auto-title">Automation</h1>
+      <p class="auto-subtitle">Triggers, cron jobs, and conditional rules</p>
+    </div>
     <p-confirmDialog />
 
     @if (store.loading()) {
@@ -147,6 +150,29 @@ import { AutomationRun, AutomationRunStatus } from '../../shared/models';
       </p-dialog>
     }
   `,
+  styles: [`
+    .auto-header { margin-bottom: 1.5rem; }
+    .breadcrumb {
+      font-family: var(--font-mono, 'JetBrains Mono', monospace);
+      font-size: 11px;
+      color: var(--text-muted, var(--text-color-secondary));
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 0.25rem;
+      display: block;
+    }
+    .auto-title {
+      margin: 0 0 0.25rem 0;
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: var(--text-color);
+    }
+    .auto-subtitle {
+      color: var(--text-color-secondary);
+      margin: 0;
+      font-size: 0.9rem;
+    }
+  `],
 })
 export class AutomationDashboardComponent implements OnInit {
   readonly store = inject(AutomationStore);
