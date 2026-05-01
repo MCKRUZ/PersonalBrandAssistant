@@ -14,8 +14,23 @@ export const routes: Routes = [
   },
   {
     path: 'blog',
-    loadComponent: () => import('./features/blog/blog.component').then(m => m.BlogComponent),
-    data: { title: 'Blog', sidecarContext: 'blog-editor' },
+    children: [
+      {
+        path: '',
+        loadComponent: () => import('./features/blog/blog.component').then(m => m.BlogComponent),
+        data: { title: 'Blog Pipeline', sidecarContext: 'blog-pipeline' },
+      },
+      {
+        path: 'new',
+        loadComponent: () => import('./pages/blog/blog-editor.component').then(m => m.BlogEditorComponent),
+        data: { title: 'New Blog Post', sidecarContext: 'content-editor' },
+      },
+      {
+        path: ':id/edit',
+        loadComponent: () => import('./pages/blog/blog-editor.component').then(m => m.BlogEditorComponent),
+        data: { title: 'Edit Blog Post', sidecarContext: 'content-editor' },
+      },
+    ],
   },
   {
     path: 'blog-pipeline',

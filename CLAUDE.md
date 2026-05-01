@@ -41,7 +41,7 @@ Follow global rules in `~/.claude/rules/coding-style.md`:
 ## Nexus Intelligence
 
 *Auto-updated by Nexus — do not edit this section manually.*
-*Last sync: 2026-04-16*
+*Last sync: 2026-05-01*
 
 ### Portfolio
 | Project | Description | Tech |
@@ -52,9 +52,8 @@ Follow global rules in `~/.claude/rules/coding-style.md`:
 | ComfyUI | **ComfyUI** — the main local ComfyUI installation at E:/ComfyUI-Easy-Install/Co… | — |
 | matthewkruczek-ai | **matthewkruczek.ai** — static personal brand website for Matthew Kruczek (EY M… | — |
 | claude-code-mastery | **Claude Code Mastery** — the definitive Claude Code setup and configuration sk… | — |
-| ComfyUI Expert | **VideoAgent / ComfyUI Expert** — session-scoped Claude Code orchestrator that … | — |
 | Nexus | Nexus is a local-first cross-project intelligence layer for Claude Code. | — |
-| _+31 inactive_ | — | — |
+| _+32 inactive_ | — | — |
 
 ### Project Context
 #### Deployment: Local Docker on Furious
@@ -75,6 +74,14 @@ Follow global rules in `~/.claude/rules/coding-style.md`:
 *Tags: analytics, google-search-console, ga4, matthewkruczek-ai, seo, website-stats*
 
 ### Context from project-avatar
+#### Civitai API Key
+## Civitai API Key
+
+**Key:** `f3c2926aa7fcc3919915fd3a079b7f21`
+
+**Use:** Civitai model downloads via API (`https://civitai.com/api/download/models/{…
+*Tags: civitai, api-key, credentials, download, lora*
+
 #### VoiceBox TTS — Sage Voice Generation (Jennifer Garner Clone)
 ## VoiceBox TTS for Sage
 
