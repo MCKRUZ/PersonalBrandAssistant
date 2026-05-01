@@ -24,7 +24,7 @@ export const routes: Routes = [
   },
   {
     path: 'calendar',
-    loadChildren: () => import('./features/calendar/calendar.routes').then(m => m.CALENDAR_ROUTES),
+    loadComponent: () => import('./pages/calendar/calendar.component').then(m => m.CalendarComponent),
     data: { title: 'Calendar', sidecarContext: 'calendar' },
   },
   {
