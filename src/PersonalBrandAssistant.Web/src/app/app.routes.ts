@@ -44,7 +44,7 @@ export const routes: Routes = [
   },
   {
     path: 'analytics',
-    loadChildren: () => import('./features/analytics/analytics.routes').then(m => m.ANALYTICS_ROUTES),
+    loadComponent: () => import('./pages/analytics/analytics.component').then(m => m.AnalyticsComponent),
     data: { title: 'Analytics', sidecarContext: 'analytics' },
   },
   {
