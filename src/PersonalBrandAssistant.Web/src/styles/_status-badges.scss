@@ -1,0 +1,28 @@
+@use 'variables' as *;
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: $font-mono;
+  font-size: 11px;
+  text-transform: lowercase;
+  letter-spacing: 0.5px;
+
+  &::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+}
+
+.status-draft::before { background: $status-draft; }
+.status-review::before { background: $status-review; }
+.status-approved::before { background: $status-approved; }
+.status-scheduled::before { background: $status-scheduled; }
+.status-publishing::before { background: $status-scheduled; }
+.status-published::before { background: $status-published; }
+.status-failed::before { background: $status-failed; }
+.status-archived::before { background: $status-draft; }

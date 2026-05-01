@@ -125,7 +125,7 @@ public sealed class ArticleAnalyzer : IArticleAnalyzer
                 await _sidecar.ConnectAsync(ct);
 
             string? summaryText = null;
-            await foreach (var evt in _sidecar.SendTaskAsync(prompt, null, null, ct))
+            await foreach (var evt in _sidecar.SendTaskAsync(prompt, null, null, null, ct))
             {
                 switch (evt)
                 {

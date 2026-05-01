@@ -103,20 +103,11 @@ public sealed partial class BrandVoiceService : IBrandVoiceService
             return Result<BrandVoiceScore>.Failure(ErrorCode.ValidationFailed,
                 "Failed to parse brand voice score from LLM response");
 
-        if (dto.OverallScore is < 0 or > 100 ||
-            dto.ToneAlignment is < 0 or > 100 ||
-            dto.VocabularyConsistency is < 0 or > 100 ||
-            dto.PersonaFidelity is < 0 or > 100)
-        {
-            return Result<BrandVoiceScore>.Failure(ErrorCode.ValidationFailed,
-                "LLM returned score values outside valid 0-100 range");
-        }
-
-        var score = new BrandVoiceScore(
-            dto.OverallScore,
-            dto.ToneAlignment,
-            dto.VocabularyConsistency,
-            dto.PersonaFidelity,
+        var score = BrandVoiceScore.Create(
+            dto.Authoritative,
+            dto.Pragmatic,
+            dto.Concise,
+            dto.Practitioner,
             dto.Issues ?? [],
             ruleViolations);
 
@@ -134,7 +125,7 @@ public sealed partial class BrandVoiceService : IBrandVoiceService
         if (!scoreResult.IsSuccess)
             return Result<MediatR.Unit>.Failure(scoreResult.ErrorCode, scoreResult.Errors.ToArray());
 
-        if (autonomy != AutonomyLevel.Autonomous)
+        if (autonomy != AutonomyLevel.FullAuto)
             return Result<MediatR.Unit>.Success(MediatR.Unit.Value);
 
         var threshold = _options.BrandVoiceScoreThreshold;
@@ -190,8 +181,14 @@ public sealed partial class BrandVoiceService : IBrandVoiceService
             Content to evaluate:
             {{plainText}}
 
+            Score each of these 4 dimensions on a 0-100 scale:
+            - Authoritative: Does the content establish credibility and expertise?
+            - Pragmatic: Is the content practical and actionable?
+            - Concise: Is the content tight and free of filler?
+            - Practitioner: Does the content reflect real hands-on experience?
+
             Expected JSON schema:
-            {"overallScore": 0, "toneAlignment": 0, "vocabularyConsistency": 0, "personaFidelity": 0, "issues": []}
+            {"authoritative": 0, "pragmatic": 0, "concise": 0, "practitioner": 0, "issues": []}
 
             Each dimension is 0-100. "issues" is an array of strings describing specific concerns.
             """;
@@ -203,7 +200,7 @@ public sealed partial class BrandVoiceService : IBrandVoiceService
         try
         {
             var textParts = new List<string>();
-            await foreach (var evt in _sidecar.SendTaskAsync(prompt, null, null, ct))
+            await foreach (var evt in _sidecar.SendTaskAsync(prompt, null, null, null, ct))
             {
                 switch (evt)
                 {
@@ -258,17 +255,17 @@ public sealed partial class BrandVoiceService : IBrandVoiceService
 
     private sealed class BrandVoiceScoreDto
     {
-        [JsonPropertyName("overallScore")]
-        public int OverallScore { get; set; }
+        [JsonPropertyName("authoritative")]
+        public int Authoritative { get; set; }
 
-        [JsonPropertyName("toneAlignment")]
-        public int ToneAlignment { get; set; }
+        [JsonPropertyName("pragmatic")]
+        public int Pragmatic { get; set; }
 
-        [JsonPropertyName("vocabularyConsistency")]
-        public int VocabularyConsistency { get; set; }
+        [JsonPropertyName("concise")]
+        public int Concise { get; set; }
 
-        [JsonPropertyName("personaFidelity")]
-        public int PersonaFidelity { get; set; }
+        [JsonPropertyName("practitioner")]
+        public int Practitioner { get; set; }
 
         [JsonPropertyName("issues")]
         public List<string>? Issues { get; set; }

@@ -1,0 +1,67 @@
+<div class="calendar-page">
+  <header class="calendar-header">
+    <div class="header-left">
+      <h1>Calendar</h1>
+      <p-selectbutton
+        [options]="viewModeOptions"
+        [ngModel]="store.viewMode()"
+        (ngModelChange)="onViewModeChange($event)"
+        optionLabel="label"
+        optionValue="value"
+      />
+    </div>
+
+    <div class="header-center">
+      <p-button icon="pi pi-chevron-left" [rounded]="true" [text]="true" (onClick)="onNavigate(-1)" />
+      <span class="date-label">{{ store.dateLabel() }}</span>
+      <p-button icon="pi pi-chevron-right" [rounded]="true" [text]="true" (onClick)="onNavigate(1)" />
+    </div>
+
+    <div class="header-right">
+      <p-button label="New Series" icon="pi pi-list" severity="secondary" (onClick)="createSeriesDialog()?.open()" />
+      <p-button label="New Slot" icon="pi pi-plus" severity="secondary" (onClick)="createSlotDialog()?.open()" />
+      <p-button label="Auto-Fill" icon="pi pi-sparkles" (onClick)="onAutoFill()" />
+    </div>
+  </header>
+
+  <div class="platform-filters">
+    <button
+      class="filter-chip"
+      [class.active]="isActiveFilter(null)"
+      (click)="store.filterByPlatform(null)"
+    >All</button>
+    @for (platform of platforms; track platform) {
+      <button
+        class="filter-chip"
+        [class.active]="isActiveFilter(platform)"
+        (click)="store.filterByPlatform(platform)"
+      >{{ platform }}</button>
+    }
+  </div>
+
+  <div class="calendar-grid-area">
+    @if (store.loading()) {
+      <p-skeleton height="400px" />
+    } @else {
+      @if (store.viewMode() === 'week') {
+        <app-calendar-week-grid
+          [dateRange]="store.dateRange()"
+          [slotsByDate]="store.slotsByDate()"
+          (slotClicked)="onSlotClicked($event)"
+          (emptySlotClicked)="onEmptySlotClicked($event)"
+        />
+      } @else {
+        <app-calendar-month-grid
+          [dateRange]="store.dateRange()"
+          [slotsByDate]="store.slotsByDate()"
+          (slotClicked)="onSlotClicked($event)"
+          (dayClicked)="onEmptySlotClicked($event)"
+        />
+      }
+    }
+  </div>
+</div>
+
+<app-slot-detail-dialog (assigned)="onContentAssigned()" />
+<app-create-slot-dialog (created)="onSlotCreated()" />
+<app-create-series-dialog (created)="onSeriesCreated()" />

@@ -86,9 +86,9 @@ public sealed class SocialInboxService : ISocialInboxService
         }
 
         var response = new System.Text.StringBuilder();
-        await foreach (var evt in _sidecar.SendTaskAsync(prompt, null, null, ct))
+        await foreach (var evt in _sidecar.SendTaskAsync(prompt, null, null, null, ct))
         {
-            if (evt is ChatEvent { Text: not null } chat)
+            if (evt is ChatEvent { EventType: "summary", Text: not null } chat)
                 response.Append(chat.Text);
         }
 

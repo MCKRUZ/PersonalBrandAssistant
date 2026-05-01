@@ -1,7 +1,6 @@
 import { Component, inject, input, signal, computed, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Card } from 'primeng/card';
-import { Tag } from 'primeng/tag';
 import { ButtonModule } from 'primeng/button';
 import { BlogChatComponent } from '../blog-chat/blog-chat.component';
 import { SubstackPrepComponent } from '../substack-prep/substack-prep.component';
@@ -22,7 +21,7 @@ interface StepDef {
   selector: 'app-blog-workflow',
   standalone: true,
   imports: [
-    CommonModule, Card, Tag, ButtonModule,
+    CommonModule, Card, ButtonModule,
     BlogChatComponent, SubstackPrepComponent, BlogPublishComponent,
   ],
   template: `

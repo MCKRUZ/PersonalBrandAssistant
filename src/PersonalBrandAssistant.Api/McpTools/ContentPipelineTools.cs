@@ -41,7 +41,7 @@ public static class ContentPipelineTools
 
         var autonomy = await dbContext.AutonomyConfigurations
             .FirstOrDefaultAsync(ct);
-        var level = autonomy?.GlobalLevel ?? AutonomyLevel.SemiAuto;
+        var level = autonomy?.GlobalLevel ?? AutonomyLevel.Draft;
 
         var request = new ContentCreationRequest(contentTypeEnum, topic, null, [platformEnum], null, null);
         var result = await pipeline.CreateFromTopicAsync(request, ct);
@@ -49,7 +49,7 @@ public static class ContentPipelineTools
         if (!result.IsSuccess)
             return Error(string.Join("; ", result.Errors));
 
-        var status = level is AutonomyLevel.Manual or AutonomyLevel.Assisted
+        var status = level is AutonomyLevel.Manual or AutonomyLevel.Suggest
             ? "queued-for-approval"
             : "created";
 

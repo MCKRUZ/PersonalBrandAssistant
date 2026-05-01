@@ -1,0 +1,139 @@
+@use '../../../styles/variables' as *;
+
+.sidecar {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: $surface-card;
+  border-left: 1px solid $surface-border;
+}
+
+.sidecar-header {
+  padding: $space-3 $space-4;
+  border-bottom: 1px solid $surface-border;
+}
+
+.context-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: $text-secondary;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.quick-prompts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $space-2;
+  padding: $space-2 $space-3;
+  border-bottom: 1px solid $surface-border;
+}
+
+.conversation {
+  flex: 1;
+  overflow-y: auto;
+  padding: $space-3;
+  display: flex;
+  flex-direction: column;
+  gap: $space-3;
+}
+
+.message {
+  max-width: 90%;
+
+  &.user {
+    align-self: flex-end;
+
+    .message-text {
+      background: $brand-primary;
+      color: #fff;
+      border-radius: 12px 12px 4px 12px;
+    }
+  }
+
+  &.assistant {
+    align-self: flex-start;
+
+    .message-text {
+      background: $surface-hover;
+      color: $text-primary;
+      border-radius: 12px 12px 12px 4px;
+    }
+  }
+}
+
+.message-text {
+  padding: $space-2 $space-3;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.message-time {
+  font-size: 0.65rem;
+  color: $text-secondary;
+  margin-top: 2px;
+  padding: 0 $space-1;
+}
+
+.draft-card {
+  background: $surface-hover;
+  border: 1px solid $brand-primary;
+  border-radius: 8px;
+  padding: $space-3;
+
+  .draft-text {
+    font-size: 0.875rem;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    margin-bottom: $space-3;
+  }
+
+  .draft-actions {
+    display: flex;
+    gap: $space-2;
+  }
+}
+
+.status-banner {
+  display: flex;
+  align-items: center;
+  gap: $space-2;
+  padding: $space-2 $space-3;
+  font-size: 0.8rem;
+  font-weight: 500;
+
+  &.reconnecting {
+    background: rgba($score-warning, 0.15);
+    color: $score-warning;
+  }
+
+  &.disconnected {
+    background: rgba($status-failed, 0.15);
+    color: $status-failed;
+  }
+}
+
+.composer {
+  display: flex;
+  align-items: flex-end;
+  gap: $space-2;
+  padding: $space-2 $space-3;
+  border-top: 1px solid $surface-border;
+
+  textarea {
+    flex: 1;
+    resize: none;
+    font-size: 0.875rem;
+    min-height: 36px;
+    max-height: 120px;
+  }
+}
+
+.model-label {
+  text-align: center;
+  font-size: 0.65rem;
+  color: $text-secondary;
+  padding: 0 0 $space-2;
+}

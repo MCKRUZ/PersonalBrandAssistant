@@ -1,8 +1,8 @@
-// ─── News Hub: Dark OLED Luxury ─────────────────────────────────
-$accent: #8b5cf6;
-$accent-light: #a78bfa;
-$accent-glow: rgba(139, 92, 246, 0.35);
-$accent-dim: rgba(139, 92, 246, 0.1);
+// ─── News Hub: Obsidian / Terracotta ────────────────────────────
+$accent: #c87156;
+$accent-light: #d4917d;
+$accent-glow: rgba(200, 113, 86, 0.35);
+$accent-dim: rgba(200, 113, 86, 0.1);
 
 .news-hub {
   padding: 0 1.5rem 2rem;
@@ -26,7 +26,7 @@ $accent-dim: rgba(139, 92, 246, 0.1);
     padding: 0.35rem 0.9rem;
     border-radius: 2rem;
     background: $accent-dim;
-    border: 1px solid rgba(139, 92, 246, 0.3);
+    border: 1px solid rgba(200, 113, 86, 0.3);
     font-size: 0.7rem;
     font-weight: 700;
     letter-spacing: 0.12em;
@@ -121,10 +121,10 @@ $accent-dim: rgba(139, 92, 246, 0.1);
     transition: all 0.2s ease;
 
     &:hover {
-      border-color: rgba(139, 92, 246, 0.4);
+      border-color: rgba(200, 113, 86, 0.4);
       color: $accent-light;
       background: $accent-dim;
-      box-shadow: 0 0 16px rgba(139, 92, 246, 0.15);
+      box-shadow: 0 0 16px rgba(200, 113, 86, 0.15);
     }
   }
 }
@@ -159,7 +159,7 @@ $accent-dim: rgba(139, 92, 246, 0.1);
 
     .p-tablist-active-bar {
       background: $accent;
-      box-shadow: 0 2px 12px rgba(139, 92, 246, 0.4);
+      box-shadow: 0 2px 12px rgba(200, 113, 86, 0.4);
       height: 2.5px;
     }
 

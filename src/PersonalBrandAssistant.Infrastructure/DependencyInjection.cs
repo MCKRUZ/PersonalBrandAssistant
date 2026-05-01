@@ -10,8 +10,10 @@ using Microsoft.Extensions.Options;
 using Polly;
 using PersonalBrandAssistant.Application.Common.Interfaces;
 using PersonalBrandAssistant.Application.Common.Models;
+using PersonalBrandAssistant.Application.Common.Models.Skills;
 using PersonalBrandAssistant.Infrastructure.Agents;
 using PersonalBrandAssistant.Infrastructure.Agents.Capabilities;
+using PersonalBrandAssistant.Infrastructure.Skills;
 using PersonalBrandAssistant.Infrastructure.BackgroundJobs;
 using PersonalBrandAssistant.Infrastructure.Data;
 using PersonalBrandAssistant.Infrastructure.Data.Interceptors;
@@ -54,20 +56,24 @@ public static class DependencyInjection
         services.AddScoped<IApplicationDbContext>(sp =>
             sp.GetRequiredService<ApplicationDbContext>());
 
-        var dpBuilder = services.AddDataProtection()
-            .SetApplicationName("PersonalBrandAssistant");
-
-        var keyPath = configuration["DataProtection:KeyPath"];
-        if (!string.IsNullOrWhiteSpace(keyPath) && IsDirectoryWritable(keyPath))
-            dpBuilder.PersistKeysToFileSystem(new DirectoryInfo(keyPath));
-        // else: ephemeral (in-memory) keys — fine for dev/single-instance
+        services.AddDataProtection()
+            .SetApplicationName("PersonalBrandAssistant")
+            .PersistKeysToDbContext<ApplicationDbContext>();
 
         services.AddSingleton<IEncryptionService, EncryptionService>();
 
         // Agent orchestration
         services.Configure<AgentOrchestrationOptions>(
             configuration.GetSection(AgentOrchestrationOptions.SectionName));
-        services.AddSingleton<ISidecarClient, SidecarClient>();
+        services.Configure<SkillOptions>(configuration.GetSection(SkillOptions.SectionName));
+        services.Configure<ContextBudgetOptions>(configuration.GetSection(ContextBudgetOptions.SectionName));
+        services.AddSingleton<ISkillRegistry, SkillRegistry>();
+        // Concrete registration for decorator wiring only — never inject SidecarClient directly.
+        // All consumers should depend on ISidecarClient, which resolves to ObservabilityMiddleware.
+        services.AddSingleton<SidecarClient>();
+        services.AddSingleton<ISidecarClient>(sp =>
+            new ObservabilityMiddleware(sp.GetRequiredService<SidecarClient>()));
+        services.AddScoped<IContextBudgetTracker, ContextBudgetTracker>();
         services.AddSingleton<IPromptTemplateService>(sp =>
         {
             var opts = sp.GetRequiredService<IOptions<AgentOrchestrationOptions>>().Value;
@@ -94,6 +100,8 @@ public static class DependencyInjection
             configuration.GetSection(SidecarOptions.SectionName));
         services.Configure<ContentEngineOptions>(
             configuration.GetSection(ContentEngineOptions.SectionName));
+        services.Configure<BackgroundJobsOptions>(
+            configuration.GetSection(BackgroundJobsOptions.SectionName));
         services.Configure<TrendMonitoringOptions>(
             configuration.GetSection(TrendMonitoringOptions.SectionName));
         services.Configure<FirecrawlOptions>(
@@ -101,6 +109,7 @@ public static class DependencyInjection
 
         // Content engine services
         services.AddScoped<IBrandVoiceService, BrandVoiceService>();
+        services.AddScoped<IAutoPublishGateService, AutoPublishGateService>();
         services.AddScoped<IContentPipeline, ContentPipeline>();
         services.AddScoped<IRepurposingService, RepurposingService>();
         services.AddScoped<IContentCalendarService, ContentCalendarService>();
@@ -407,16 +416,4 @@ public static class DependencyInjection
         return services;
     }
 
-    private static bool IsDirectoryWritable(string path)
-    {
-        try
-        {
-            Directory.CreateDirectory(path);
-            var probe = System.IO.Path.Combine(path, ".write-test");
-            File.WriteAllText(probe, "");
-            File.Delete(probe);
-            return true;
-        }
-        catch { return false; }
-    }
 }

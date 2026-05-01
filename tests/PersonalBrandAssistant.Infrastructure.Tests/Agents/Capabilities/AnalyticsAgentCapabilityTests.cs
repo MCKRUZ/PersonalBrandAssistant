@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using PersonalBrandAssistant.Application.Common.Interfaces;
 using PersonalBrandAssistant.Application.Common.Models;
+using PersonalBrandAssistant.Application.Common.Models.Skills;
 using PersonalBrandAssistant.Domain.Enums;
 using PersonalBrandAssistant.Infrastructure.Agents.Capabilities;
 
@@ -10,15 +11,18 @@ namespace PersonalBrandAssistant.Infrastructure.Tests.Agents.Capabilities;
 
 public class AnalyticsAgentCapabilityTests
 {
+    private readonly Mock<ISkillRegistry> _skillRegistry;
     private readonly Mock<IPromptTemplateService> _promptService;
     private readonly Mock<ISidecarClient> _sidecarClient;
     private readonly AnalyticsAgentCapability _capability;
 
     public AnalyticsAgentCapabilityTests()
     {
+        _skillRegistry = new Mock<ISkillRegistry>();
         _promptService = new Mock<IPromptTemplateService>();
         _sidecarClient = new Mock<ISidecarClient>();
         _capability = new AnalyticsAgentCapability(
+            _skillRegistry.Object,
             new Mock<ILogger<AnalyticsAgentCapability>>().Object);
     }
 
@@ -72,7 +76,16 @@ public class AnalyticsAgentCapabilityTests
 
     private void SetupPrompts(string agent, string template)
     {
-        _promptService.Setup(p => p.RenderAsync(agent, "system", It.IsAny<Dictionary<string, object>>()))
+        var definition = new SkillDefinition
+        {
+            Id = agent, Name = agent, Description = "test",
+            Category = "test", SkillType = "test",
+            Tags = Array.Empty<string>(), AllowedTools = Array.Empty<string>(),
+            SchemaVersion = 1,
+        };
+        _skillRegistry.Setup(r => r.GetSkillById(agent)).Returns(definition);
+        _skillRegistry.Setup(r => r.LoadLevel2(agent)).Returns("Skill body {{ brand_voice_block }}");
+        _promptService.Setup(p => p.RenderRawAsync(It.IsAny<string>(), It.IsAny<Dictionary<string, object>>()))
             .ReturnsAsync("system prompt");
         _promptService.Setup(p => p.RenderAsync(agent, template, It.IsAny<Dictionary<string, object>>()))
             .ReturnsAsync("task prompt");
@@ -82,6 +95,7 @@ public class AnalyticsAgentCapabilityTests
     {
         _sidecarClient.Setup(c => c.SendTaskAsync(
                 It.IsAny<string>(),
+                It.IsAny<string?>(),
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
                 It.IsAny<CancellationToken>()))

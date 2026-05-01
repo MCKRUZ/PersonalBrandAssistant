@@ -1,3 +1,4 @@
+using System.Net.Http.Json;
 using System.Security.Cryptography;
 using System.Text;
 using MediatR;
@@ -22,6 +23,7 @@ public sealed class OAuthManager : IOAuthManager
     private readonly IEncryptionService _encryption;
     private readonly PlatformIntegrationOptions _options;
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IConfiguration _configuration;
     private readonly ILogger<OAuthManager> _logger;
     private readonly Dictionary<PlatformType, IOAuthPlatformStrategy> _strategies;
 
@@ -37,6 +39,7 @@ public sealed class OAuthManager : IOAuthManager
         _encryption = encryption;
         _options = options.Value;
         _httpClientFactory = httpClientFactory;
+        _configuration = configuration;
         _logger = logger;
         _strategies = new Dictionary<PlatformType, IOAuthPlatformStrategy>
         {
@@ -167,6 +170,10 @@ public sealed class OAuthManager : IOAuthManager
 
         if (platformEntity.EncryptedRefreshToken is null)
         {
+            // Reddit uses password grant — re-authenticate instead of refresh
+            if (platform == PlatformType.Reddit)
+                return await ReauthenticateRedditAsync(platformEntity, ct);
+
             return Result.Failure<OAuthTokens>(ErrorCode.ValidationFailed, "No refresh token available");
         }
 
@@ -271,5 +278,55 @@ public sealed class OAuthManager : IOAuthManager
     {
         var bytes = SHA256.HashData(Encoding.ASCII.GetBytes(codeVerifier));
         return Convert.ToBase64String(bytes).Replace("+", "-").Replace("/", "_").TrimEnd('=');
+    }
+
+    private async Task<Result<OAuthTokens>> ReauthenticateRedditAsync(
+        Platform platformEntity, CancellationToken ct)
+    {
+        var clientId = _configuration["PlatformIntegrations:Reddit:ClientId"];
+        var clientSecret = _configuration["PlatformIntegrations:Reddit:ClientSecret"];
+        var username = _configuration["PlatformIntegrations:Reddit:Username"];
+        var password = _configuration["PlatformIntegrations:Reddit:Password"];
+        var userAgent = _configuration["PlatformIntegrations:Reddit:UserAgent"] ?? "pba/1.0";
+
+        if (string.IsNullOrWhiteSpace(clientId) || string.IsNullOrWhiteSpace(username))
+            return Result.Failure<OAuthTokens>(ErrorCode.ValidationFailed, "Reddit credentials not configured");
+
+        using var http = _httpClientFactory.CreateClient("OAuth");
+        http.DefaultRequestHeaders.UserAgent.ParseAdd(userAgent);
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{clientId}:{clientSecret}"));
+        http.DefaultRequestHeaders.Authorization =
+            new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", credentials);
+
+        var response = await http.PostAsync(
+            "https://www.reddit.com/api/v1/access_token",
+            new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["grant_type"] = "password",
+                ["username"] = username!,
+                ["password"] = password!,
+            }), ct);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            _logger.LogWarning("Reddit password grant refresh failed: {Status}", response.StatusCode);
+            return Result.Failure<OAuthTokens>(ErrorCode.InternalError, "Reddit re-authentication failed");
+        }
+
+        var json = await response.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>(ct);
+        if (!json.TryGetProperty("access_token", out var tokenProp))
+            return Result.Failure<OAuthTokens>(ErrorCode.InternalError, "Reddit response missing access_token");
+
+        var accessToken = tokenProp.GetString()!;
+        var expiresIn = json.TryGetProperty("expires_in", out var exp) ? exp.GetInt32() : 3600;
+
+        platformEntity.EncryptedAccessToken = _encryption.Encrypt(accessToken);
+        platformEntity.TokenExpiresAt = DateTimeOffset.UtcNow.AddSeconds(expiresIn - 300);
+        await _dbContext.SaveChangesAsync(ct);
+
+        _logger.LogInformation("Reddit token refreshed via password grant");
+        var scope = json.TryGetProperty("scope", out var s) ? s.GetString() : null;
+        return Result.Success(new OAuthTokens(accessToken, null, DateTimeOffset.UtcNow.AddSeconds(expiresIn),
+            scope?.Split(' ')));
     }
 }

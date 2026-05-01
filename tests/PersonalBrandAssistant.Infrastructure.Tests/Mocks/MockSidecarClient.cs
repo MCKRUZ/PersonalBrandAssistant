@@ -11,8 +11,11 @@ public sealed class MockSidecarClient : ISidecarClient
     public Task<SidecarSession> ConnectAsync(CancellationToken ct)
         => Task.FromResult(new SidecarSession("mock-session", DateTimeOffset.UtcNow));
 
+    public Task<SidecarSession> NewSessionAsync(CancellationToken ct)
+        => Task.FromResult(new SidecarSession("mock-session-new", DateTimeOffset.UtcNow));
+
     public async IAsyncEnumerable<SidecarEvent> SendTaskAsync(
-        string task, string? systemPrompt, string? sessionId, [EnumeratorCancellation] CancellationToken ct)
+        string task, string? systemPrompt, string? sessionId, string? modelId, [EnumeratorCancellation] CancellationToken ct)
     {
         yield return new ChatEvent("assistant", "Mock response", null, null);
         yield return new TaskCompleteEvent("mock-session", 100, 50);

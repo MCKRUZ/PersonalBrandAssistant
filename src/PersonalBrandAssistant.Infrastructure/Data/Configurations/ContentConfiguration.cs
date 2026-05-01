@@ -64,6 +64,14 @@ public class ContentConfiguration : IEntityTypeConfiguration<Content>
         builder.Property(c => c.BlogDelayOverride);
         builder.Property(c => c.BlogSkipped).IsRequired().HasDefaultValue(false);
 
+        builder.Property(c => c.CurrentBlogStage)
+            .IsRequired()
+            .HasDefaultValue(Domain.Enums.BlogPipelineStage.Draft);
+
+        builder.Property(c => c.BlogStageHistory)
+            .HasConversion(new JsonValueConverter<List<Domain.Entities.BlogStageTransition>>())
+            .HasColumnType("jsonb");
+
         builder.HasIndex(c => new { c.ContentType, c.Status })
             .HasFilter("\"ContentType\" = 0");
 

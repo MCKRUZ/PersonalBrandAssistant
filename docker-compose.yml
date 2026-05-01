@@ -24,9 +24,12 @@ services:
     environment:
       PORT: "3001"
       SIDECAR_CONFIG_DIR: /config
+      SIDECAR_DATA_DIR: /tmp/sidecar-data
     volumes:
-      - ./prompts:/config/prompts:ro
       - ./prompts/sidecar.config.json:/config/sidecar.config.json:ro
+      - ./CLAUDE.md:/workspace/CLAUDE.md:ro
+      - ./.claude:/workspace/.claude:ro
+      - ./prompts:/workspace/prompts:ro
     networks:
       - internal
     restart: unless-stopped
@@ -44,13 +47,11 @@ services:
     environment:
       ConnectionStrings__DefaultConnection: "Host=db;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}"
       ApiKey: ${API_KEY}
-      DataProtection__KeyPath: /data-protection-keys
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
       Sidecar__WebSocketUrl: ws://sidecar:3001/ws
       TrendMonitoring__TrendRadarApiUrl: http://trendradar:8000/api
       TrendMonitoring__FreshRssApiUrl: http://freshrss:80/api
     volumes:
-      - dpkeys:/data-protection-keys
       - logs:/app/logs
     networks:
       - default
@@ -100,7 +101,6 @@ networks:
 
 volumes:
   pgdata:
-  dpkeys:
   logs:
   trendradar_data:
   freshrss_data:

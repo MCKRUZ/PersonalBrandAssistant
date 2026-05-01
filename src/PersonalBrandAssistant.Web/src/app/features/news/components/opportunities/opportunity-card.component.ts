@@ -1,5 +1,5 @@
 import { Component, input, computed, inject, ViewEncapsulation } from '@angular/core';
-import { DecimalPipe } from '@angular/common';
+
 import { Router } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
 import { Tag } from 'primeng/tag';
@@ -13,7 +13,7 @@ import { ContentOpportunity, SOURCE_COLORS } from '../../models/news.model';
   selector: 'app-opportunity-card',
   standalone: true,
   encapsulation: ViewEncapsulation.None,
-  imports: [DecimalPipe, FormsModule, ButtonModule, Tag, KnobModule, AccordionModule, PlatformChipComponent],
+  imports: [FormsModule, ButtonModule, Tag, KnobModule, AccordionModule, PlatformChipComponent],
   template: `
     <article class="opp-card">
       <div class="opp-card__body">

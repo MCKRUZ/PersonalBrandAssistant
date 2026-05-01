@@ -72,7 +72,7 @@ public static class SocialEngagementTools
         var dbContext = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
         var autonomy = await dbContext.AutonomyConfigurations.FirstOrDefaultAsync(ct);
-        var level = autonomy?.GlobalLevel ?? AutonomyLevel.SemiAuto;
+        var level = autonomy?.GlobalLevel ?? AutonomyLevel.Draft;
 
         if (level == AutonomyLevel.Manual)
         {

@@ -12,10 +12,12 @@ import {
 export class ContentService {
   private readonly api = inject(ApiService);
 
-  getAll(params?: { contentType?: ContentType; status?: ContentStatus; pageSize?: number; cursor?: string }): Observable<PagedResult<Content>> {
+  getAll(params?: { contentType?: ContentType; status?: ContentStatus; platform?: PlatformType; search?: string; pageSize?: number; cursor?: string }): Observable<PagedResult<Content>> {
     let httpParams = new HttpParams();
     if (params?.contentType) httpParams = httpParams.set('contentType', params.contentType);
     if (params?.status) httpParams = httpParams.set('status', params.status);
+    if (params?.platform) httpParams = httpParams.set('platform', params.platform);
+    if (params?.search) httpParams = httpParams.set('search', params.search);
     if (params?.pageSize) httpParams = httpParams.set('pageSize', params.pageSize.toString());
     if (params?.cursor) httpParams = httpParams.set('cursor', params.cursor);
     return this.api.get<PagedResult<Content>>('content', httpParams);

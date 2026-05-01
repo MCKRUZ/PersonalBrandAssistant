@@ -4,73 +4,78 @@ export const routes: Routes = [
   { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
   {
     path: 'dashboard',
-    loadComponent: () =>
-      import('./features/dashboard/dashboard.component').then(
-        (m) => m.DashboardComponent
-      ),
-  },
-  {
-    path: 'news',
-    loadChildren: () =>
-      import('./features/news/news.routes').then(
-        (m) => m.NEWS_ROUTES
-      ),
+    loadComponent: () => import('./pages/dashboard/dashboard.component').then(m => m.DashboardComponent),
+    data: { title: 'Dashboard', sidecarContext: 'dashboard' },
   },
   {
     path: 'content',
-    loadChildren: () =>
-      import('./features/content/content.routes').then(
-        (m) => m.CONTENT_ROUTES
-      ),
+    loadChildren: () => import('./features/content/content.routes').then(m => m.CONTENT_ROUTES),
+    data: { title: 'Content', sidecarContext: 'content-list' },
+  },
+  {
+    path: 'blog',
+    children: [
+      {
+        path: '',
+        loadComponent: () => import('./features/blog/blog.component').then(m => m.BlogComponent),
+        data: { title: 'Blog Pipeline', sidecarContext: 'blog-pipeline' },
+      },
+      {
+        path: 'new',
+        loadComponent: () => import('./pages/blog/blog-editor.component').then(m => m.BlogEditorComponent),
+        data: { title: 'New Blog Post', sidecarContext: 'content-editor' },
+      },
+      {
+        path: ':id/edit',
+        loadComponent: () => import('./pages/blog/blog-editor.component').then(m => m.BlogEditorComponent),
+        data: { title: 'Edit Blog Post', sidecarContext: 'content-editor' },
+      },
+    ],
+  },
+  {
+    path: 'blog-pipeline',
+    redirectTo: 'blog',
+    pathMatch: 'full',
   },
   {
     path: 'calendar',
-    loadChildren: () =>
-      import('./features/calendar/calendar.routes').then(
-        (m) => m.CALENDAR_ROUTES
-      ),
+    loadComponent: () => import('./pages/calendar/calendar.component').then(m => m.CalendarComponent),
+    data: { title: 'Calendar', sidecarContext: 'calendar' },
   },
   {
-    path: 'analytics',
-    loadChildren: () =>
-      import('./features/analytics/analytics.routes').then(
-        (m) => m.ANALYTICS_ROUTES
-      ),
-  },
-  {
-    path: 'platforms',
-    loadChildren: () =>
-      import('./features/platforms/platforms.routes').then(
-        (m) => m.PLATFORMS_ROUTES
-      ),
+    path: 'approval-queue',
+    loadComponent: () => import('./pages/approval-queue/approval-queue.component').then(m => m.ApprovalQueueComponent),
+    data: { title: 'Approval Queue', sidecarContext: 'approval-queue' },
   },
   {
     path: 'social',
-    loadChildren: () =>
-      import('./features/social/social.routes').then(
-        (m) => m.SOCIAL_ROUTES
-      ),
+    loadChildren: () => import('./features/social/social.routes').then(m => m.SOCIAL_ROUTES),
+    data: { title: 'Social', sidecarContext: 'social' },
   },
   {
-    path: 'settings',
-    loadChildren: () =>
-      import('./features/settings/settings.routes').then(
-        (m) => m.SETTINGS_ROUTES
-      ),
+    path: 'platforms',
+    loadChildren: () => import('./features/platforms/platforms.routes').then(m => m.PLATFORMS_ROUTES),
+    data: { title: 'Platforms', sidecarContext: 'platforms' },
+  },
+  {
+    path: 'analytics',
+    loadComponent: () => import('./pages/analytics/analytics.component').then(m => m.AnalyticsComponent),
+    data: { title: 'Analytics', sidecarContext: 'analytics' },
+  },
+  {
+    path: 'news',
+    loadChildren: () => import('./features/news/news.routes').then(m => m.NEWS_ROUTES),
+    data: { title: 'News', sidecarContext: 'news' },
   },
   {
     path: 'automation',
-    loadChildren: () =>
-      import('./features/automation/automation.routes').then(
-        (m) => m.AUTOMATION_ROUTES
-      ),
+    loadChildren: () => import('./features/automation/automation.routes').then(m => m.AUTOMATION_ROUTES),
+    data: { title: 'Automation', sidecarContext: 'automation' },
   },
   {
-    path: 'blog-publishing',
-    loadComponent: () =>
-      import('./features/blog-publishing/blog-dashboard.component').then(
-        (m) => m.BlogDashboardComponent
-      ),
+    path: 'settings',
+    loadChildren: () => import('./pages/settings/settings.routes').then(m => m.SETTINGS_ROUTES),
+    data: { title: 'Settings', sidecarContext: 'settings' },
   },
   { path: '**', redirectTo: 'dashboard' },
 ];

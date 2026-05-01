@@ -9,10 +9,12 @@ interface UiState {
   theme: Theme;
 }
 
+const SIDEBAR_KEY = 'pba-sidebar-collapsed';
+
 const initialState: UiState = {
-  sidebarCollapsed: false,
+  sidebarCollapsed: typeof localStorage !== 'undefined' && localStorage.getItem(SIDEBAR_KEY) === 'true',
   sidecarOpen: false,
-  theme: 'light',
+  theme: 'dark',
 };
 
 export const UiStore = signalStore(
@@ -20,7 +22,9 @@ export const UiStore = signalStore(
   withState(initialState),
   withMethods((store) => ({
     toggleSidebar(): void {
-      patchState(store, { sidebarCollapsed: !store.sidebarCollapsed() });
+      const next = !store.sidebarCollapsed();
+      patchState(store, { sidebarCollapsed: next });
+      localStorage.setItem(SIDEBAR_KEY, String(next));
     },
     toggleSidecar(): void {
       patchState(store, { sidecarOpen: !store.sidecarOpen() });

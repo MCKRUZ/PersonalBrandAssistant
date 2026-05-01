@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, ViewChild } from '@angular/core';
+import { Component, computed, inject, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { ConfirmDialog } from 'primeng/confirmdialog';
@@ -6,24 +6,23 @@ import { PageHeaderComponent } from '../../shared/components/page-header/page-he
 import { LoadingSpinnerComponent } from '../../shared/components/loading-spinner/loading-spinner.component';
 import { EmptyStateComponent } from '../../shared/components/empty-state/empty-state.component';
 import { PlatformCardComponent } from './components/platform-card.component';
-import { PlatformDetailDialogComponent } from './components/platform-detail-dialog.component';
 import { TestPostDialogComponent } from './components/test-post-dialog.component';
 import { PlatformStore } from './store/platform.store';
 import { PlatformService } from './services/platform.service';
-import { Platform } from '../../shared/models';
+import { Platform, PlatformType } from '../../shared/models';
+
+const NON_OAUTH_PLATFORMS: ReadonlySet<PlatformType> = new Set<PlatformType>(['Substack', 'PersonalBlog']);
 
 @Component({
   selector: 'app-platforms-list',
   standalone: true,
   imports: [
     CommonModule, ConfirmDialog, PageHeaderComponent, LoadingSpinnerComponent,
-    EmptyStateComponent, PlatformCardComponent, PlatformDetailDialogComponent,
-    TestPostDialogComponent,
+    EmptyStateComponent, PlatformCardComponent, TestPostDialogComponent,
   ],
-  providers: [ConfirmationService],
+  providers: [PlatformStore, ConfirmationService],
   template: `
     <p-confirmDialog />
-    <app-platform-detail-dialog #detailDialog />
     <app-test-post-dialog #testDialog />
 
     <app-page-header title="Platforms" />
@@ -33,41 +32,43 @@ import { Platform } from '../../shared/models';
     } @else if (store.platforms().length === 0) {
       <app-empty-state message="No platforms configured" icon="pi pi-share-alt" />
     } @else {
-      <div class="grid">
-        @for (platform of store.platforms(); track platform.id) {
-          <div class="col-12 md:col-6">
-            <app-platform-card
-              [platform]="platform"
-              (connect)="connectPlatform(platform)"
-              (disconnect)="disconnectPlatform(platform)"
-              (details)="detailDialog.open(platform)"
-              (testPost)="testDialog.open(platform.type)"
-            />
-          </div>
+      <div class="platforms-grid">
+        @for (platform of oauthPlatforms(); track platform.type) {
+          <app-platform-card
+            [platform]="platform"
+            (connect)="connectPlatform(platform)"
+            (disconnect)="disconnectPlatform(platform)"
+            (testPost)="testDialog.open(platform.type)"
+          />
         }
       </div>
     }
   `,
+  styles: `
+    .platforms-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 1.5rem;
+    }
+  `,
 })
-export class PlatformsListComponent implements OnInit {
+export class PlatformsListComponent {
   readonly store = inject(PlatformStore);
+  readonly oauthPlatforms = computed(() =>
+    this.store.platforms().filter(p => !NON_OAUTH_PLATFORMS.has(p.type))
+  );
   private readonly platformService = inject(PlatformService);
   private readonly confirmationService = inject(ConfirmationService);
   private readonly messageService = inject(MessageService);
 
-  @ViewChild('detailDialog') detailDialog!: PlatformDetailDialogComponent;
   @ViewChild('testDialog') testDialog!: TestPostDialogComponent;
-
-  ngOnInit() {
-    this.store.loadPlatforms(undefined);
-  }
 
   connectPlatform(platform: Platform) {
     this.store.setConnecting(true);
     this.platformService.getAuthUrl(platform.type).subscribe({
       next: response => {
         this.store.setConnecting(false);
-        window.location.href = response.authUrl;
+        window.location.href = response.url;
       },
       error: () => {
         this.store.setConnecting(false);
@@ -87,7 +88,13 @@ export class PlatformsListComponent implements OnInit {
         this.platformService.disconnect(platform.type).subscribe({
           next: () => {
             this.messageService.add({ severity: 'success', summary: 'Disconnected' });
-            this.store.loadPlatforms(undefined);
+            this.store.loadPlatforms();
+          },
+          error: () => {
+            this.messageService.add({
+              severity: 'error', summary: 'Error',
+              detail: `Could not disconnect ${platform.displayName}`,
+            });
           },
         });
       },

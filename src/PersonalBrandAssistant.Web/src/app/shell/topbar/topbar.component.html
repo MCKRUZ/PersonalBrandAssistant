@@ -1,0 +1,19 @@
+<header class="top-bar">
+  <p-button
+    icon="pi pi-bars"
+    [text]="true"
+    (onClick)="toggleSidebar.emit()"
+    [attr.aria-label]="sidebarCollapsed() ? 'Expand sidebar' : 'Collapse sidebar'"
+    [attr.aria-expanded]="!sidebarCollapsed()"
+  />
+  <span class="page-title font-display">{{ pageTitle() }}</span>
+  <div class="flex-1"></div>
+  <app-notification-bell />
+  <p-button
+    icon="pi pi-comment"
+    [text]="true"
+    severity="help"
+    (onClick)="toggleSidecar.emit()"
+    aria-label="Toggle Claude assistant"
+  />
+</header>

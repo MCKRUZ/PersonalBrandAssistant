@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using PersonalBrandAssistant.Application.Common.Interfaces;
 using PersonalBrandAssistant.Application.Common.Models;
+using PersonalBrandAssistant.Application.Common.Models.Skills;
 using PersonalBrandAssistant.Domain.Enums;
 using PersonalBrandAssistant.Infrastructure.Agents.Capabilities;
 
@@ -10,15 +11,18 @@ namespace PersonalBrandAssistant.Infrastructure.Tests.Agents.Capabilities;
 
 public class WriterAgentCapabilityTests
 {
+    private readonly Mock<ISkillRegistry> _skillRegistry;
     private readonly Mock<IPromptTemplateService> _promptService;
     private readonly Mock<ISidecarClient> _sidecarClient;
     private readonly WriterAgentCapability _capability;
 
     public WriterAgentCapabilityTests()
     {
+        _skillRegistry = new Mock<ISkillRegistry>();
         _promptService = new Mock<IPromptTemplateService>();
         _sidecarClient = new Mock<ISidecarClient>();
         _capability = new WriterAgentCapability(
+            _skillRegistry.Object,
             new Mock<ILogger<WriterAgentCapability>>().Object);
     }
 
@@ -47,28 +51,22 @@ public class WriterAgentCapabilityTests
     [Fact]
     public async Task ExecuteAsync_LoadsSystemAndTaskTemplates()
     {
-        _promptService.Setup(p => p.RenderAsync("writer", "system", It.IsAny<Dictionary<string, object>>()))
-            .ReturnsAsync("system prompt");
-        _promptService.Setup(p => p.RenderAsync("writer", "blog-post", It.IsAny<Dictionary<string, object>>()))
-            .ReturnsAsync("task prompt");
-
+        SetupPrompts("writer", "blog-post");
         SetupSidecarResponse("# My Blog Post\n\nThis is the body content.");
 
         var context = CreateContext();
         await _capability.ExecuteAsync(context, CancellationToken.None);
 
-        _promptService.Verify(p => p.RenderAsync("writer", "system", It.IsAny<Dictionary<string, object>>()), Times.Once);
+        _skillRegistry.Verify(r => r.GetSkillById("writer"), Times.Once);
+        _skillRegistry.Verify(r => r.LoadLevel2("writer"), Times.Once);
+        _promptService.Verify(p => p.RenderRawAsync(It.IsAny<string>(), It.IsAny<Dictionary<string, object>>()), Times.Once);
         _promptService.Verify(p => p.RenderAsync("writer", "blog-post", It.IsAny<Dictionary<string, object>>()), Times.Once);
     }
 
     [Fact]
     public async Task ExecuteAsync_UsesTemplateFromParameters()
     {
-        _promptService.Setup(p => p.RenderAsync("writer", "system", It.IsAny<Dictionary<string, object>>()))
-            .ReturnsAsync("system prompt");
-        _promptService.Setup(p => p.RenderAsync("writer", "article", It.IsAny<Dictionary<string, object>>()))
-            .ReturnsAsync("article prompt");
-
+        SetupPrompts("writer", "article");
         SetupSidecarResponse("# Article Title\n\nArticle body.");
 
         var context = CreateContext(new Dictionary<string, string> { ["template"] = "article" });
@@ -119,12 +117,12 @@ public class WriterAgentCapabilityTests
     public async Task ExecuteAsync_InjectsBrandProfileIntoVariables()
     {
         Dictionary<string, object>? capturedVars = null;
-        _promptService.Setup(p => p.RenderAsync("writer", "system", It.IsAny<Dictionary<string, object>>()))
-            .Callback<string, string, Dictionary<string, object>>((_, _, v) => capturedVars = v)
+        SetupSkillRegistry("writer");
+        _promptService.Setup(p => p.RenderRawAsync(It.IsAny<string>(), It.IsAny<Dictionary<string, object>>()))
+            .Callback<string, Dictionary<string, object>>((_, v) => capturedVars = v)
             .ReturnsAsync("system prompt");
         _promptService.Setup(p => p.RenderAsync("writer", "blog-post", It.IsAny<Dictionary<string, object>>()))
             .ReturnsAsync("task prompt");
-
         SetupSidecarResponse("# Title\n\nBody");
 
         var context = CreateContext();
@@ -143,6 +141,7 @@ public class WriterAgentCapabilityTests
                 It.IsAny<string>(),
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
+                It.IsAny<string?>(),
                 It.IsAny<CancellationToken>()))
             .Throws(new InvalidOperationException("Sidecar connection lost"));
 
@@ -157,12 +156,12 @@ public class WriterAgentCapabilityTests
     public async Task ExecuteAsync_NamespacesParametersUnderTaskKey()
     {
         Dictionary<string, object>? capturedVars = null;
-        _promptService.Setup(p => p.RenderAsync("writer", "system", It.IsAny<Dictionary<string, object>>()))
-            .Callback<string, string, Dictionary<string, object>>((_, _, v) => capturedVars = v)
+        SetupSkillRegistry("writer");
+        _promptService.Setup(p => p.RenderRawAsync(It.IsAny<string>(), It.IsAny<Dictionary<string, object>>()))
+            .Callback<string, Dictionary<string, object>>((_, v) => capturedVars = v)
             .ReturnsAsync("system prompt");
         _promptService.Setup(p => p.RenderAsync("writer", "blog-post", It.IsAny<Dictionary<string, object>>()))
             .ReturnsAsync("task prompt");
-
         SetupSidecarResponse("# Title\n\nBody");
 
         var context = CreateContext(new Dictionary<string, string> { ["topic"] = "AI" });
@@ -174,9 +173,23 @@ public class WriterAgentCapabilityTests
         Assert.Equal("AI", taskParams["topic"]);
     }
 
+    private void SetupSkillRegistry(string skillId)
+    {
+        var definition = new SkillDefinition
+        {
+            Id = skillId, Name = skillId, Description = "test",
+            Category = "test", SkillType = "test",
+            Tags = Array.Empty<string>(), AllowedTools = Array.Empty<string>(),
+            SchemaVersion = 1,
+        };
+        _skillRegistry.Setup(r => r.GetSkillById(skillId)).Returns(definition);
+        _skillRegistry.Setup(r => r.LoadLevel2(skillId)).Returns("Skill body {{ brand_voice_block }}");
+    }
+
     private void SetupPrompts(string agent, string template)
     {
-        _promptService.Setup(p => p.RenderAsync(agent, "system", It.IsAny<Dictionary<string, object>>()))
+        SetupSkillRegistry(agent);
+        _promptService.Setup(p => p.RenderRawAsync(It.IsAny<string>(), It.IsAny<Dictionary<string, object>>()))
             .ReturnsAsync("system prompt");
         _promptService.Setup(p => p.RenderAsync(agent, template, It.IsAny<Dictionary<string, object>>()))
             .ReturnsAsync("task prompt");
@@ -186,6 +199,7 @@ public class WriterAgentCapabilityTests
     {
         _sidecarClient.Setup(c => c.SendTaskAsync(
                 It.IsAny<string>(),
+                It.IsAny<string?>(),
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
                 It.IsAny<CancellationToken>()))

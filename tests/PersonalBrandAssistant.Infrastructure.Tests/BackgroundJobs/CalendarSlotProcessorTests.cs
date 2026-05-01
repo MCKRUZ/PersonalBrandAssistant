@@ -38,6 +38,7 @@ public class CalendarSlotProcessorTests
         _scopeFactory.Object,
         _dateTimeProvider.Object,
         Options.Create(_options),
+        Options.Create(new BackgroundJobsOptions { CalendarSlotProcessingEnabled = true }),
         _logger.Object);
 
     private void SetupDbSets(
@@ -123,11 +124,11 @@ public class CalendarSlotProcessorTests
     }
 
     [Fact]
-    public async Task ProcessAsync_AutonomousLevel_TriggersAutoFill()
+    public async Task ProcessAsync_FullAutoLevel_TriggersAutoFill()
     {
         // Arrange
         var autonomy = AutonomyConfiguration.CreateDefault();
-        autonomy.GlobalLevel = AutonomyLevel.Autonomous;
+        autonomy.GlobalLevel = AutonomyLevel.FullAuto;
 
         SetupDbSets(series: [], autonomy: autonomy);
 

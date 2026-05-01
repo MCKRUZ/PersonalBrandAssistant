@@ -14,51 +14,61 @@ import { TopPerformingContent } from '../../../shared/models';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <p-card header="Top Performing Content">
-      <p-table [value]="mutableItems()" [rowHover]="true" styleClass="p-datatable-sm">
-        <ng-template #header>
-          <tr>
-            <th style="width: 3rem">#</th>
-            <th>Title</th>
-            <th>Type</th>
-            <th>Platforms</th>
-            <th>Engagement</th>
-            <th>Impressions</th>
-            <th>Eng. Rate</th>
-            <th style="width: 5rem"></th>
-          </tr>
-        </ng-template>
-        <ng-template #body let-item let-i="rowIndex">
-          <tr>
-            <td class="font-bold">{{ i + 1 }}</td>
-            <td>{{ item.title || 'Untitled' }}</td>
-            <td><p-tag [value]="item.contentType" severity="info" /></td>
-            <td>
-              <div class="flex gap-1">
-                @for (p of item.platforms; track p) {
-                  <app-platform-chip [platform]="p" />
+      @if (mutableItems().length === 0) {
+        <div class="empty-content">
+          <i class="pi pi-chart-bar"></i>
+          <span>No content performance data yet</span>
+          <span class="sub-text">Publish content and engagement data will appear here</span>
+        </div>
+      } @else {
+        <p-table [value]="mutableItems()" [rowHover]="true" styleClass="p-datatable-sm">
+          <ng-template #header>
+            <tr>
+              <th style="width: 3rem">#</th>
+              <th>Title</th>
+              <th>Type</th>
+              <th>Platforms</th>
+              <th>Engagement</th>
+              <th>Impressions</th>
+              <th>Eng. Rate</th>
+              <th style="width: 5rem"></th>
+            </tr>
+          </ng-template>
+          <ng-template #body let-item let-i="rowIndex">
+            <tr>
+              <td class="font-bold">{{ i + 1 }}</td>
+              <td>{{ item.title || 'Untitled' }}</td>
+              <td><p-tag [value]="item.contentType" severity="info" /></td>
+              <td>
+                <div class="flex gap-1">
+                  @for (p of item.platforms; track p) {
+                    <app-platform-chip [platform]="p" />
+                  }
+                </div>
+              </td>
+              <td class="font-bold">{{ item.totalEngagement | number }}</td>
+              <td>{{ item.impressions != null ? (item.impressions | number) : '--' }}</td>
+              <td>
+                @if (item.engagementRate != null) {
+                  <span class="eng-rate" [ngClass]="getEngagementRateClass(item.engagementRate)">
+                    {{ item.engagementRate | number:'1.1-1' }}%
+                  </span>
+                } @else {
+                  <span class="text-color-secondary">N/A</span>
                 }
-              </div>
-            </td>
-            <td class="font-bold">{{ item.totalEngagement | number }}</td>
-            <td>{{ item.impressions != null ? (item.impressions | number) : '--' }}</td>
-            <td>
-              @if (item.engagementRate != null) {
-                <span class="eng-rate" [ngClass]="getEngagementRateClass(item.engagementRate)">
-                  {{ item.engagementRate | number:'1.1-1' }}%
-                </span>
-              } @else {
-                <span class="text-color-secondary">N/A</span>
-              }
-            </td>
-            <td>
-              <p-button icon="pi pi-chart-bar" [text]="true" (onClick)="viewDetail.emit(item.contentId)" />
-            </td>
-          </tr>
-        </ng-template>
-      </p-table>
+              </td>
+              <td>
+                <p-button icon="pi pi-chart-bar" [text]="true" (onClick)="viewDetail.emit(item.contentId)" />
+              </td>
+            </tr>
+          </ng-template>
+        </p-table>
+      }
     </p-card>
   `,
   styles: `
+    @use '../../../shared/styles/empty-state' as *;
+
     .eng-rate {
       font-weight: 700;
       padding: 0.15rem 0.5rem;
@@ -68,6 +78,17 @@ import { TopPerformingContent } from '../../../shared/models';
     .eng-rate.high { color: #22c55e; background: rgba(34, 197, 94, 0.12); }
     .eng-rate.med { color: #eab308; background: rgba(234, 179, 8, 0.12); }
     .eng-rate.low { color: #71717a; background: rgba(255, 255, 255, 0.04); }
+
+    .empty-content {
+      @include empty-state(auto);
+      padding: 3rem 1rem;
+
+      .sub-text {
+        font-size: 0.8rem;
+        font-weight: 400;
+        opacity: 0.7;
+      }
+    }
   `,
 })
 export class TopContentTableComponent {

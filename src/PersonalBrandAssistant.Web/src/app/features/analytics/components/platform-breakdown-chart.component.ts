@@ -17,14 +17,24 @@ import { PLATFORM_LABELS } from '../../../shared/utils/platform-icons';
         <div style="position: relative; height: 280px;">
           <p-chart type="bar" [data]="chartData()" [options]="chartOptions" height="280px" />
         </div>
-      } @else {
+      } @else if (loading()) {
         <p-skeleton height="280px" borderRadius="8px" />
+      } @else {
+        <div class="empty-chart">
+          <i class="pi pi-chart-bar"></i>
+          <span>No platform data for this period</span>
+        </div>
       }
     </p-card>
+  `,
+  styles: `
+    @use '../../../shared/styles/empty-state' as *;
+    .empty-chart { @include empty-state(); }
   `,
 })
 export class PlatformBreakdownChartComponent {
   readonly timeline = input<readonly DailyEngagement[]>([]);
+  readonly loading = input(false);
 
   readonly chartData = computed(() => {
     const data = this.timeline();
@@ -73,7 +83,7 @@ export class PlatformBreakdownChartComponent {
       },
     },
     scales: {
-      x: { stacked: true, grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { font: { size: 10 } } },
+      x: { stacked: true, min: 0, grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { font: { size: 10 } } },
       y: { stacked: true, grid: { display: false }, ticks: { font: { size: 11, weight: '600' } } },
     },
   };

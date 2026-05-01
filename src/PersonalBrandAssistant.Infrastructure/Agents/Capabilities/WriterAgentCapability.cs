@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
+using PersonalBrandAssistant.Application.Common.Interfaces;
 using PersonalBrandAssistant.Application.Common.Models;
 using PersonalBrandAssistant.Domain.Enums;
 
@@ -7,11 +8,13 @@ namespace PersonalBrandAssistant.Infrastructure.Agents.Capabilities;
 
 public sealed partial class WriterAgentCapability : AgentCapabilityBase
 {
-    public WriterAgentCapability(ILogger<WriterAgentCapability> logger) : base(logger) { }
+    public WriterAgentCapability(ISkillRegistry skillRegistry, ILogger<WriterAgentCapability> logger)
+        : base(skillRegistry, logger) { }
 
     public override AgentCapabilityType Type => AgentCapabilityType.Writer;
     public override ModelTier DefaultModelTier => ModelTier.Standard;
     protected override string AgentName => "writer";
+    protected override string SkillName => "writer";
     protected override string DefaultTemplate => "blog-post";
     protected override bool CreatesContent => true;
 

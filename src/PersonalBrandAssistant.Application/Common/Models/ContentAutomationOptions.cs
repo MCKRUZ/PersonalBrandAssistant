@@ -7,7 +7,7 @@ public class ContentAutomationOptions
     public string CronExpression { get; set; } = "0 9 * * 1-5";
     public string TimeZone { get; set; } = "America/New_York";
     public bool Enabled { get; set; } = true;
-    public string AutonomyLevel { get; set; } = "SemiAuto";
+    public string AutonomyLevel { get; set; } = "Draft";
     public int TopTrendsToConsider { get; set; } = 5;
     public string[] TargetPlatforms { get; set; } = ["LinkedIn"];
     public ImageGenerationOptions ImageGeneration { get; set; } = new();

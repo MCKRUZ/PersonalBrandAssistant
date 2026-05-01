@@ -6,7 +6,8 @@ export const CONTENT_ROUTES: Routes = [
   {
     path: 'new',
     loadComponent: () =>
-      import('./components/content-form.component').then(m => m.ContentFormComponent),
+      import('../../pages/content-editor/content-editor.component').then(m => m.ContentEditorComponent),
+    data: { sidecarContext: 'content-editor' },
   },
   {
     path: 'trends',
@@ -21,6 +22,7 @@ export const CONTENT_ROUTES: Routes = [
   {
     path: ':id/edit',
     loadComponent: () =>
-      import('./components/content-form.component').then(m => m.ContentFormComponent),
+      import('../../pages/content-editor/content-editor.component').then(m => m.ContentEditorComponent),
+    data: { sidecarContext: 'content-editor' },
   },
 ];

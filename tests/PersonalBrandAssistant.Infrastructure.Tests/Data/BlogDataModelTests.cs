@@ -236,10 +236,8 @@ public class BlogDataModelTests
         await using var ctx = await CreateContextAsync();
         var content = CreateContent();
         content.SubstackPostUrl = "https://test.substack.com/p/my-post";
-        content.BlogPostUrl = "https://matthewkruczek.ai/blog/my-post";
-        content.BlogDeployCommitSha = "abc123def456abc123def456abc123def456abcd";
-        content.BlogDelayOverride = TimeSpan.FromDays(3);
-        content.BlogSkipped = false;
+        content.MarkBlogPublished("https://matthewkruczek.ai/blog/my-post", "abc123def456abc123def456abc123def456abcd");
+        content.SetBlogDelay(TimeSpan.FromDays(3));
         ctx.Contents.Add(content);
         await ctx.SaveChangesAsync();
 
@@ -258,7 +256,7 @@ public class BlogDataModelTests
         await using var ctx = await CreateContextAsync();
 
         var contentWithDelay = CreateContent();
-        contentWithDelay.BlogDelayOverride = TimeSpan.FromHours(48);
+        contentWithDelay.SetBlogDelay(TimeSpan.FromHours(48));
         ctx.Contents.Add(contentWithDelay);
 
         var contentWithoutDelay = CreateContent();

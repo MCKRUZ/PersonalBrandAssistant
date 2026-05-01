@@ -26,33 +26,39 @@ describe('StatusBadgeComponent', () => {
     fixture.detectChanges();
   });
 
-  const statusTests: { status: string; expected: string }[] = [
-    { status: 'Draft', expected: 'secondary' },
-    { status: 'Review', expected: 'info' },
-    { status: 'Approved', expected: 'success' },
-    { status: 'Scheduled', expected: 'warn' },
-    { status: 'Publishing', expected: 'warn' },
-    { status: 'Published', expected: 'success' },
-    { status: 'Failed', expected: 'danger' },
-    { status: 'Archived', expected: 'secondary' },
-  ];
+  it('should render lowercase text with dot prefix', () => {
+    host.status = 'Draft';
+    fixture.detectChanges();
+    const span = fixture.debugElement.query(By.css('.status-badge'));
+    expect(span).toBeTruthy();
+    expect(span.nativeElement.textContent.trim()).toBe('draft');
+  });
 
-  statusTests.forEach(({ status, expected }) => {
-    it(`should render ${expected} severity for ${status}`, () => {
+  it('should apply correct CSS class per status value', () => {
+    host.status = 'Published';
+    fixture.detectChanges();
+    const span = fixture.debugElement.query(By.css('.status-badge'));
+    expect(span.nativeElement.classList).toContain('status-published');
+
+    host.status = 'Failed';
+    fixture.detectChanges();
+    const spanAfter = fixture.debugElement.query(By.css('.status-badge'));
+    expect(spanAfter.nativeElement.classList).toContain('status-failed');
+  });
+
+  it('should use mono font via status-badge class', () => {
+    const span = fixture.debugElement.query(By.css('.status-badge'));
+    expect(span).toBeTruthy();
+    expect(span.nativeElement.classList).toContain('status-badge');
+  });
+
+  const allStatuses = ['Draft', 'Review', 'Approved', 'Scheduled', 'Publishing', 'Published', 'Failed', 'Archived'];
+  allStatuses.forEach(status => {
+    it(`should render status-${status.toLowerCase()} class for ${status}`, () => {
       host.status = status;
       fixture.detectChanges();
-
-      const badge = fixture.debugElement.query(By.directive(StatusBadgeComponent));
-      expect(badge).toBeTruthy();
-
-      const component = badge.query(By.css('app-status-badge'))
-        ? badge.componentInstance
-        : badge.children[0]?.componentInstance;
-
-      const statusBadge = fixture.debugElement
-        .query(By.directive(StatusBadgeComponent))
-        .componentInstance as StatusBadgeComponent;
-      expect(statusBadge.severity()).toBe(expected);
+      const span = fixture.debugElement.query(By.css('.status-badge'));
+      expect(span.nativeElement.classList).toContain(`status-${status.toLowerCase()}`);
     });
   });
 });

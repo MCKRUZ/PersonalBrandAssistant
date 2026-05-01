@@ -102,8 +102,7 @@ public static class BlogPublishEndpoints
 
         // Store the blog URL and save — verification happens asynchronously
         publishRequest.BlogUrl = blogUrl;
-        content.BlogPostUrl = blogUrl;
-        content.BlogDeployCommitSha = commitResult.Value.CommitSha;
+        content.MarkBlogPublished(blogUrl, commitResult.Value.CommitSha);
         await db.SaveChangesAsync(ct);
 
         // Return immediately — BlogDeployVerificationJob handles async verification

@@ -60,7 +60,7 @@ public sealed class SocialEngagementService : ISocialEngagementService
     public async Task<Result<SafetyStatusDto>> GetSafetyStatusAsync(CancellationToken ct)
     {
         var autonomy = await _db.AutonomyConfigurations.FirstOrDefaultAsync(ct);
-        var autonomyLevel = autonomy?.GlobalLevel.ToString() ?? "SemiAuto";
+        var autonomyLevel = autonomy?.GlobalLevel.ToString() ?? "Draft";
 
         var enabledCount = await _db.EngagementTasks.CountAsync(t => t.IsEnabled, ct);
         var autoRespondCount = await _db.EngagementTasks.CountAsync(t => t.IsEnabled && t.AutoRespond, ct);
@@ -234,9 +234,18 @@ public sealed class SocialEngagementService : ISocialEngagementService
                 PerformedAt = _dateTime.UtcNow,
             };
 
-            if (task.TaskType == EngagementTaskType.Comment)
+            if (task.TaskType is EngagementTaskType.Comment or EngagementTaskType.Post)
             {
                 var commentText = await GenerateCommentAsync(task.Platform, target, ct);
+
+                if (string.IsNullOrWhiteSpace(commentText))
+                {
+                    action.Succeeded = false;
+                    action.ErrorMessage = "Sidecar unavailable or returned empty response";
+                    execution.Actions.Add(action);
+                    continue;
+                }
+
                 action.GeneratedContent = commentText;
 
                 var postResult = await adapter.PostCommentAsync(target.PostId, commentText, ct);
@@ -249,6 +258,34 @@ public sealed class SocialEngagementService : ISocialEngagementService
         }
 
         execution.ActionsSucceeded = execution.Actions.Count(a => a.Succeeded);
+
+        // Auto-disable subreddits that return 500 (likely banned)
+        var bannedCommunities = execution.Actions
+            .Where(a => !a.Succeeded && a.ErrorMessage?.Contains("status 500") == true)
+            .Select(a => ExtractCommunity(a.TargetUrl))
+            .Where(c => !string.IsNullOrEmpty(c))
+            .Distinct()
+            .ToList();
+
+        if (bannedCommunities.Count > 0)
+        {
+            var criteria = JsonSerializer.Deserialize<JsonElement>(task.TargetCriteria);
+            if (criteria.TryGetProperty("subreddits", out var subsEl))
+            {
+                var currentSubs = subsEl.EnumerateArray()
+                    .Select(s => s.GetString()!)
+                    .Where(s => !bannedCommunities.Contains(s, StringComparer.OrdinalIgnoreCase))
+                    .ToList();
+
+                var updated = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(task.TargetCriteria)!;
+                updated["subreddits"] = JsonSerializer.SerializeToElement(currentSubs);
+                task.TargetCriteria = JsonSerializer.Serialize(updated);
+
+                _logger.LogWarning(
+                    "Removed banned subreddits from task {TaskId}: {Banned}. Remaining: {Count}",
+                    task.Id, string.Join(", ", bannedCommunities), currentSubs.Count);
+            }
+        }
 
         _db.EngagementExecutions.Add(execution);
         await UpdateTaskTimestamps(task, ct);
@@ -284,10 +321,10 @@ public sealed class SocialEngagementService : ISocialEngagementService
 
         var subreddits = hour switch
         {
-            >= 7  and < 10 => new[] { "dotnet", "csharp", "ClaudeCode", "selfhosted" },
-            >= 10 and < 14 => new[] { "azure", "ClaudeCode", "comfyui", "homelab" },
-            >= 14 and < 18 => new[] { "csharp", "semantickernel", "ClaudeCode", "selfhosted" },
-            >= 18 and < 21 => new[] { "azure", "MicrosoftAI", "comfyui", "homelab" },
+            >= 7  and < 10 => new[] { "dotnet", "csharp", "ClaudeCode", "ExperiencedDevs" },
+            >= 10 and < 14 => new[] { "ClaudeAI", "ModelContextProtocol", "comfyui", "homelab" },
+            >= 14 and < 18 => new[] { "csharp", "MachineLearning", "ChatGPTCoding", "selfhosted" },
+            >= 18 and < 21 => new[] { "devops", "programming", "LocalLLaMA", "homelab" },
             _              => new[] { "ClaudeCode", "csharp", "selfhosted", "comfyui" },
         };
 
@@ -458,36 +495,87 @@ public sealed class SocialEngagementService : ISocialEngagementService
     private async Task<string> GenerateCommentAsync(
         PlatformType platform, EngagementTarget target, CancellationToken ct)
     {
+        var mode = SelectEngagementMode();
         var lengthDirective = GetRandomLengthDirective();
-        var prompt = $"""
-            You are engaging on {platform}.
-            Post context: {target.Title} — {target.Content}
-            Community: {target.Community}
 
-            Write a thoughtful, authentic comment that:
-            - Adds genuine value (insight, experience, or helpful link)
-            - Matches {platform} conventions (Reddit markdown, professional tone)
-            - Doesn't sound promotional — no links to own content unless directly relevant
-            - Is {lengthDirective}
+        var prompt = mode switch
+        {
+            "funny" => $"""
+                You are u/MCKRUZ on Reddit. Community: r/{target.Community}
+                Post context: {target.Title} — {target.Content}
 
-            Reply with ONLY the comment text, no explanation.
-            """;
+                Drop a witty, genuinely funny remark. Dev humor, self-deprecating, or observational.
+                Keep it to 1-2 sentences max. Do NOT be instructive or add technical advice.
+                Think "comment that gets upvoted because people laughed."
+                No em dashes. No AI vocabulary. No generic openers.
+
+                Reply with ONLY the comment text.
+                """,
+            "post" => $"""
+                You are u/MCKRUZ on Reddit. Community: r/{target.Community}
+                Inspired by this thread: {target.Title}
+
+                Write a short original comment sharing a related experience or lesson learned.
+                Use "I built X because Y" or "TIL" framing. Include enough technical detail to be credible.
+                End with a question or invitation for discussion.
+                No em dashes. No AI vocabulary. No links unless directly relevant. Never mention EY.
+                {lengthDirective}
+
+                Reply with ONLY the comment text.
+                """,
+            _ => $"""
+                You are u/MCKRUZ on Reddit. Community: r/{target.Community}
+                Post context: {target.Title} — {target.Content}
+
+                Write a thoughtful, authentic comment that:
+                - Adds genuine technical value (code snippets, architecture patterns, experience)
+                - Matches Reddit conventions (backticks for code, casual tone)
+                - Doesn't sound promotional -- no links to own content unless directly relevant
+                - Never mentions EY or any employer
+                - No em dashes, no AI vocabulary (transformative, unlock, leverage, etc.)
+                - Is {lengthDirective}
+
+                Reply with ONLY the comment text.
+                """,
+        };
 
         if (!_sidecar.IsConnected)
         {
-            return $"Great insights on {target.Title}! This is an interesting perspective.";
+            try
+            {
+                await _sidecar.ConnectAsync(ct);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Sidecar not connected and connect failed, skipping engagement comment generation");
+                return string.Empty;
+            }
         }
 
         var response = new System.Text.StringBuilder();
-        await foreach (var evt in _sidecar.SendTaskAsync(prompt, null, null, ct))
+        await foreach (var evt in _sidecar.SendTaskAsync(prompt, null, null, null, ct))
         {
-            if (evt is ChatEvent { Text: not null } chat)
+            if (evt is ChatEvent { EventType: "summary", Text: not null } chat)
                 response.Append(chat.Text);
         }
 
         return response.Length > 0
             ? response.ToString().Trim()
-            : $"Great insights on {target.Title}! This is an interesting perspective.";
+            : string.Empty;
+    }
+
+    /// <summary>
+    /// Selects engagement mode: 80% helpful answer, 10% funny comment, 10% original post.
+    /// </summary>
+    private static string SelectEngagementMode()
+    {
+        var roll = Random.Shared.NextDouble();
+        return roll switch
+        {
+            < 0.80 => "helpful",
+            < 0.90 => "funny",
+            _ => "post",
+        };
     }
 
     private async Task UpdateTaskTimestamps(EngagementTask task, CancellationToken ct)

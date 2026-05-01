@@ -45,10 +45,49 @@ public class Content : AuditableEntityBase
     public string? ImageFileId { get; set; }
     public bool ImageRequired { get; set; }
     public string? SubstackPostUrl { get; set; }
-    public string? BlogPostUrl { get; set; }
-    public string? BlogDeployCommitSha { get; set; }
-    public TimeSpan? BlogDelayOverride { get; set; }
-    public bool BlogSkipped { get; set; }
+    public string? BlogPostUrl { get; private set; }
+    public string? BlogDeployCommitSha { get; private set; }
+    public TimeSpan? BlogDelayOverride { get; private set; }
+    public bool BlogSkipped { get; private set; }
+    public BlogPipelineStage CurrentBlogStage { get; private set; } = BlogPipelineStage.Draft;
+    public List<BlogStageTransition> BlogStageHistory { get; private set; } = [];
+
+    public void MarkBlogPublished(string url, string commitSha)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(url);
+        ArgumentException.ThrowIfNullOrWhiteSpace(commitSha);
+
+        BlogPostUrl = url;
+        BlogDeployCommitSha = commitSha;
+    }
+
+    public void SkipBlog()
+    {
+        BlogSkipped = true;
+    }
+
+    public void SetBlogDelay(TimeSpan? delay)
+    {
+        if (delay is not null && (delay.Value < TimeSpan.Zero || delay.Value > TimeSpan.FromDays(365)))
+            throw new ArgumentOutOfRangeException(nameof(delay), "Blog delay must be between 0 and 365 days.");
+
+        BlogDelayOverride = delay;
+    }
+
+    public void SetBlogStage(BlogPipelineStage stage, string? note = null)
+    {
+        var from = CurrentBlogStage;
+        CurrentBlogStage = stage;
+        BlogStageHistory = [..BlogStageHistory, new BlogStageTransition(from, stage, DateTimeOffset.UtcNow, note)];
+    }
+
+    public void AdvanceBlogStage(string? note = null)
+    {
+        if (CurrentBlogStage >= BlogPipelineStage.Social)
+            throw new InvalidOperationException("Blog is already at the final pipeline stage.");
+
+        SetBlogStage(CurrentBlogStage + 1, note);
+    }
 
     public static Content Create(
         ContentType type,

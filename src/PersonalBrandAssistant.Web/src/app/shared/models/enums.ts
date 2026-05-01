@@ -4,7 +4,7 @@ export type ContentType = 'BlogPost' | 'SocialPost' | 'Thread' | 'VideoDescripti
 
 export type PlatformType = 'TwitterX' | 'LinkedIn' | 'Instagram' | 'YouTube' | 'Reddit' | 'PersonalBlog' | 'Substack';
 
-export type AutonomyLevel = 'Manual' | 'Assisted' | 'SemiAuto' | 'Autonomous';
+export type AutonomyLevel = 'Manual' | 'Suggest' | 'Draft' | 'AutoPublish' | 'FullAuto';
 
 export type CalendarSlotStatus = 'Open' | 'Filled' | 'Published' | 'Skipped';
 

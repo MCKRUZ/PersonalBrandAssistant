@@ -4,14 +4,14 @@ import { RouterLink } from '@angular/router';
 import { Card } from 'primeng/card';
 import { ButtonModule } from 'primeng/button';
 import { ProgressBar } from 'primeng/progressbar';
-import { Tag } from 'primeng/tag';
+
 import { TrendSuggestion } from '../../../shared/models';
 import { TrendStore } from '../../content/store/trend.store';
 
 @Component({
   selector: 'app-trend-suggestions-panel',
   standalone: true,
-  imports: [CommonModule, RouterLink, Card, ButtonModule, ProgressBar, Tag],
+  imports: [CommonModule, RouterLink, Card, ButtonModule, ProgressBar],
   template: `
     <p-card>
       <div class="flex justify-content-between align-items-center mb-3">

@@ -124,6 +124,7 @@ public class BlogChatFinalizationTests
     {
         _mockSidecar.Setup(s => s.SendTaskAsync(
                 It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<string?>(),
+                It.IsAny<string?>(),
                 It.IsAny<CancellationToken>()))
             .Returns(ToSidecarEvents(fullText));
     }

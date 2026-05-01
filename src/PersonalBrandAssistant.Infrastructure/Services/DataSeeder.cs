@@ -140,10 +140,10 @@ public class DataSeeder : IHostedService
         {
             Platform = PlatformType.Reddit,
             TaskType = EngagementTaskType.Comment,
-            TargetCriteria = """{"subreddits":["dotnet","csharp","angular","MachineLearning"],"keywords":["Claude","AI agents","MCP","LLM"],"sort":"hot"}""",
-            CronExpression = "0 */4 * * *",
+            TargetCriteria = """{"subreddits":["dotnet","csharp","ExperiencedDevs","ModelContextProtocol","MachineLearning","ChatGPTCoding","devops","programming","ClaudeAI","ClaudeCode","LocalLLaMA","selfhosted","homelab","comfyui"],"keywords":["Claude","AI agents","MCP","LLM","Claude Code","agentic","Semantic Kernel",".NET","self-hosted","ComfyUI"],"sort":"hot"}""",
+            CronExpression = "0 * * * *",
             IsEnabled = true,
-            AutoRespond = false,
+            AutoRespond = true,
             MaxActionsPerExecution = 3,
             SchedulingMode = SchedulingMode.HumanLike,
         }, cancellationToken);
@@ -193,21 +193,8 @@ public class DataSeeder : IHostedService
         var platform = await context.Platforms.FirstOrDefaultAsync(p => p.Type == PlatformType.Reddit, ct);
         if (platform is null) return;
 
-        if (platform.IsConnected && platform.EncryptedAccessToken is not null)
-        {
-            // Verify the token is still decryptable (ephemeral keys change on every container restart)
-            try
-            {
-                var enc = services.GetRequiredService<IEncryptionService>();
-                enc.Decrypt(platform.EncryptedAccessToken);
-                _logger.LogDebug("Reddit already connected with valid token, skipping auto-connect");
-                return;
-            }
-            catch
-            {
-                _logger.LogInformation("Reddit token unreadable (key rotation), re-authenticating");
-            }
-        }
+        // Always get a fresh token — password grant tokens expire in 1 hour
+        // and there's no refresh token to renew them
 
         try
         {
@@ -224,7 +211,6 @@ public class DataSeeder : IHostedService
                     ["grant_type"] = "password",
                     ["username"]   = username,
                     ["password"]   = password,
-                    ["scope"]      = "identity read submit privatemessages history",
                 }), ct);
 
             if (!response.IsSuccessStatusCode)
@@ -241,11 +227,30 @@ public class DataSeeder : IHostedService
             }
 
             var accessToken = tokenProp.GetString()!;
+            var grantedScope = json.TryGetProperty("scope", out var scopeProp)
+                ? scopeProp.GetString() : null;
+            _logger.LogInformation("Reddit token granted scopes: {Scopes}", grantedScope ?? "(none)");
+
+            // Verify token works by calling /api/v1/me
+            http.DefaultRequestHeaders.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
+            var meResponse = await http.GetAsync("https://oauth.reddit.com/api/v1/me", ct);
+            if (meResponse.IsSuccessStatusCode)
+            {
+                var meJson = await meResponse.Content.ReadFromJsonAsync<JsonElement>(ct);
+                var name = meJson.TryGetProperty("name", out var n) ? n.GetString() : "unknown";
+                var verified = meJson.TryGetProperty("has_verified_email", out var v) && v.GetBoolean();
+                _logger.LogInformation("Reddit verified: name={Name}, emailVerified={Verified}",
+                    name, verified);
+            }
+
             var encryption  = services.GetRequiredService<IEncryptionService>();
 
             platform.EncryptedAccessToken = encryption.Encrypt(accessToken);
             platform.IsConnected = true;
             platform.DisplayName = $"Reddit (u/{username})";
+            platform.GrantedScopes = grantedScope?.Split(' ') ?? [];
+            platform.TokenExpiresAt = DateTimeOffset.UtcNow.AddMinutes(55);
 
             await context.SaveChangesAsync(ct);
             _logger.LogInformation("Reddit auto-connected via password grant for u/{Username}", username);

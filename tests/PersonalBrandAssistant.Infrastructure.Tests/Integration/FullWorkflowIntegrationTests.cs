@@ -21,9 +21,9 @@ public class FullWorkflowIntegrationTests
     }
 
     [Fact]
-    public async Task AutonomousLevel_AutoAdvancesThroughApproval()
+    public async Task FullAutoLevel_AutoAdvancesThroughApproval()
     {
-        // Creates content with CapturedAutonomyLevel = Autonomous, transitions to Review,
+        // Creates content with CapturedAutonomyLevel = FullAuto, transitions to Review,
         // verifies engine auto-advances through Review -> Approved.
         await Task.CompletedTask;
     }
@@ -45,9 +45,9 @@ public class FullWorkflowIntegrationTests
     }
 
     [Fact]
-    public async Task SemiAutoLevel_AutoApprovesOnlyWithPublishedParent()
+    public async Task DraftLevel_AutoApprovesOnlyWithPublishedParent()
     {
-        // SemiAuto with Published parent auto-approves; SemiAuto without parent stays in Review.
+        // Draft with Published parent auto-approves; Draft without parent stays in Review.
         await Task.CompletedTask;
     }
 }

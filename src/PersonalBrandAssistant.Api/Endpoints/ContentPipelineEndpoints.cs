@@ -1,7 +1,6 @@
 using PersonalBrandAssistant.Api.Extensions;
 using PersonalBrandAssistant.Application.Common.Interfaces;
 using PersonalBrandAssistant.Application.Common.Models;
-// IBrandVoiceService scoring is available via BrandVoiceEndpoints
 
 namespace PersonalBrandAssistant.Api.Endpoints;
 
@@ -15,6 +14,7 @@ public static class ContentPipelineEndpoints
         group.MapPost("/{id:guid}/outline", GenerateOutline);
         group.MapPost("/{id:guid}/draft", GenerateDraft);
         group.MapPost("/{id:guid}/submit", SubmitForReview);
+        group.MapPost("/{id:guid}/publish", Publish);
     }
 
     private static async Task<IResult> CreateFromTopic(
@@ -50,6 +50,15 @@ public static class ContentPipelineEndpoints
         CancellationToken ct)
     {
         var result = await pipeline.SubmitForReviewAsync(id, ct);
+        return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> Publish(
+        IPublishingPipeline pipeline,
+        Guid id,
+        CancellationToken ct)
+    {
+        var result = await pipeline.PublishAsync(id, ct);
         return result.ToHttpResult();
     }
 }

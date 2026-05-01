@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text;
 using Microsoft.Extensions.Logging;
 using PersonalBrandAssistant.Application.Common.Errors;
@@ -9,27 +10,40 @@ namespace PersonalBrandAssistant.Infrastructure.Agents.Capabilities;
 
 public abstract class AgentCapabilityBase : IAgentCapability
 {
+    private readonly ISkillRegistry _skillRegistry;
     private readonly ILogger _logger;
 
-    protected AgentCapabilityBase(ILogger logger)
+    protected AgentCapabilityBase(ISkillRegistry skillRegistry, ILogger logger)
     {
+        _skillRegistry = skillRegistry;
         _logger = logger;
     }
 
     public abstract AgentCapabilityType Type { get; }
     public abstract ModelTier DefaultModelTier { get; }
     protected abstract string AgentName { get; }
+    protected abstract string SkillName { get; }
     protected abstract string DefaultTemplate { get; }
     protected abstract bool CreatesContent { get; }
 
     public async Task<Result<AgentOutput>> ExecuteAsync(AgentContext context, CancellationToken ct)
     {
+        using var activity = AgentTelemetry.Source.StartActivity($"agent.{AgentName}.execute");
+        activity?.SetTag("capability_type", Type.ToString());
+        activity?.SetTag("skill_id", SkillName);
+
         try
         {
             var templateName = context.Parameters.GetValueOrDefault("template", DefaultTemplate);
             var variables = BuildVariables(context);
 
-            var systemPrompt = await context.PromptService.RenderAsync(AgentName, "system", variables);
+            var skill = _skillRegistry.GetSkillById(SkillName);
+            if (skill is null)
+                return Result<AgentOutput>.Failure(ErrorCode.InternalError,
+                    $"Skill '{SkillName}' not found in registry. Ensure the SKILL.md file is present.");
+
+            var level2Body = _skillRegistry.LoadLevel2(SkillName);
+            var systemPrompt = await context.PromptService.RenderRawAsync(level2Body, variables);
             var taskPrompt = await context.PromptService.RenderAsync(AgentName, templateName, variables);
 
             var responseBuilder = new StringBuilder();
@@ -40,7 +54,7 @@ public abstract class AgentCapabilityBase : IAgentCapability
             var cost = 0m;
             var fileChanges = new List<string>();
 
-            await foreach (var evt in context.SidecarClient.SendTaskAsync(taskPrompt, systemPrompt, context.SessionId, ct))
+            await foreach (var evt in context.SidecarClient.SendTaskAsync(taskPrompt, systemPrompt, context.SessionId, skill.ModelId, ct))
             {
                 switch (evt)
                 {
@@ -75,14 +89,17 @@ public abstract class AgentCapabilityBase : IAgentCapability
                     $"{Type} capability received empty response from sidecar");
             }
 
+            activity?.SetTag("cost_usd", cost);
             return BuildOutput(responseText, inputTokens, outputTokens, cacheReadTokens, cacheCreationTokens, cost, fileChanges);
         }
         catch (OperationCanceledException)
         {
+            activity?.SetStatus(ActivityStatusCode.Error, "cancelled");
             throw;
         }
         catch (Exception ex)
         {
+            activity?.SetStatus(ActivityStatusCode.Error, "agent execution failed");
             _logger.LogError(ex, "{Capability} failed during execution", Type);
             return Result<AgentOutput>.Failure(ErrorCode.InternalError,
                 $"{Type} capability encountered an unexpected error");

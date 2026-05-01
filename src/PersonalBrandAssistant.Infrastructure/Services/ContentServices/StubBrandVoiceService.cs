@@ -13,7 +13,7 @@ public sealed class StubBrandVoiceService : IBrandVoiceService
 {
     public Task<Result<BrandVoiceScore>> ScoreContentAsync(Guid contentId, CancellationToken ct)
     {
-        var score = new BrandVoiceScore(100, 100, 100, 100, [], []);
+        var score = BrandVoiceScore.Create(100, 100, 100, 100, [], []);
         return Task.FromResult(Result<BrandVoiceScore>.Success(score));
     }
 

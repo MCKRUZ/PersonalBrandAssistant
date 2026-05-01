@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using PersonalBrandAssistant.Application.Common.Interfaces;
 using PersonalBrandAssistant.Application.Common.Models;
+using PersonalBrandAssistant.Application.Common.Models.Skills;
 using PersonalBrandAssistant.Domain.Enums;
 using PersonalBrandAssistant.Infrastructure.Agents.Capabilities;
 
@@ -10,15 +11,18 @@ namespace PersonalBrandAssistant.Infrastructure.Tests.Agents.Capabilities;
 
 public class SocialAgentCapabilityTests
 {
+    private readonly Mock<ISkillRegistry> _skillRegistry;
     private readonly Mock<IPromptTemplateService> _promptService;
     private readonly Mock<ISidecarClient> _sidecarClient;
     private readonly SocialAgentCapability _capability;
 
     public SocialAgentCapabilityTests()
     {
+        _skillRegistry = new Mock<ISkillRegistry>();
         _promptService = new Mock<IPromptTemplateService>();
         _sidecarClient = new Mock<ISidecarClient>();
         _capability = new SocialAgentCapability(
+            _skillRegistry.Object,
             new Mock<ILogger<SocialAgentCapability>>().Object);
     }
 
@@ -53,7 +57,9 @@ public class SocialAgentCapabilityTests
         var context = CreateContext();
         await _capability.ExecuteAsync(context, CancellationToken.None);
 
-        _promptService.Verify(p => p.RenderAsync("social", "system", It.IsAny<Dictionary<string, object>>()), Times.Once);
+        _skillRegistry.Verify(r => r.GetSkillById("social"), Times.Once);
+        _skillRegistry.Verify(r => r.LoadLevel2("social"), Times.Once);
+        _promptService.Verify(p => p.RenderRawAsync(It.IsAny<string>(), It.IsAny<Dictionary<string, object>>()), Times.Once);
         _promptService.Verify(p => p.RenderAsync("social", "post", It.IsAny<Dictionary<string, object>>()), Times.Once);
     }
 
@@ -97,7 +103,16 @@ public class SocialAgentCapabilityTests
 
     private void SetupPrompts(string agent, string template)
     {
-        _promptService.Setup(p => p.RenderAsync(agent, "system", It.IsAny<Dictionary<string, object>>()))
+        var definition = new SkillDefinition
+        {
+            Id = agent, Name = agent, Description = "test",
+            Category = "test", SkillType = "test",
+            Tags = Array.Empty<string>(), AllowedTools = Array.Empty<string>(),
+            SchemaVersion = 1,
+        };
+        _skillRegistry.Setup(r => r.GetSkillById(agent)).Returns(definition);
+        _skillRegistry.Setup(r => r.LoadLevel2(agent)).Returns("Skill body {{ brand_voice_block }}");
+        _promptService.Setup(p => p.RenderRawAsync(It.IsAny<string>(), It.IsAny<Dictionary<string, object>>()))
             .ReturnsAsync("system prompt");
         _promptService.Setup(p => p.RenderAsync(agent, template, It.IsAny<Dictionary<string, object>>()))
             .ReturnsAsync("task prompt");
@@ -107,6 +122,7 @@ public class SocialAgentCapabilityTests
     {
         _sidecarClient.Setup(c => c.SendTaskAsync(
                 It.IsAny<string>(),
+                It.IsAny<string?>(),
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
                 It.IsAny<CancellationToken>()))

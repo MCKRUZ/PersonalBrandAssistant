@@ -11,20 +11,29 @@ public class TrendAggregationProcessor : BackgroundService
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly TrendMonitoringOptions _options;
+    private readonly BackgroundJobsOptions _jobsOptions;
     private readonly ILogger<TrendAggregationProcessor> _logger;
 
     public TrendAggregationProcessor(
         IServiceScopeFactory scopeFactory,
         IOptions<TrendMonitoringOptions> options,
+        IOptions<BackgroundJobsOptions> jobsOptions,
         ILogger<TrendAggregationProcessor> logger)
     {
         _scopeFactory = scopeFactory;
         _options = options.Value;
+        _jobsOptions = jobsOptions.Value;
         _logger = logger;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        if (!_jobsOptions.TrendAggregationEnabled)
+        {
+            _logger.LogInformation("TrendAggregation processor is disabled");
+            return;
+        }
+
         var interval = TimeSpan.FromMinutes(Math.Max(1, _options.AggregationIntervalMinutes));
         using var timer = new PeriodicTimer(interval);
 

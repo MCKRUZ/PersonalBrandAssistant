@@ -3,4 +3,5 @@ export const environment = {
   apiUrl: 'http://localhost:5000/api',
   apiKey: 'pba-dev-write-key',
   sidecarUrl: 'http://localhost:3001',
+  hubUrl: 'http://localhost:5000/hubs/sidecar',
 };

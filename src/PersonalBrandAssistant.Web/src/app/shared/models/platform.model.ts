@@ -25,6 +25,6 @@ export interface TestPostRequest {
 }
 
 export interface AuthUrlResponse {
-  readonly authUrl: string;
+  readonly url: string;
   readonly state: string;
 }

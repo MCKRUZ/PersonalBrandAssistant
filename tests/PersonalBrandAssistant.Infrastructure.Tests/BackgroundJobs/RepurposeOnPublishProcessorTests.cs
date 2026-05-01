@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using MockQueryable.Moq;
 using Moq;
 using PersonalBrandAssistant.Application.Common.Interfaces;
@@ -37,6 +38,7 @@ public class RepurposeOnPublishProcessorTests
     private RepurposeOnPublishProcessor CreateSut() => new(
         _scopeFactory.Object,
         _dateTimeProvider.Object,
+        Options.Create(new BackgroundJobsOptions { RepurposeOnPublishEnabled = true }),
         _logger.Object);
 
     private void SetupDbSets(
@@ -78,7 +80,7 @@ public class RepurposeOnPublishProcessorTests
         // Arrange
         var content = CreatePublishedContent();
         var autonomy = AutonomyConfiguration.CreateDefault();
-        autonomy.GlobalLevel = AutonomyLevel.Autonomous;
+        autonomy.GlobalLevel = AutonomyLevel.FullAuto;
 
         SetupDbSets([content], autonomy);
 
@@ -118,12 +120,12 @@ public class RepurposeOnPublishProcessorTests
     }
 
     [Fact]
-    public async Task ProcessAsync_SemiAutoAutonomy_OnlyPublishedContent()
+    public async Task ProcessAsync_DraftAutonomy_OnlyPublishedContent()
     {
         // Arrange
         var content = CreatePublishedContent();
         var autonomy = AutonomyConfiguration.CreateDefault();
-        autonomy.GlobalLevel = AutonomyLevel.SemiAuto;
+        autonomy.GlobalLevel = AutonomyLevel.Draft;
 
         SetupDbSets([content], autonomy);
 
@@ -148,7 +150,7 @@ public class RepurposeOnPublishProcessorTests
         var content1 = CreatePublishedContent();
         var content2 = CreatePublishedContent();
         var autonomy = AutonomyConfiguration.CreateDefault();
-        autonomy.GlobalLevel = AutonomyLevel.Autonomous;
+        autonomy.GlobalLevel = AutonomyLevel.FullAuto;
 
         SetupDbSets([content1, content2], autonomy);
 
@@ -174,7 +176,7 @@ public class RepurposeOnPublishProcessorTests
         // Arrange
         var content = CreatePublishedContent();
         var autonomy = AutonomyConfiguration.CreateDefault();
-        autonomy.GlobalLevel = AutonomyLevel.Autonomous;
+        autonomy.GlobalLevel = AutonomyLevel.FullAuto;
 
         SetupDbSets([content], autonomy);
 

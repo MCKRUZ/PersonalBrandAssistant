@@ -23,25 +23,40 @@ public class EnumTests
     }
 
     [Fact]
-    public void PlatformType_HasExactly4Values()
+    public void PlatformType_HasExactly7Values()
     {
         var values = Enum.GetValues<PlatformType>();
-        Assert.Equal(4, values.Length);
+        Assert.Equal(7, values.Length);
         Assert.Contains(PlatformType.TwitterX, values);
         Assert.Contains(PlatformType.LinkedIn, values);
         Assert.Contains(PlatformType.Instagram, values);
         Assert.Contains(PlatformType.YouTube, values);
+        Assert.Contains(PlatformType.Reddit, values);
+        Assert.Contains(PlatformType.PersonalBlog, values);
+        Assert.Contains(PlatformType.Substack, values);
     }
 
     [Fact]
-    public void AutonomyLevel_HasExactly4Values()
+    public void AutonomyLevel_HasExactly5Values()
     {
         var values = Enum.GetValues<AutonomyLevel>();
-        Assert.Equal(4, values.Length);
+        Assert.Equal(5, values.Length);
         Assert.Contains(AutonomyLevel.Manual, values);
-        Assert.Contains(AutonomyLevel.Assisted, values);
-        Assert.Contains(AutonomyLevel.SemiAuto, values);
-        Assert.Contains(AutonomyLevel.Autonomous, values);
+        Assert.Contains(AutonomyLevel.Suggest, values);
+        Assert.Contains(AutonomyLevel.Draft, values);
+        Assert.Contains(AutonomyLevel.AutoPublish, values);
+        Assert.Contains(AutonomyLevel.FullAuto, values);
+    }
+
+    [Theory]
+    [InlineData(AutonomyLevel.Manual, 0)]
+    [InlineData(AutonomyLevel.Suggest, 1)]
+    [InlineData(AutonomyLevel.Draft, 2)]
+    [InlineData(AutonomyLevel.AutoPublish, 3)]
+    [InlineData(AutonomyLevel.FullAuto, 4)]
+    public void AutonomyLevel_HasCorrectOrdinals(AutonomyLevel level, int expected)
+    {
+        Assert.Equal(expected, (int)level);
     }
 
     [Fact]
@@ -117,14 +132,18 @@ public class EnumTests
     }
 
     [Fact]
-    public void TrendSourceType_HasExactly4Values()
+    public void TrendSourceType_HasExactly8Values()
     {
         var values = Enum.GetValues<TrendSourceType>();
-        Assert.Equal(4, values.Length);
+        Assert.Equal(8, values.Length);
         Assert.Contains(TrendSourceType.TrendRadar, values);
         Assert.Contains(TrendSourceType.FreshRSS, values);
         Assert.Contains(TrendSourceType.Reddit, values);
         Assert.Contains(TrendSourceType.HackerNews, values);
+        Assert.Contains(TrendSourceType.YouTube, values);
+        Assert.Contains(TrendSourceType.Email, values);
+        Assert.Contains(TrendSourceType.BrowserHistory, values);
+        Assert.Contains(TrendSourceType.RssFeed, values);
     }
 
     [Fact]

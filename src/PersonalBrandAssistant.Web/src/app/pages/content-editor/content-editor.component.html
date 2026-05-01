@@ -1,0 +1,121 @@
+<div class="editor-content">
+  @if (store.isLoading()) {
+    <div class="loading-state">
+      <p-skeleton height="40px" styleClass="mb-3" />
+      <p-skeleton height="300px" styleClass="mb-3" />
+      <p-skeleton height="120px" />
+    </div>
+  } @else if (store.content()) {
+    <!-- Header Bar -->
+    <header class="editor-header">
+      <div class="header-left">
+        <p-button icon="pi pi-arrow-left" [text]="true" severity="secondary" (onClick)="navigateBack()" />
+        <input
+          class="title-input"
+          type="text"
+          [ngModel]="store.content()!.title"
+          (ngModelChange)="onTitleChange($event)"
+          placeholder="Untitled" />
+      </div>
+      <div class="header-center">
+        <p-select
+          [options]="platforms"
+          [ngModel]="store.content()!.platform"
+          (ngModelChange)="onPlatformChange($event)"
+          optionLabel="label"
+          optionValue="value"
+          placeholder="Platform" />
+        <p-select
+          [options]="contentTypes"
+          [ngModel]="store.content()!.type"
+          (ngModelChange)="onTypeChange($event)"
+          optionLabel="label"
+          optionValue="value"
+          placeholder="Type" />
+        <app-status-badge [status]="store.content()!.status" />
+      </div>
+      <div class="header-right">
+        @if (store.isSaving()) {
+          <span class="save-indicator saving">
+            <i class="pi pi-spin pi-spinner"></i> Saving...
+          </span>
+        } @else if (store.saveError()) {
+          <span class="save-indicator error">
+            <i class="pi pi-exclamation-triangle"></i>
+            {{ store.saveError() === 'conflict' ? 'Conflict — reload' : 'Save failed' }}
+          </span>
+        } @else {
+          <span class="save-indicator saved">
+            <i class="pi pi-check"></i> Saved
+          </span>
+        }
+      </div>
+    </header>
+
+    <!-- Main Layout -->
+    <div class="editor-body">
+      <!-- Left Column: Editor + Tabs -->
+      <div class="editor-main">
+        <section class="editor-area">
+          <textarea
+            pTextarea
+            [autoResize]="true"
+            [rows]="12"
+            [ngModel]="store.content()!.body"
+            (ngModelChange)="onBodyChange($event)"
+            placeholder="Start writing..."
+            class="body-textarea"></textarea>
+
+          @if (charLimit()) {
+            <div class="char-counter" [class]="charClass()">
+              {{ charCount() }} / {{ charLimit() }}
+            </div>
+          }
+        </section>
+
+        <!-- Action Bar -->
+        <div class="action-bar">
+          <p-button label="Score" icon="pi pi-chart-bar" severity="secondary" size="small"
+            (onClick)="store.scoreContent()" [loading]="store.isScoring()" />
+          <p-button label="Approve & Publish" icon="pi pi-check-circle" size="small"
+            (onClick)="store.approveAndPublish()"
+            [disabled]="store.content()!.status === 'Published'" />
+        </div>
+
+        <!-- Tab Bar -->
+        <div class="tab-bar">
+          <button class="tab-btn" [class.active]="store.activeTab() === 'preview'"
+            (click)="store.setActiveTab('preview')">Preview</button>
+          <button class="tab-btn" [class.active]="store.activeTab() === 'history'"
+            (click)="store.setActiveTab('history')">History</button>
+          <button class="tab-btn" [class.active]="store.activeTab() === 'versions'"
+            (click)="store.setActiveTab('versions')">Versions</button>
+        </div>
+
+        <div class="tab-content">
+          @if (store.activeTab() === 'preview') {
+            <app-preview-tab [content]="store.content()!" />
+          } @else if (store.activeTab() === 'history') {
+            <app-history-tab [executions]="store.executionHistory()" />
+          } @else if (store.activeTab() === 'versions') {
+            <app-versions-tab [versions]="store.versions()" />
+          }
+        </div>
+      </div>
+
+      <!-- Right Column: Brand Voice Panel -->
+      <aside class="editor-sidebar">
+        <app-brand-voice-panel
+          [score]="store.brandScore()"
+          [isScoring]="store.isScoring()"
+          (scoreRequested)="store.scoreContent()" />
+      </aside>
+    </div>
+  } @else {
+    <div class="empty-state">
+      <i class="pi pi-file-edit"></i>
+      <p>Create new content or select existing content to edit</p>
+      <p-button label="Back to content" severity="secondary" (onClick)="navigateBack()" />
+    </div>
+  }
+</div>

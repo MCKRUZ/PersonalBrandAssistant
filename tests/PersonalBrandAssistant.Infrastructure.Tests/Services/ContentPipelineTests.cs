@@ -81,6 +81,7 @@ public class ContentPipelineTests
                 It.IsAny<string>(),
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
+                It.IsAny<string?>(),
                 It.IsAny<CancellationToken>()))
             .Returns(CreateSidecarEvents(text));
     }
@@ -182,6 +183,7 @@ public class ContentPipelineTests
             It.Is<string>(s => s.Contains("AI trends") && s.Contains("outline", StringComparison.OrdinalIgnoreCase)),
             It.IsAny<string?>(),
             It.IsAny<string?>(),
+            It.IsAny<string?>(),
             It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -258,6 +260,7 @@ public class ContentPipelineTests
                 It.IsAny<string>(),
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
+                It.IsAny<string?>(),
                 It.IsAny<CancellationToken>()))
             .Returns(CreateSidecarEventsWithFile("<html>Blog content</html>", "/blog/ai-post.html"));
 
@@ -286,7 +289,7 @@ public class ContentPipelineTests
     {
         var content = Content.Create(ContentType.BlogPost, "Some content");
         SetupContentsDbSet([content]);
-        var score = new BrandVoiceScore(85, 90, 80, 85, [], []);
+        var score = BrandVoiceScore.Create(90, 80, 85, 85, [], []);
         _brandVoiceService.Setup(s => s.ScoreContentAsync(content.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Result<BrandVoiceScore>.Success(score));
 
@@ -301,7 +304,7 @@ public class ContentPipelineTests
     {
         var content = Content.Create(ContentType.BlogPost, "Some content");
         SetupContentsDbSet([content]);
-        var score = new BrandVoiceScore(85, 90, 80, 85, [], []);
+        var score = BrandVoiceScore.Create(90, 80, 85, 85, [], []);
         _brandVoiceService.Setup(s => s.ScoreContentAsync(content.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Result<BrandVoiceScore>.Success(score));
 
@@ -348,7 +351,7 @@ public class ContentPipelineTests
     }
 
     [Fact]
-    public async Task SubmitForReviewAsync_AutonomousLevel_AutoApproves()
+    public async Task SubmitForReviewAsync_FullAutoLevel_AutoApproves()
     {
         var content = Content.Create(ContentType.BlogPost, "Content body");
         SetupContentsDbSet([content]);

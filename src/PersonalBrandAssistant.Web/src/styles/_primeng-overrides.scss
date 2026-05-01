@@ -1,0 +1,39 @@
+:root {
+  // Surface (obsidian)
+  --p-surface-0: #0e0e10;
+  --p-surface-50: #141418;
+  --p-surface-100: #1a1a20;
+  --p-surface-200: #22222a;
+  --p-surface-300: #2c2c36;
+  --p-surface-400: #3a3a46;
+  --p-surface-500: #5a5a66;
+  --p-surface-600: #8a8a96;
+  --p-surface-700: #c0c0cc;
+  --p-surface-800: #e0e0e8;
+  --p-surface-900: #f0f0f5;
+
+  // Primary (terracotta)
+  --p-primary-color: #c87156;
+  --p-primary-color-emphasis: #d4836a;
+  --p-primary-color-text: #ffffff;
+  --p-primary-50: #fdf2ef;
+  --p-primary-100: #fbe3dc;
+  --p-primary-200: #f5c4b5;
+  --p-primary-300: #eda08a;
+  --p-primary-400: #d4836a;
+  --p-primary-500: #c87156;
+  --p-primary-600: #b5624a;
+  --p-primary-700: #97503d;
+  --p-primary-800: #7a4133;
+  --p-primary-900: #63362b;
+
+  // Typography
+  --p-font-family: 'DM Sans', sans-serif;
+
+  // Shape
+  --p-border-radius: 8px;
+  --p-content-border-radius: 6px;
+
+  // Shadows (subtle for dark backgrounds)
+  --p-overlay-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}

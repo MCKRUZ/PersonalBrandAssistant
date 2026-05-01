@@ -1,6 +1,5 @@
 import { Component, input, output, computed } from '@angular/core';
-import { CommonModule, DatePipe } from '@angular/common';
-import { Tag } from 'primeng/tag';
+import { CommonModule } from '@angular/common';
 import { PlatformChipComponent } from '../../../shared/components/platform-chip/platform-chip.component';
 import { CalendarSlot } from '../../../shared/models';
 
@@ -15,7 +14,7 @@ interface DayCell {
 @Component({
   selector: 'app-calendar-grid',
   standalone: true,
-  imports: [CommonModule, Tag, PlatformChipComponent, DatePipe],
+  imports: [CommonModule, PlatformChipComponent],
   template: `
     <div class="calendar-grid">
       <div class="grid-header">

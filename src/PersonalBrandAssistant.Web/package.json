@@ -18,6 +18,7 @@
     "@angular/platform-browser": "^19.2.0",
     "@angular/platform-browser-dynamic": "^19.2.0",
     "@angular/router": "^19.2.0",
+    "@microsoft/signalr": "^10.0.0",
     "@ngrx/operators": "^21.0.1",
     "@ngrx/signals": "^21.0.1",
     "@primeng/themes": "^20.4.0",
@@ -26,13 +27,14 @@
     "primeflex": "^4.0.0",
     "primeicons": "^7.0.0",
     "primeng": "^20.4.0",
+    "quill": "^2.0.3",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0",
     "zone.js": "~0.15.0"
   },
   "devDependencies": {
     "@angular-devkit/build-angular": "^19.2.22",
-    "@angular/cli": "^19.2.22",
+    "@angular/cli": "^19.2.23",
     "@angular/compiler-cli": "^19.2.0",
     "@types/jasmine": "~5.1.0",
     "jasmine-core": "~5.6.0",

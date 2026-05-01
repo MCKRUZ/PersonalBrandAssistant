@@ -189,6 +189,74 @@ public class PromptTemplateServiceTests : IDisposable
         Assert.Empty(templates);
     }
 
+    // --- RenderRawAsync tests ---
+
+    [Fact]
+    public async Task RenderRawAsync_SimpleTemplate_RendersVariables()
+    {
+        var service = CreateService();
+
+        var result = await service.RenderRawAsync(
+            "Hello {{ name }}",
+            new Dictionary<string, object> { ["name"] = "World" });
+
+        Assert.Equal("Hello World", result);
+    }
+
+    [Fact]
+    public async Task RenderRawAsync_BrandVoiceBlock_InjectedCorrectly()
+    {
+        WriteTemplate("shared/brand-voice.liquid", "Voice: {{ brand.Name }}");
+        var service = CreateService();
+
+        var brand = new BrandProfilePromptModel
+        {
+            Name = "TestBrand",
+            PersonaDescription = "desc",
+            ToneDescriptors = ["professional"],
+            StyleGuidelines = "Direct",
+            PreferredTerms = [],
+            AvoidedTerms = [],
+            Topics = [],
+            ExampleContent = []
+        };
+
+        var result = await service.RenderRawAsync(
+            "{{ brand_voice_block }}",
+            new Dictionary<string, object> { ["brand"] = brand });
+
+        Assert.Contains("Voice: TestBrand", result);
+    }
+
+    [Fact]
+    public async Task RenderRawAsync_InvalidLiquidSyntax_Throws()
+    {
+        var service = CreateService();
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.RenderRawAsync("{% if unclosed %}", new Dictionary<string, object>()));
+    }
+
+    [Fact]
+    public async Task RenderRawAsync_EmptyTemplate_ReturnsEmpty()
+    {
+        var service = CreateService();
+
+        var result = await service.RenderRawAsync("", new Dictionary<string, object>());
+
+        Assert.Equal("", result);
+    }
+
+    [Fact]
+    public async Task RenderRawAsync_NullTemplate_ReturnsEmpty()
+    {
+        var service = CreateService();
+
+        var result = await service.RenderRawAsync(null!, new Dictionary<string, object>());
+
+        Assert.Equal("", result);
+    }
+
     [Theory]
     [InlineData("../etc", "blog-post")]
     [InlineData("writer", "../../appsettings")]

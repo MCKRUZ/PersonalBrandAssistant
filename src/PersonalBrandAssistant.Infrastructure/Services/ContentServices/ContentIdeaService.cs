@@ -135,7 +135,7 @@ public sealed class ContentIdeaService : IContentIdeaService
         string? lastSummary = null;
         try
         {
-            await foreach (var evt in _sidecar.SendTaskAsync(prompt, null, null, ct))
+            await foreach (var evt in _sidecar.SendTaskAsync(prompt, null, null, null, ct))
             {
                 switch (evt)
                 {

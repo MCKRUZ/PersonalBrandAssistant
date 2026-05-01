@@ -85,9 +85,9 @@ public static class CalendarTools
             return Error($"Content {contentId} not found.");
 
         var autonomy = await dbContext.AutonomyConfigurations.FirstOrDefaultAsync(ct);
-        var level = autonomy?.GlobalLevel ?? AutonomyLevel.SemiAuto;
+        var level = autonomy?.GlobalLevel ?? AutonomyLevel.Draft;
 
-        if (level is AutonomyLevel.Manual or AutonomyLevel.Assisted)
+        if (level is AutonomyLevel.Manual or AutonomyLevel.Suggest)
             return Success(new { contentId = guid, status = "queued-for-approval", scheduledAt, platform = platformEnum.ToString() });
 
         var conflictWindow = TimeSpan.FromMinutes(30);
