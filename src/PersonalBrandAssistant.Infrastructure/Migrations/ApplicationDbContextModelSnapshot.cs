@@ -18,7 +18,7 @@ namespace PersonalBrandAssistant.Infrastructure.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.5")
+                .HasAnnotation("ProductVersion", "10.0.7")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -273,6 +273,9 @@ namespace PersonalBrandAssistant.Infrastructure.Migrations
 
                     b.Property<bool>("AutoPublishEnabled")
                         .HasColumnType("boolean");
+
+                    b.Property<int>("AutoPublishThreshold")
+                        .HasColumnType("integer");
 
                     b.Property<bool>("AutoScheduleEnabled")
                         .HasColumnType("boolean");
