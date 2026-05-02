@@ -30,9 +30,13 @@ export class DashboardApiService {
   }
 
   getTodaySchedule(): Observable<CalendarSlot[]> {
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date();
+    const from = today.toISOString().split('T')[0];
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const to = tomorrow.toISOString().split('T')[0];
     return this.http.get<CalendarSlot[]>(`${this.base}/calendar`, {
-      params: { from: today, to: today },
+      params: { from, to },
     });
   }
 

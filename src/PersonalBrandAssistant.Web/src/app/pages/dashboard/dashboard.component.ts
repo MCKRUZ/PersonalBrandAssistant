@@ -52,8 +52,8 @@ export class DashboardComponent implements OnInit {
     return `${h12}:${m.toString().padStart(2, '0')} ${ampm}`;
   }
 
-  formatCost(cost: number): string {
-    return `$${cost.toFixed(2)}`;
+  formatCost(cost: number | undefined): string {
+    return `$${(cost ?? 0).toFixed(2)}`;
   }
 
   relativeDate(dateStr: string): string {
