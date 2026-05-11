@@ -11,6 +11,7 @@ import { ViewToggleComponent } from './components/view-toggle/view-toggle.compon
 import { IdeaGridComponent } from './components/idea-grid/idea-grid.component';
 import { IdeaListComponent } from './components/idea-list/idea-list.component';
 import { SaveIdeaDialogComponent } from './components/save-idea-dialog/save-idea-dialog.component';
+import { SmartSuggestionsComponent } from './components/smart-suggestions/smart-suggestions.component';
 import { Idea } from '../../models/idea.model';
 
 @Component({
@@ -27,6 +28,7 @@ import { Idea } from '../../models/idea.model';
     IdeaGridComponent,
     IdeaListComponent,
     SaveIdeaDialogComponent,
+    SmartSuggestionsComponent,
   ],
   template: `
     <div class="ideas-layout" data-testid="ideas-page">
@@ -88,8 +90,7 @@ import { Idea } from '../../models/idea.model';
         [(visible)]="saveDialogVisible" />
 
       <aside class="suggestions-sidebar">
-        <h3>Smart Suggestions</h3>
-        <p class="placeholder-text">Coming soon...</p>
+        <app-smart-suggestions (createContent)="onCreateContent($event)" />
       </aside>
     </div>
   `,
@@ -171,17 +172,8 @@ import { Idea } from '../../models/idea.model';
         padding: 16px;
         border-left: 1px solid #21262d;
         overflow-y: auto;
-      }
-      .suggestions-sidebar h3 {
-        font-size: 14px;
-        font-weight: 600;
-        color: #f0f6fc;
-        margin: 0 0 8px;
-      }
-      .placeholder-text {
-        font-size: 13px;
-        color: #8b949e;
-        margin: 0;
+        display: flex;
+        flex-direction: column;
       }
     `,
   ],
