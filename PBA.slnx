@@ -5,4 +5,5 @@
   <Project Path="src/PBA.Api/PBA.Api.csproj" />
   <Project Path="tests/PBA.Application.Tests/PBA.Application.Tests.csproj" />
   <Project Path="tests/PBA.Api.Tests/PBA.Api.Tests.csproj" />
+  <Project Path="tests/PBA.Infrastructure.Tests/PBA.Infrastructure.Tests.csproj" />
 </Solution>

@@ -2,7 +2,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using PBA.Application.Common.Interfaces;
+using PBA.Infrastructure.Configuration;
 using PBA.Infrastructure.Data;
+using PBA.Infrastructure.Services;
 
 namespace PBA.Infrastructure;
 
@@ -20,6 +22,10 @@ public static class DependencyInjection
         services.AddScoped<IAppDbContext>(sp => sp.GetRequiredService<ApplicationDbContext>());
 
         services.AddHttpClient();
+
+        services.Configure<FreshRssOptions>(configuration.GetSection(FreshRssOptions.SectionName));
+        services.AddHttpClient<FreshRssClient>();
+        services.AddHostedService<RssPollingService>();
 
         return services;
     }
