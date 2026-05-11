@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 using Moq;
 using PBA.Application.Common.Interfaces;
 using PBA.Infrastructure.Data;
@@ -17,18 +18,21 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>
     {
         builder.ConfigureServices(services =>
         {
-            // Remove all EF Core and NpgsQL service registrations
-            var efDescriptors = services
+            var descriptorsToRemove = services
                 .Where(d =>
                     d.ServiceType == typeof(DbContextOptions<ApplicationDbContext>) ||
                     d.ServiceType == typeof(DbContextOptions) ||
                     d.ServiceType == typeof(ApplicationDbContext) ||
                     d.ServiceType == typeof(IAppDbContext) ||
                     d.ServiceType.FullName?.StartsWith("Microsoft.EntityFrameworkCore") == true ||
-                    d.ImplementationType?.Assembly.FullName?.Contains("Npgsql") == true)
+                    d.ImplementationType?.Assembly.FullName?.Contains("Npgsql") == true ||
+                    d.ServiceType.FullName?.Contains("Hangfire") == true ||
+                    d.ImplementationType?.FullName?.Contains("Hangfire") == true ||
+                    d.ImplementationFactory?.Method.DeclaringType?.FullName?.Contains("Hangfire") == true ||
+                    d.ImplementationType?.FullName?.Contains("ScheduledPublishReconciler") == true)
                 .ToList();
 
-            foreach (var d in efDescriptors)
+            foreach (var d in descriptorsToRemove)
                 services.Remove(d);
 
             services.AddDbContext<ApplicationDbContext>(options =>
@@ -38,6 +42,7 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>
                 sp.GetRequiredService<ApplicationDbContext>());
 
             services.AddSingleton(new Mock<IFreshRssClient>().Object);
+            services.AddSingleton(new Mock<IContentScheduler>().Object);
         });
 
         builder.UseEnvironment("Testing");

@@ -1,4 +1,6 @@
 using System.Text.Json.Serialization;
+using Hangfire;
+using Hangfire.PostgreSql;
 using PBA.Api.Endpoints;
 using PBA.Api.Hubs;
 using PBA.Application;
@@ -22,6 +24,11 @@ builder.Services.AddCors(options =>
 
 builder.Services.AddSignalR();
 
+builder.Services.AddHangfire(config =>
+    config.UsePostgreSqlStorage(o =>
+        o.UseNpgsqlConnection(builder.Configuration.GetConnectionString("DefaultConnection"))));
+builder.Services.AddHangfireServer();
+
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
     options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
@@ -37,6 +44,9 @@ app.MapIdeaEndpoints();
 app.MapIdeaSourceEndpoints();
 
 app.MapHub<ContentHub>("/hubs/content");
+
+if (app.Environment.IsDevelopment())
+    app.UseHangfireDashboard("/hangfire");
 
 app.Run();
 
