@@ -21,6 +21,7 @@
     <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.0" />
     <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.0" />
     <PackageReference Include="Ardalis.GuardClauses" Version="5.0.0" />
+    <PackageReference Include="Markdig" Version="0.40.0" />
   </ItemGroup>
 
   <ItemGroup>

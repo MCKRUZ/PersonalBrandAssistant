@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using PBA.Application.Common.Interfaces;
 using PBA.Infrastructure.Configuration;
 using PBA.Infrastructure.Data;
+using PBA.Infrastructure.Connectors;
 using PBA.Infrastructure.Services;
 
 namespace PBA.Infrastructure;
@@ -31,6 +32,9 @@ public static class DependencyInjection
         services.AddSingleton<IProcessRunner, ProcessRunner>();
         services.AddSingleton<ISidecarClient, SidecarClient>();
         services.AddHostedService<AiConnectionsService>();
+
+        services.Configure<BlogConnectorOptions>(configuration.GetSection(BlogConnectorOptions.SectionName));
+        services.AddScoped<IBlogConnector, BlogConnector>();
 
         return services;
     }
