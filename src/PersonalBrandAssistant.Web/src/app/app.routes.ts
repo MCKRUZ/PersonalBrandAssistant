@@ -1,81 +1,20 @@
 import { Routes } from '@angular/router';
+import { LayoutComponent } from './shell/layout/layout.component';
 
 export const routes: Routes = [
-  { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
   {
-    path: 'dashboard',
-    loadComponent: () => import('./pages/dashboard/dashboard.component').then(m => m.DashboardComponent),
-    data: { title: 'Dashboard', sidecarContext: 'dashboard' },
-  },
-  {
-    path: 'content',
-    loadChildren: () => import('./features/content/content.routes').then(m => m.CONTENT_ROUTES),
-    data: { title: 'Content', sidecarContext: 'content-list' },
-  },
-  {
-    path: 'blog',
+    path: '',
+    component: LayoutComponent,
     children: [
-      {
-        path: '',
-        loadComponent: () => import('./features/blog/blog.component').then(m => m.BlogComponent),
-        data: { title: 'Blog Pipeline', sidecarContext: 'blog-pipeline' },
-      },
-      {
-        path: 'new',
-        loadComponent: () => import('./pages/blog/blog-editor.component').then(m => m.BlogEditorComponent),
-        data: { title: 'New Blog Post', sidecarContext: 'content-editor' },
-      },
-      {
-        path: ':id/edit',
-        loadComponent: () => import('./pages/blog/blog-editor.component').then(m => m.BlogEditorComponent),
-        data: { title: 'Edit Blog Post', sidecarContext: 'content-editor' },
-      },
-    ],
-  },
-  {
-    path: 'blog-pipeline',
-    redirectTo: 'blog',
-    pathMatch: 'full',
-  },
-  {
-    path: 'calendar',
-    loadComponent: () => import('./pages/calendar/calendar.component').then(m => m.CalendarComponent),
-    data: { title: 'Calendar', sidecarContext: 'calendar' },
-  },
-  {
-    path: 'approval-queue',
-    loadComponent: () => import('./pages/approval-queue/approval-queue.component').then(m => m.ApprovalQueueComponent),
-    data: { title: 'Approval Queue', sidecarContext: 'approval-queue' },
-  },
-  {
-    path: 'social',
-    loadChildren: () => import('./features/social/social.routes').then(m => m.SOCIAL_ROUTES),
-    data: { title: 'Social', sidecarContext: 'social' },
-  },
-  {
-    path: 'platforms',
-    loadChildren: () => import('./features/platforms/platforms.routes').then(m => m.PLATFORMS_ROUTES),
-    data: { title: 'Platforms', sidecarContext: 'platforms' },
-  },
-  {
-    path: 'analytics',
-    loadComponent: () => import('./pages/analytics/analytics.component').then(m => m.AnalyticsComponent),
-    data: { title: 'Analytics', sidecarContext: 'analytics' },
-  },
-  {
-    path: 'news',
-    loadChildren: () => import('./features/news/news.routes').then(m => m.NEWS_ROUTES),
-    data: { title: 'News', sidecarContext: 'news' },
-  },
-  {
-    path: 'automation',
-    loadChildren: () => import('./features/automation/automation.routes').then(m => m.AUTOMATION_ROUTES),
-    data: { title: 'Automation', sidecarContext: 'automation' },
-  },
-  {
-    path: 'settings',
-    loadChildren: () => import('./pages/settings/settings.routes').then(m => m.SETTINGS_ROUTES),
-    data: { title: 'Settings', sidecarContext: 'settings' },
-  },
-  { path: '**', redirectTo: 'dashboard' },
+      { path: '', redirectTo: 'feed', pathMatch: 'full' },
+      { path: 'feed', loadComponent: () => import('./features/feed/feed.component').then(m => m.FeedComponent) },
+      { path: 'discover', loadComponent: () => import('./features/discover/discover.component').then(m => m.DiscoverComponent) },
+      { path: 'ideas', loadChildren: () => import('./features/ideas/ideas.routes').then(m => m.IDEAS_ROUTES) },
+      { path: 'content', loadComponent: () => import('./features/content/content.component').then(m => m.ContentComponent) },
+      { path: 'calendar', loadComponent: () => import('./features/calendar/calendar.component').then(m => m.CalendarComponent) },
+      { path: 'analytics', loadComponent: () => import('./features/analytics/analytics.component').then(m => m.AnalyticsComponent) },
+      { path: 'listening', loadComponent: () => import('./features/listening/listening.component').then(m => m.ListeningComponent) },
+      { path: 'settings', loadComponent: () => import('./features/settings/settings.component').then(m => m.SettingsComponent) },
+    ]
+  }
 ];
