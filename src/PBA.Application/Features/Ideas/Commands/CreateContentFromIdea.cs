@@ -1,8 +1,8 @@
 using MediatR;
 using PBA.Application.Common.Interfaces;
 using PBA.Domain.Common;
-using PBA.Domain.Entities;
 using PBA.Domain.Enums;
+using ContentEntity = PBA.Domain.Entities.Content;
 
 namespace PBA.Application.Features.Ideas.Commands;
 
@@ -21,7 +21,7 @@ public static class CreateContentFromIdea
             if (idea is null)
                 return Result<Guid>.NotFound($"Idea {request.IdeaId} not found");
 
-            var content = new Content
+            var content = new ContentEntity
             {
                 Title = idea.Title,
                 Body = idea.Description ?? string.Empty,
