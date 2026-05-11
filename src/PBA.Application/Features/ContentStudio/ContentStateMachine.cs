@@ -12,7 +12,8 @@ public static class ContentStateMachine
             s => content.Status = s);
 
         machine.Configure(ContentStatus.Idea)
-            .Permit(ContentTrigger.StartDraft, ContentStatus.Draft);
+            .Permit(ContentTrigger.StartDraft, ContentStatus.Draft)
+            .Permit(ContentTrigger.Archive, ContentStatus.Archived);
 
         machine.Configure(ContentStatus.Draft)
             .OnEntryAsync(_ =>
