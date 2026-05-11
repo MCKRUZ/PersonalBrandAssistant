@@ -27,6 +27,11 @@ public static class DependencyInjection
         services.AddHttpClient<FreshRssClient>();
         services.AddHostedService<RssPollingService>();
 
+        services.Configure<SidecarOptions>(configuration.GetSection(SidecarOptions.SectionName));
+        services.AddSingleton<IProcessRunner, ProcessRunner>();
+        services.AddSingleton<ISidecarClient, SidecarClient>();
+        services.AddHostedService<AiConnectionsService>();
+
         return services;
     }
 }
