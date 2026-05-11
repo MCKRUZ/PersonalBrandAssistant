@@ -10,4 +10,5 @@ public record IdeaSourceRequest
     public string? ApiUrl { get; init; }
     public string Category { get; init; } = string.Empty;
     public int PollIntervalMinutes { get; init; } = 30;
+    public bool? IsEnabled { get; init; }
 }

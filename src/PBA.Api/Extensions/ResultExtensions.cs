@@ -9,7 +9,19 @@ public static class ResultExtensions
         if (result.IsSuccess)
             return Results.Ok(result.Value);
 
-        return result.FailureType switch
+        return MapFailure(result);
+    }
+
+    public static IResult ToApiResult(this Result result)
+    {
+        if (result.IsSuccess)
+            return Results.Ok();
+
+        return MapFailure(result);
+    }
+
+    private static IResult MapFailure(Result result) =>
+        result.FailureType switch
         {
             ResultFailureType.Validation => Results.BadRequest(result.Errors),
             ResultFailureType.NotFound => Results.NotFound(result.Errors.FirstOrDefault()),
@@ -20,5 +32,4 @@ public static class ResultExtensions
             ResultFailureType.GovernanceBlocked => Results.Forbid(),
             _ => Results.Problem(result.Errors.FirstOrDefault()),
         };
-    }
 }
