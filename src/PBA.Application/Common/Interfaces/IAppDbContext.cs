@@ -6,6 +6,8 @@ namespace PBA.Application.Common.Interfaces;
 public interface IAppDbContext
 {
     DbSet<Content> Contents { get; }
+    DbSet<ContentPlatformPublish> ContentPlatformPublishes { get; }
+    DbSet<BrandProfile> BrandProfiles { get; }
     DbSet<Idea> Ideas { get; }
     DbSet<SavedIdea> SavedIdeas { get; }
     DbSet<IdeaSource> IdeaSources { get; }
