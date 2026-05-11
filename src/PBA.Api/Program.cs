@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using PBA.Api.Endpoints;
+using PBA.Api.Hubs;
 using PBA.Application;
 using PBA.Infrastructure;
 
@@ -14,9 +15,12 @@ builder.Services.AddCors(options =>
     {
         policy.WithOrigins("http://localhost:4200")
             .AllowAnyHeader()
-            .AllowAnyMethod();
+            .AllowAnyMethod()
+            .AllowCredentials();
     });
 });
+
+builder.Services.AddSignalR();
 
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
@@ -31,6 +35,8 @@ app.MapGet("/api/health", () => Results.Ok(new { status = "healthy", timestamp =
 
 app.MapIdeaEndpoints();
 app.MapIdeaSourceEndpoints();
+
+app.MapHub<ContentHub>("/hubs/content");
 
 app.Run();
 
