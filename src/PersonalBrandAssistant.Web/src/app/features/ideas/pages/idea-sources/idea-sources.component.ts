@@ -56,7 +56,8 @@ import { AddSourceDialogComponent } from './add-source-dialog/add-source-dialog.
       <app-add-source-dialog
         [editSource]="editingSource"
         [(visible)]="addDialogVisible"
-        (saved)="onSourceSaved()" />
+        (saved)="onSourceSaved()"
+        (visibleChange)="onDialogClose($event)" />
     </div>
   `,
   styles: [
@@ -159,5 +160,11 @@ export class IdeaSourcesPageComponent implements OnInit {
 
   onSourceSaved(): void {
     this.editingSource = null;
+  }
+
+  onDialogClose(visible: boolean): void {
+    if (!visible) {
+      this.editingSource = null;
+    }
   }
 }

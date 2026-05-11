@@ -148,6 +148,7 @@ export class AddSourceDialogComponent implements OnChanges {
         name: value.name!,
         type: value.type!,
         feedUrl: value.feedUrl || undefined,
+        apiUrl: value.apiUrl || undefined,
         category: value.category!,
         pollIntervalMinutes: value.pollIntervalMinutes!,
       });
