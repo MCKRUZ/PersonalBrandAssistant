@@ -2,19 +2,13 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using PBA.Application.Common.Interfaces;
 using PBA.Domain.Common;
-using PBA.Domain.Entities;
 using PBA.Domain.Enums;
 
 namespace PBA.Application.Features.Ideas.Commands;
 
-public static class SaveIdea
+public static class DismissIdea
 {
-    public record Command : IRequest<Result>
-    {
-        public Guid IdeaId { get; init; }
-        public string? Notes { get; init; }
-        public IReadOnlyList<string> Tags { get; init; } = [];
-    }
+    public record Command(Guid IdeaId) : IRequest<Result>;
 
     internal sealed class Handler(IAppDbContext db) : IRequestHandler<Command, Result>
     {
@@ -27,22 +21,11 @@ public static class SaveIdea
             if (idea is null)
                 return Result.NotFound($"Idea {request.IdeaId} not found");
 
-            if (idea.SavedDetails is not null)
-            {
-                idea.SavedDetails.Notes = request.Notes;
-                idea.SavedDetails.Tags = request.Tags.ToList();
-            }
-            else
-            {
-                db.SavedIdeas.Add(new SavedIdea
-                {
-                    IdeaId = idea.Id,
-                    Notes = request.Notes,
-                    Tags = request.Tags.ToList()
-                });
-            }
+            idea.Status = IdeaStatus.Dismissed;
 
-            idea.Status = IdeaStatus.Saved;
+            if (idea.SavedDetails is not null)
+                db.SavedIdeas.Remove(idea.SavedDetails);
+
             await db.SaveChangesAsync(cancellationToken);
 
             return Result.Success();
