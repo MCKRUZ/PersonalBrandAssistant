@@ -1,0 +1,8 @@
+<Solution>
+  <Project Path="src/PBA.Domain/PBA.Domain.csproj" />
+  <Project Path="src/PBA.Application/PBA.Application.csproj" />
+  <Project Path="src/PBA.Infrastructure/PBA.Infrastructure.csproj" />
+  <Project Path="src/PBA.Api/PBA.Api.csproj" />
+  <Project Path="tests/PBA.Application.Tests/PBA.Application.Tests.csproj" />
+  <Project Path="tests/PBA.Api.Tests/PBA.Api.Tests.csproj" />
+</Solution>
