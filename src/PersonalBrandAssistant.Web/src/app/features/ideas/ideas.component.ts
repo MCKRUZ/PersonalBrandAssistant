@@ -10,6 +10,8 @@ import { IdeaFilterSidebarComponent } from './components/idea-filter-sidebar/ide
 import { ViewToggleComponent } from './components/view-toggle/view-toggle.component';
 import { IdeaGridComponent } from './components/idea-grid/idea-grid.component';
 import { IdeaListComponent } from './components/idea-list/idea-list.component';
+import { SaveIdeaDialogComponent } from './components/save-idea-dialog/save-idea-dialog.component';
+import { Idea } from '../../models/idea.model';
 
 @Component({
   selector: 'app-ideas',
@@ -24,6 +26,7 @@ import { IdeaListComponent } from './components/idea-list/idea-list.component';
     ViewToggleComponent,
     IdeaGridComponent,
     IdeaListComponent,
+    SaveIdeaDialogComponent,
   ],
   template: `
     <div class="ideas-layout" data-testid="ideas-page">
@@ -79,6 +82,10 @@ import { IdeaListComponent } from './components/idea-list/idea-list.component';
           }
         }
       </main>
+
+      <app-save-idea-dialog
+        [idea]="selectedIdeaForSave"
+        [(visible)]="saveDialogVisible" />
 
       <aside class="suggestions-sidebar">
         <h3>Smart Suggestions</h3>
@@ -185,6 +192,8 @@ export class IdeasComponent implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
 
   searchText = '';
+  saveDialogVisible = false;
+  selectedIdeaForSave: Idea | null = null;
   private searchTimer: ReturnType<typeof setTimeout> | null = null;
 
   ngOnInit(): void {
@@ -203,7 +212,8 @@ export class IdeasComponent implements OnInit {
   }
 
   onSave(id: string): void {
-    this.store.saveIdea(id, null, []);
+    this.selectedIdeaForSave = this.store.ideas().find((i) => i.id === id) ?? null;
+    this.saveDialogVisible = true;
   }
 
   onDismiss(id: string): void {
