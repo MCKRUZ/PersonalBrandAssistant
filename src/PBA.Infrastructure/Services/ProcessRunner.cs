@@ -1,10 +1,41 @@
 using System.Diagnostics;
+using System.Text;
 using PBA.Application.Common.Interfaces;
 
 namespace PBA.Infrastructure.Services;
 
 public class ProcessRunner : IProcessRunner
 {
+    public IStreamingProcessHandle StartStreaming(
+        string fileName,
+        string arguments,
+        string? stdinContent = null)
+    {
+        var psi = new ProcessStartInfo
+        {
+            FileName = fileName,
+            Arguments = arguments,
+            RedirectStandardInput = stdinContent != null,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+        };
+
+        var process = new Process { StartInfo = psi };
+        process.Start();
+
+        if (stdinContent != null)
+        {
+            process.StandardInput.Write(stdinContent);
+            process.StandardInput.Close();
+        }
+
+        var stderrTask = process.StandardError.ReadToEndAsync();
+
+        return new StreamingProcessHandle(process, stderrTask);
+    }
+
     public async Task<ProcessRunResult> RunAsync(
         string fileName,
         string arguments,

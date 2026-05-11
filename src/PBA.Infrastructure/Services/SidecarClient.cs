@@ -1,3 +1,5 @@
+using System.Collections.Concurrent;
+using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using PBA.Application.Common.Interfaces;
@@ -10,7 +12,8 @@ public class SidecarClient : ISidecarClient, IDisposable
     private readonly IProcessRunner _processRunner;
     private readonly SidecarOptions _options;
     private readonly ILogger<SidecarClient> _logger;
-    private readonly SemaphoreSlim _semaphore = new(1, 1);
+    private readonly SemaphoreSlim _globalSemaphore = new(1, 1);
+    private readonly ConcurrentDictionary<Guid, SemaphoreSlim> _semaphores = new();
 
     public SidecarClient(
         IProcessRunner processRunner,
@@ -27,7 +30,7 @@ public class SidecarClient : ISidecarClient, IDisposable
         string userPrompt,
         CancellationToken ct = default)
     {
-        await _semaphore.WaitAsync(ct);
+        await _globalSemaphore.WaitAsync(ct);
         try
         {
             var stdinContent = $"System: {systemPrompt}\n\nUser: {userPrompt}";
@@ -51,13 +54,50 @@ public class SidecarClient : ISidecarClient, IDisposable
         }
         finally
         {
-            _semaphore.Release();
+            _globalSemaphore.Release();
         }
     }
 
+    public async IAsyncEnumerable<string> StreamPromptAsync(
+        Guid contentId,
+        string systemPrompt,
+        string userPrompt,
+        [EnumeratorCancellation] CancellationToken ct = default)
+    {
+        var semaphore = GetSemaphore(contentId);
+        await semaphore.WaitAsync(ct);
+        try
+        {
+            var stdinContent = $"System: {systemPrompt}\n\nUser: {userPrompt}";
+            await using var handle = _processRunner.StartStreaming(
+                _options.CliPath, "--print", stdinContent);
+
+            await foreach (var line in handle.ReadLinesAsync(ct))
+            {
+                yield return line;
+            }
+
+            if (handle.ExitCode is > 0)
+            {
+                _logger.LogWarning("Sidecar streaming exited with code {ExitCode} for content {ContentId}",
+                    handle.ExitCode, contentId);
+            }
+        }
+        finally
+        {
+            semaphore.Release();
+        }
+    }
+
+    private SemaphoreSlim GetSemaphore(Guid key) =>
+        _semaphores.GetOrAdd(key, _ => new SemaphoreSlim(1, 1));
+
     public void Dispose()
     {
-        _semaphore.Dispose();
+        _globalSemaphore.Dispose();
+        foreach (var semaphore in _semaphores.Values)
+            semaphore.Dispose();
+        _semaphores.Clear();
         GC.SuppressFinalize(this);
     }
 }

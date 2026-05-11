@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -5,6 +6,7 @@ using Moq;
 using PBA.Application.Common.Interfaces;
 using PBA.Infrastructure.Configuration;
 using PBA.Infrastructure.Services;
+using PBA.Infrastructure.Tests.Services.Fakes;
 using Xunit;
 
 namespace PBA.Infrastructure.Tests.Services;
@@ -150,5 +152,122 @@ public class SidecarClientTests
 
         var result = await _sut.SendPromptAsync("sys", "usr");
         Assert.Equal("second succeeds", result);
+    }
+
+    [Fact]
+    public async Task StreamPromptAsync_YieldsTokensFromProcessStdout()
+    {
+        var handle = new FakeStreamingProcessHandle(["Hello", " world", "!"]);
+        _processRunnerMock.Setup(p => p.StartStreaming(
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>()))
+            .Returns(handle);
+
+        var tokens = new List<string>();
+        await foreach (var token in _sut.StreamPromptAsync(Guid.NewGuid(), "sys", "usr"))
+            tokens.Add(token);
+
+        Assert.Equal(["Hello", " world", "!"], tokens);
+    }
+
+    [Fact]
+    public async Task StreamPromptAsync_CancellationToken_StopsIteration()
+    {
+        using var cts = new CancellationTokenSource();
+        var lines = new[] { "first", "second", "third" };
+        var handle = new FakeStreamingProcessHandle(lines, TimeSpan.FromMilliseconds(50));
+        _processRunnerMock.Setup(p => p.StartStreaming(
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>()))
+            .Returns(handle);
+
+        var tokens = new List<string>();
+        try
+        {
+            await foreach (var token in _sut.StreamPromptAsync(Guid.NewGuid(), "sys", "usr", cts.Token))
+            {
+                tokens.Add(token);
+                if (tokens.Count == 1) cts.Cancel();
+            }
+        }
+        catch (OperationCanceledException) { }
+
+        Assert.Single(tokens);
+        Assert.Equal("first", tokens[0]);
+    }
+
+    [Fact]
+    public async Task StreamPromptAsync_KeyedSemaphore_AllowsConcurrentDifferentContentIds()
+    {
+        var id1 = Guid.NewGuid();
+        var id2 = Guid.NewGuid();
+
+        _processRunnerMock.Setup(p => p.StartStreaming(
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>()))
+            .Returns(() => new FakeStreamingProcessHandle(["tok"], TimeSpan.FromMilliseconds(100)));
+
+        var sw = Stopwatch.StartNew();
+        var t1 = Task.Run(async () =>
+        {
+            await foreach (var _ in _sut.StreamPromptAsync(id1, "sys", "usr")) { }
+        });
+        var t2 = Task.Run(async () =>
+        {
+            await foreach (var _ in _sut.StreamPromptAsync(id2, "sys", "usr")) { }
+        });
+
+        await Task.WhenAll(t1, t2);
+        sw.Stop();
+
+        Assert.True(sw.ElapsedMilliseconds < 180, $"Expected concurrent execution but took {sw.ElapsedMilliseconds}ms");
+    }
+
+    [Fact]
+    public async Task StreamPromptAsync_KeyedSemaphore_SerializesSameContentId()
+    {
+        var contentId = Guid.NewGuid();
+        _processRunnerMock.Setup(p => p.StartStreaming(
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>()))
+            .Returns(() => new FakeStreamingProcessHandle(["tok"], TimeSpan.FromMilliseconds(100)));
+
+        var sw = Stopwatch.StartNew();
+        var t1 = Task.Run(async () =>
+        {
+            await foreach (var _ in _sut.StreamPromptAsync(contentId, "sys", "usr")) { }
+        });
+        var t2 = Task.Run(async () =>
+        {
+            await foreach (var _ in _sut.StreamPromptAsync(contentId, "sys", "usr")) { }
+        });
+
+        await Task.WhenAll(t1, t2);
+        sw.Stop();
+
+        Assert.True(sw.ElapsedMilliseconds >= 180, $"Expected serialized execution but took {sw.ElapsedMilliseconds}ms");
+    }
+
+    [Fact]
+    public async Task StreamPromptAsync_ReleasesSemaphoreOnError()
+    {
+        var contentId = Guid.NewGuid();
+        var callCount = 0;
+
+        _processRunnerMock.Setup(p => p.StartStreaming(
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>()))
+            .Returns(() =>
+            {
+                if (Interlocked.Increment(ref callCount) == 1)
+                    throw new InvalidOperationException("process failed");
+                return new FakeStreamingProcessHandle(["ok"]);
+            });
+
+        await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+        {
+            await foreach (var _ in _sut.StreamPromptAsync(contentId, "sys", "usr")) { }
+        });
+
+        var tokens = new List<string>();
+        await foreach (var token in _sut.StreamPromptAsync(contentId, "sys", "usr"))
+            tokens.Add(token);
+
+        Assert.Equal(["ok"], tokens);
     }
 }
