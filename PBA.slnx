@@ -6,4 +6,6 @@
   <Project Path="tests/PBA.Application.Tests/PBA.Application.Tests.csproj" />
   <Project Path="tests/PBA.Api.Tests/PBA.Api.Tests.csproj" />
   <Project Path="tests/PBA.Infrastructure.Tests/PBA.Infrastructure.Tests.csproj" />
+  <Project Path="tools/PBA.Migration/PBA.Migration.csproj" />
+  <Project Path="tests/PBA.Migration.Tests/PBA.Migration.Tests.csproj" />
 </Solution>
