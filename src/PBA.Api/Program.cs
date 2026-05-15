@@ -46,6 +46,7 @@ app.MapContentEndpoints();
 app.MapFeedEndpoints();
 
 app.MapHub<ContentHub>("/hubs/content");
+app.MapHub<FeedHub>("/hubs/feed");
 
 if (app.Environment.IsDevelopment())
     app.UseHangfireDashboard("/hangfire");
