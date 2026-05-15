@@ -7,7 +7,9 @@ public class BatchActRequestValidator : AbstractValidator<BatchActRequest>
 {
     public BatchActRequestValidator()
     {
-        RuleFor(x => x.Ids).NotEmpty();
+        RuleFor(x => x.Ids).NotEmpty()
+            .Must(ids => ids is null || ids.Count <= 100)
+            .WithMessage("Batch operations are limited to 100 items");
         RuleFor(x => x.Action)
             .NotEmpty()
             .Must(a => ActOnFeedItemRequestValidator.KnownActions.Contains(a))

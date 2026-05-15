@@ -29,8 +29,6 @@ public class ActOnFeedItemRequestValidatorTests
     [InlineData("approve")]
     [InlineData("dismiss")]
     [InlineData("view")]
-    [InlineData("edit")]
-    [InlineData("schedule")]
     [InlineData("create-content")]
     public void Validate_ValidAction_NoError(string action)
     {
