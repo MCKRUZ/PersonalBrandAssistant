@@ -10,7 +10,7 @@ export const routes: Routes = [
       { path: 'feed', loadComponent: () => import('./features/feed/feed.component').then(m => m.FeedComponent) },
       { path: 'discover', loadComponent: () => import('./features/discover/discover.component').then(m => m.DiscoverComponent) },
       { path: 'ideas', loadChildren: () => import('./features/ideas/ideas.routes').then(m => m.IDEAS_ROUTES) },
-      { path: 'content', loadComponent: () => import('./features/content/content.component').then(m => m.ContentComponent) },
+      { path: 'content', loadChildren: () => import('./features/content/content.routes').then(m => m.CONTENT_ROUTES) },
       { path: 'calendar', loadComponent: () => import('./features/calendar/calendar.component').then(m => m.CalendarComponent) },
       { path: 'analytics', loadComponent: () => import('./features/analytics/analytics.component').then(m => m.AnalyticsComponent) },
       { path: 'listening', loadComponent: () => import('./features/listening/listening.component').then(m => m.ListeningComponent) },
