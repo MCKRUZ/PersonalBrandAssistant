@@ -1,11 +1,11 @@
 using FluentValidation;
-using PBA.Application.Features.Content.Dtos;
+using PBA.Application.Features.Content.Commands;
 
 namespace PBA.Application.Features.Content.Validators;
 
-public class CreateContentRequestValidator : AbstractValidator<CreateContentRequest>
+public class CreateContentCommandValidator : AbstractValidator<CreateContent.Command>
 {
-    public CreateContentRequestValidator()
+    public CreateContentCommandValidator()
     {
         RuleFor(x => x.Title).NotEmpty().MaximumLength(200);
         RuleFor(x => x.ContentType).IsInEnum();

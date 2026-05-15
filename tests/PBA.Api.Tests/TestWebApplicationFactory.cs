@@ -43,6 +43,18 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>
 
             services.AddSingleton(new Mock<IFreshRssClient>().Object);
             services.AddSingleton(new Mock<IContentScheduler>().Object);
+
+            var sidecarMock = new Mock<ISidecarClient>();
+            sidecarMock.Setup(x => x.SendPromptAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync("""{"score": 85, "feedback": "Good brand voice alignment"}""");
+            services.AddSingleton(sidecarMock.Object);
+
+            var blogConnectorMock = new Mock<IBlogConnector>();
+            blogConnectorMock.Setup(x => x.PublishAsync(It.IsAny<PBA.Domain.Entities.Content>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync("https://blog.test/published-post");
+            services.AddSingleton(blogConnectorMock.Object);
+
+            services.AddSingleton(new Mock<IContentPublisher>().Object);
         });
 
         builder.UseEnvironment("Testing");

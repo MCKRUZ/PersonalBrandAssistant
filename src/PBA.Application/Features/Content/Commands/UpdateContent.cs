@@ -36,7 +36,7 @@ public static class UpdateContent
 
             var timeDiff = (content.UpdatedAt - request.LastUpdatedAt).Duration();
             if (timeDiff > TimeSpan.FromMilliseconds(500))
-                return Result.Fail("Content was modified by another user. Please reload and try again.");
+                return Result.Conflict("Content was modified by another user. Please reload and try again.");
 
             if (request.Title is not null)
                 content.Title = request.Title;

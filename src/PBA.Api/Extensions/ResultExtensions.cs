@@ -30,6 +30,7 @@ public static class ResultExtensions
             ResultFailureType.ContentBlocked => Results.Forbid(),
             ResultFailureType.PermissionRequired => Results.Forbid(),
             ResultFailureType.GovernanceBlocked => Results.Forbid(),
+            ResultFailureType.Conflict => Results.Conflict(result.Errors.FirstOrDefault()),
             _ => Results.Problem(result.Errors.FirstOrDefault()),
         };
 }
