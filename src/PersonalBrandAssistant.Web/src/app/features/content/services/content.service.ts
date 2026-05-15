@@ -1,118 +1,101 @@
-import { Injectable, inject } from '@angular/core';
-import { HttpParams } from '@angular/common/http';
+import { Injectable } from '@angular/core';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { ApiService } from '../../../core/services/api.service';
 import {
-  Content, CreateContentRequest, UpdateContentRequest, ContentCreationRequest,
-  PagedResult, ContentStatus, ContentType, BrandVoiceScore, WorkflowTransitionLog,
-  TransitionRequest, RepurposingSuggestion, PlatformType, ContentIdeaRecommendation,
-} from '../../../shared/models';
+  ContentDetail,
+  Content,
+  ContentFilterState,
+  CreateContentRequest,
+  UpdateContentRequest,
+  DraftContentRequest,
+  ScheduleContentRequest,
+  CrossPostRequest,
+  VoiceCheckResult,
+} from '../models/content.model';
+import { PagedResult } from '../../../models/pagination.model';
 
 @Injectable({ providedIn: 'root' })
 export class ContentService {
-  private readonly api = inject(ApiService);
+  private readonly baseUrl = '/api/content';
 
-  getAll(params?: { contentType?: ContentType; status?: ContentStatus; platform?: PlatformType; search?: string; pageSize?: number; cursor?: string }): Observable<PagedResult<Content>> {
-    let httpParams = new HttpParams();
-    if (params?.contentType) httpParams = httpParams.set('contentType', params.contentType);
-    if (params?.status) httpParams = httpParams.set('status', params.status);
-    if (params?.platform) httpParams = httpParams.set('platform', params.platform);
-    if (params?.search) httpParams = httpParams.set('search', params.search);
-    if (params?.pageSize) httpParams = httpParams.set('pageSize', params.pageSize.toString());
-    if (params?.cursor) httpParams = httpParams.set('cursor', params.cursor);
-    return this.api.get<PagedResult<Content>>('content', httpParams);
+  constructor(private readonly http: HttpClient) {}
+
+  list(
+    filter: Partial<ContentFilterState>,
+    page: number,
+    pageSize: number
+  ): Observable<PagedResult<Content>> {
+    let params = new HttpParams()
+      .set('page', page.toString())
+      .set('pageSize', pageSize.toString());
+
+    if (filter.status) params = params.set('status', filter.status);
+    if (filter.platform) params = params.set('platform', filter.platform);
+    if (filter.contentType) params = params.set('contentType', filter.contentType);
+    if (filter.dateFrom) params = params.set('dateFrom', filter.dateFrom);
+    if (filter.dateTo) params = params.set('dateTo', filter.dateTo);
+    if (filter.search) params = params.set('search', filter.search);
+
+    return this.http.get<PagedResult<Content>>(this.baseUrl, { params });
   }
 
-  getById(id: string): Observable<Content> {
-    return this.api.get<Content>(`content/${id}`);
+  get(id: string): Observable<ContentDetail> {
+    return this.http.get<ContentDetail>(`${this.baseUrl}/${id}`);
   }
 
-  create(request: CreateContentRequest): Observable<{ id: string }> {
-    return this.api.post<{ id: string }>('content', request);
+  create(request: CreateContentRequest): Observable<string> {
+    return this.http.post<string>(this.baseUrl, request);
   }
 
-  update(request: UpdateContentRequest): Observable<void> {
-    return this.api.put<void>(`content/${request.id}`, request);
+  update(id: string, request: UpdateContentRequest): Observable<void> {
+    return this.http.put<void>(`${this.baseUrl}/${id}`, request);
   }
 
-  remove(id: string): Observable<void> {
-    return this.api.delete<void>(`content/${id}`);
+  delete(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/${id}`);
   }
 
-  // Content Pipeline
-  createViaPipeline(request: ContentCreationRequest): Observable<string> {
-    return this.api.post<string>('content-pipeline/create', request);
+  draft(id: string, request: DraftContentRequest): Observable<void> {
+    return this.http.post<void>(`${this.baseUrl}/${id}/draft`, request);
   }
 
-  generateOutline(id: string): Observable<string> {
-    return this.api.post<string>(`content-pipeline/${id}/outline`, {});
-  }
-
-  generateDraft(id: string): Observable<string> {
-    return this.api.post<string>(`content-pipeline/${id}/draft`, {});
-  }
-
-  submitForReview(id: string): Observable<void> {
-    return this.api.post<void>(`content-pipeline/${id}/submit`, {});
-  }
-
-  // Workflow
-  transition(id: string, request: TransitionRequest): Observable<void> {
-    return this.api.post<void>(`workflow/${id}/transition`, request);
-  }
-
-  getAllowedTransitions(id: string): Observable<ContentStatus[]> {
-    return this.api.get<ContentStatus[]>(`workflow/${id}/transitions`);
-  }
-
-  getAuditLog(contentId: string, pageSize = 50): Observable<WorkflowTransitionLog[]> {
-    const params = new HttpParams().set('contentId', contentId).set('pageSize', pageSize.toString());
-    return this.api.get<WorkflowTransitionLog[]>('workflow/audit', params);
-  }
-
-  // Approval
-  getPendingApproval(pageSize = 50): Observable<Content[]> {
-    const params = new HttpParams().set('pageSize', pageSize.toString());
-    return this.api.get<Content[]>('approval/pending', params);
+  crossPost(id: string, request: CrossPostRequest): Observable<string> {
+    return this.http.post<string>(`${this.baseUrl}/${id}/cross-post`, request);
   }
 
   approve(id: string): Observable<void> {
-    return this.api.post<void>(`approval/${id}/approve`, {});
+    return this.http.put<void>(`${this.baseUrl}/${id}/approve`, {});
   }
 
-  reject(id: string, feedback: string): Observable<void> {
-    return this.api.post<void>(`approval/${id}/reject`, { feedback });
+  submitForReview(id: string): Observable<void> {
+    return this.http.put<void>(`${this.baseUrl}/${id}/submit-review`, {});
   }
 
-  // Brand Voice
-  getBrandVoiceScore(contentId: string): Observable<BrandVoiceScore> {
-    return this.api.get<BrandVoiceScore>(`brand-voice/score/${contentId}`);
+  requestChanges(id: string): Observable<void> {
+    return this.http.put<void>(`${this.baseUrl}/${id}/request-changes`, {});
   }
 
-  // Scheduling
-  schedule(id: string, scheduledAt: string): Observable<void> {
-    return this.api.post<void>(`scheduling/${id}/schedule`, { scheduledAt });
+  schedule(id: string, request: ScheduleContentRequest): Observable<void> {
+    return this.http.put<void>(`${this.baseUrl}/${id}/schedule`, request);
   }
 
-  reschedule(id: string, scheduledAt: string): Observable<void> {
-    return this.api.put<void>(`scheduling/${id}/reschedule`, { scheduledAt });
+  unschedule(id: string): Observable<void> {
+    return this.http.put<void>(`${this.baseUrl}/${id}/unschedule`, {});
   }
 
-  cancelSchedule(id: string): Observable<void> {
-    return this.api.delete<void>(`scheduling/${id}`);
+  publish(id: string): Observable<void> {
+    return this.http.post<void>(`${this.baseUrl}/${id}/publish`, {});
   }
 
-  // Repurposing
-  repurpose(id: string, targetPlatforms: readonly PlatformType[]): Observable<void> {
-    return this.api.post<void>(`repurposing/${id}/repurpose`, { targetPlatforms });
+  unpublish(id: string): Observable<void> {
+    return this.http.put<void>(`${this.baseUrl}/${id}/unpublish`, {});
   }
 
-  getRepurposeSuggestions(id: string): Observable<RepurposingSuggestion[]> {
-    return this.api.get<RepurposingSuggestion[]>(`repurposing/${id}/repurpose-suggestions`);
+  restore(id: string): Observable<void> {
+    return this.http.put<void>(`${this.baseUrl}/${id}/restore`, {});
   }
 
-  // Content Ideas
-  analyzeStory(storyText: string, sourceUrl?: string): Observable<ContentIdeaRecommendation> {
-    return this.api.post<ContentIdeaRecommendation>('content-ideas/analyze-story', { storyText, sourceUrl });
+  voiceCheck(id: string): Observable<VoiceCheckResult> {
+    return this.http.get<VoiceCheckResult>(`${this.baseUrl}/${id}/voice-check`);
   }
 }
