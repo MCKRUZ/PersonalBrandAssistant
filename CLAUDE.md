@@ -41,12 +41,13 @@ Follow global rules in `~/.claude/rules/coding-style.md`:
 ## Nexus Intelligence
 
 *Auto-updated by Nexus — do not edit this section manually.*
-*Last sync: 2026-05-01*
+*Last sync: 2026-05-15*
 
 ### Portfolio
 | Project | Description | Tech |
 |---------|------------|------|
 | jarvis-stack | — | — |
+| ai-video-producer | — | — |
 | **personal-brand-assistant** (this) | — | — |
 | project-avatar | — | — |
 | ComfyUI | **ComfyUI** — the main local ComfyUI installation at E:/ComfyUI-Easy-Install/Co… | — |
@@ -97,7 +98,20 @@ Follow global rules in `~/.claude/rules/coding-style.md`:
 - **Platform:** Apple Silicon (arm…
 *Tags: infrastructure, ssh, mac-mini, deployment, neo4j, docker*
 
-> **Cross-project rule**: Before making decisions that affect shared concerns (APIs, auth, data formats, deployment) or asking the user for server/SSH/infrastructure details, run `nexus_query` to check for existing decisions, notes, and conflicts across the portfolio.
+### Recorded Decisions
+- **[workflow]** Use project memory files (project_v2_rebuild_status.md, MEMORY.md) to track mul…
+  > Enables continuation of long-running projects across multiple Claude sessions by maintaining human-readable status and next steps
+- **[integration]** Integrate FreshRSS for content aggregation
+  > Enables RSS feed integration capabilities within the idea bank feature
+- **[security]** Defer authentication configuration to later phase
+  > Explicitly noted in the planning document that no authentication is configured at this stage, matching the rest of v2 rebuild. Authentication comes in a later phase.
+- **[security]** Use mock service providers in Angular tests to avoid real dependency injection
+  > Real SignalRService and other dependencies were replaced with mocks returning EMPTY observables to isolate unit tests and prevent async issues
+- **[security]** Protect main/master/release/* branches by prompting user before committing to p…
+  > Prevents accidental commits to release branches; gives user option to create feature branch first
 
-*[Nexus: run `nexus query` to search full knowledge base]*
+> **Cross-project rule**: Before making decisions that affect shared concerns (APIs, auth, data formats, deployment) or asking the user for server/SSH/infrastructure details, run `nexus_query` to check for existing decisions, notes, and conflicts across the portfolio.
+> When the user says "save to nexus" or you learn something worth preserving across sessions (project identity, key entities, architecture decisions, cross-project relationships), call `nexus_note` with `action: "set"` and a descriptive `title`.
+
+*[Nexus: `nexus_query` to search | `nexus_note` to save | `nexus_decide` to record decisions]*
 <!-- nexus:end -->

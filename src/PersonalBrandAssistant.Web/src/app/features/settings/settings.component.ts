@@ -1,52 +1,18 @@
-import { Component, inject, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
-import { LoadingSpinnerComponent } from '../../shared/components/loading-spinner/loading-spinner.component';
-import { BudgetPanelComponent } from './components/budget-panel.component';
-import { UsagePanelComponent } from './components/usage-panel.component';
-import { NewsFeedsPanelComponent } from './components/news-feeds-panel.component';
-import { NewsPreferencesPanelComponent } from './components/news-preferences-panel.component';
-import { AutonomyPanelComponent } from './components/autonomy-panel.component';
-import { SettingsStore } from './store/settings.store';
+import { Component } from '@angular/core';
 
 @Component({
   selector: 'app-settings',
   standalone: true,
-  imports: [
-    CommonModule, PageHeaderComponent, LoadingSpinnerComponent,
-    BudgetPanelComponent, UsagePanelComponent, NewsFeedsPanelComponent, NewsPreferencesPanelComponent,
-    AutonomyPanelComponent,
-  ],
   template: `
-    <app-page-header title="Settings" />
-
-    @if (store.loading()) {
-      <app-loading-spinner message="Loading settings..." />
-    } @else {
-      <div class="grid">
-        <div class="col-12 md:col-6">
-          <app-autonomy-panel />
-        </div>
-        <div class="col-12 md:col-6">
-          <app-budget-panel [budget]="store.budget()" />
-        </div>
-        <div class="col-12 md:col-6" style="margin-top: 1rem;">
-          <app-usage-panel />
-        </div>
-        <div class="col-12 md:col-6" style="margin-top: 1rem;">
-          <app-news-preferences-panel />
-        </div>
-        <div class="col-12" style="margin-top: 1rem;">
-          <app-news-feeds-panel />
-        </div>
-      </div>
-    }
+    <div class="page">
+      <h1>Settings</h1>
+      <p class="subtitle">Configuration</p>
+    </div>
   `,
+  styles: [`
+    .page { padding: 8px 0; }
+    h1 { font-size: 24px; font-weight: 600; margin: 0 0 4px; color: #f0f6fc; }
+    .subtitle { color: #8b949e; margin: 0; font-size: 14px; }
+  `]
 })
-export class SettingsComponent implements OnInit {
-  readonly store = inject(SettingsStore);
-
-  ngOnInit() {
-    this.store.loadBudget(undefined);
-  }
-}
+export class SettingsComponent {}

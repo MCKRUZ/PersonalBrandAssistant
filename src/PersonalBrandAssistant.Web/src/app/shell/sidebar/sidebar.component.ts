@@ -1,15 +1,10 @@
-import { Component, input, output } from '@angular/core';
+import { Component } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 
 interface NavItem {
   label: string;
-  icon: string;
   route: string;
-}
-
-interface NavGroup {
-  label: string;
-  items: NavItem[];
+  icon: string;
 }
 
 @Component({
@@ -17,43 +12,67 @@ interface NavGroup {
   standalone: true,
   imports: [RouterLink, RouterLinkActive],
   templateUrl: './sidebar.component.html',
-  styleUrl: './sidebar.component.scss',
+  styles: [`
+    :host {
+      display: flex;
+      flex-direction: column;
+      width: 220px;
+      min-width: 220px;
+      background: #161b22;
+      border-right: 1px solid #30363d;
+      padding: 16px 0;
+    }
+    .brand {
+      padding: 8px 20px 24px;
+      font-size: 18px;
+      font-weight: 700;
+      color: #f0f6fc;
+      letter-spacing: -0.5px;
+    }
+    .brand span {
+      color: #58a6ff;
+    }
+    nav {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding: 0 8px;
+    }
+    a {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 12px;
+      border-radius: 6px;
+      color: #8b949e;
+      text-decoration: none;
+      font-size: 14px;
+      transition: all 0.15s ease;
+    }
+    a:hover {
+      color: #e1e4e8;
+      background: #1c2128;
+    }
+    a.active {
+      color: #f0f6fc;
+      background: #1f6feb22;
+    }
+    .icon {
+      font-size: 18px;
+      width: 20px;
+      text-align: center;
+    }
+  `]
 })
 export class SidebarComponent {
-  collapsed = input(false);
-  toggleCollapse = output<void>();
-
-  readonly navGroups: NavGroup[] = [
-    {
-      label: 'Create',
-      items: [
-        { label: 'Content', icon: 'pi pi-file', route: '/content' },
-        { label: 'Blog', icon: 'pi pi-book', route: '/blog' },
-      ],
-    },
-    {
-      label: 'Distribute',
-      items: [
-        { label: 'Calendar', icon: 'pi pi-calendar', route: '/calendar' },
-        { label: 'Approval Queue', icon: 'pi pi-check-square', route: '/approval-queue' },
-        { label: 'Social', icon: 'pi pi-users', route: '/social' },
-        { label: 'Platforms', icon: 'pi pi-share-alt', route: '/platforms' },
-      ],
-    },
-    {
-      label: 'Analyze',
-      items: [
-        { label: 'Dashboard', icon: 'pi pi-chart-bar', route: '/dashboard' },
-        { label: 'Analytics', icon: 'pi pi-chart-line', route: '/analytics' },
-        { label: 'News', icon: 'pi pi-globe', route: '/news' },
-      ],
-    },
-    {
-      label: 'System',
-      items: [
-        { label: 'Automation', icon: 'pi pi-bolt', route: '/automation' },
-        { label: 'Settings', icon: 'pi pi-cog', route: '/settings' },
-      ],
-    },
+  navItems: NavItem[] = [
+    { label: 'Feed', route: '/feed', icon: '⌂' },
+    { label: 'Discover', route: '/discover', icon: '◎' },
+    { label: 'Ideas', route: '/ideas', icon: '◈' },
+    { label: 'Create', route: '/content', icon: '✎' },
+    { label: 'Calendar', route: '/calendar', icon: '▦' },
+    { label: 'Analytics', route: '/analytics', icon: '◧' },
+    { label: 'Listening', route: '/listening', icon: '◉' },
+    { label: 'Settings', route: '/settings', icon: '⚙' },
   ];
 }

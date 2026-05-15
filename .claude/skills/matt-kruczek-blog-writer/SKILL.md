@@ -61,8 +61,38 @@ Matt writes in a direct, developer-to-developer style even when addressing execu
 
 - Vary sentence length. Short punchy sentences followed by longer explanatory ones.
 - Use paragraph breaks liberally. No wall-of-text paragraphs.
-- Bold text for key terms or framework names, not for emphasis of adjectives.
 - Minimize bullet points in prose sections. Write in flowing paragraphs. Save bullets for explicit lists, frameworks, or action items.
+
+### Executive formatting (CRITICAL):
+
+The target audience has a 15-second attention span. Someone skimming the bolds and callouts alone should get 80% of the value. Every article must use these techniques:
+
+**1. Bold the argument, not just terms.** Bold the sentences that carry the article's core argument and key insights. A reader scanning only the bold text should be able to follow the logic. Not "use **FluentValidation**" but "**The gap between 2.0 and 4.0 is not a training budget gap. It is a strategy gap.**"
+
+**2. Stat callout boxes.** The most impactful statistics get their own visual callout in markdown and HTML. In markdown drafts, format as:
+
+```markdown
+> **78%** of organizations use AI. Only **9%** have mature governance.
+> — McKinsey, State of AI 2025
+```
+
+In HTML, use a styled blockquote:
+```html
+<blockquote style="border-left: 3px solid var(--accent-gold); padding: 1.25rem 1.5rem; margin: 2rem 0; background: rgba(212, 168, 83, 0.05);">
+    <p style="font-size: 1.3rem; font-weight: 600; color: var(--text-primary); margin: 0 0 0.5rem 0;">78% of organizations use AI. Only 9% have mature governance.</p>
+    <p style="font-size: 0.9rem; color: var(--text-muted); margin: 0;">— McKinsey, State of AI 2025</p>
+</blockquote>
+```
+
+Use 2-4 stat callouts per article. Place them at inflection points where the reader needs to sit up and pay attention.
+
+**3. Section punchlines.** Every major section should end (or begin) with a bold one-liner that captures the takeaway. These are the sentences an exec screenshots and sends to their team.
+
+**4. Visual rhythm.** Alternate between prose paragraphs, bold takeaways, stat callouts, and framework tables/lists. Never have more than 3-4 consecutive plain prose paragraphs without a visual break.
+
+**5. Framework visuals over tables.** When presenting a framework (like maturity levels, governance tiers, capability levels), create SVG images rather than markdown tables. Tables don't port well to Substack and other platforms. Create dark-themed SVGs (background `#0f1117`, gold accents `#d4a853`, Source Sans 3 font) and save to `assets/blog-images/[article-slug]-[visual-name].svg`. Reference in markdown as `![alt text](url)`. In HTML, use `<img>` tags. Each article's key frameworks should be SVG visuals, not prose or markdown tables.
+
+**6. "What to do this week" must pop.** The closing action items are the highest-value section for executives. Each action item gets its own bold lead followed by the explanation. These should feel like a checklist, not an essay.
 
 ## Article Structure
 

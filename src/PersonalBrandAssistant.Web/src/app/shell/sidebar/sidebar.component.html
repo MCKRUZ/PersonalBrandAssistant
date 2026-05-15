@@ -1,21 +1,9 @@
-<aside class="sidebar" [class.collapsed]="collapsed()" role="navigation" aria-label="Main navigation">
-  <div class="sidebar-header">
-    <span class="logo">PBA</span>
-  </div>
-  <nav>
-    @for (group of navGroups; track group.label) {
-      <div class="nav-group">
-        <span class="nav-group-label">{{ group.label }}</span>
-        @for (item of group.items; track item.route) {
-          <a [routerLink]="item.route" routerLinkActive="active" class="nav-item">
-            <i [class]="item.icon"></i>
-            <span class="nav-label">{{ item.label }}</span>
-          </a>
-        }
-      </div>
-    }
-  </nav>
-  <button class="collapse-toggle" (click)="toggleCollapse.emit()" [attr.aria-label]="collapsed() ? 'Expand sidebar' : 'Collapse sidebar'">
-    <i [class]="collapsed() ? 'pi pi-angle-right' : 'pi pi-angle-left'"></i>
-  </button>
-</aside>
+<div class="brand">PBA<span>v2</span></div>
+<nav>
+  @for (item of navItems; track item.route) {
+    <a [routerLink]="item.route" routerLinkActive="active">
+      <span class="icon">{{ item.icon }}</span>
+      {{ item.label }}
+    </a>
+  }
+</nav>
