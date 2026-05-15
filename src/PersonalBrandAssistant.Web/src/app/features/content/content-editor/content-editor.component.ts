@@ -19,6 +19,7 @@ import { TooltipModule } from 'primeng/tooltip';
 import { MarkdownComponent as MarkdownRenderer } from 'ngx-markdown';
 import { MarkdownEditorComponent } from './markdown-editor/markdown-editor.component';
 import { EditorToolbarComponent, DraftActionEvent } from './editor-toolbar/editor-toolbar.component';
+import { SidecarChatComponent } from './sidecar-chat/sidecar-chat.component';
 import { ContentEditorStore } from '../stores/content-editor.store';
 import { ContentService } from '../services/content.service';
 import {
@@ -44,6 +45,7 @@ import {
     MarkdownRenderer,
     MarkdownEditorComponent,
     EditorToolbarComponent,
+    SidecarChatComponent,
   ],
   template: `
     <div class="editor-page" data-testid="content-editor-page">
@@ -173,6 +175,11 @@ import {
         class="chat-toggle-btn"
         (onClick)="chatPanelVisible.set(!chatPanelVisible())"
         pTooltip="AI Chat" data-testid="chat-toggle" />
+
+      <app-sidecar-chat
+        [visible]="chatPanelVisible()"
+        (visibleChange)="chatPanelVisible.set($event)"
+        [contentId]="store.content()?.id ?? ''" />
     </div>
   `,
   styles: [`

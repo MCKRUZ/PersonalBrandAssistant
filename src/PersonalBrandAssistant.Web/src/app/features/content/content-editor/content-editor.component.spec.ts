@@ -1,12 +1,13 @@
 import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { provideRouter, ActivatedRoute, Router } from '@angular/router';
-import { of } from 'rxjs';
+import { of, EMPTY } from 'rxjs';
 import { signal, NO_ERRORS_SCHEMA } from '@angular/core';
 import { provideMarkdown } from 'ngx-markdown';
 import { ContentEditorComponent } from './content-editor.component';
 import { ContentEditorStore } from '../stores/content-editor.store';
 import { ContentService } from '../services/content.service';
+import { SignalRService } from '../services/signalr.service';
 import { ContentDetail, ContentStatus, ContentType, Platform } from '../models/content.model';
 
 function mockContent(overrides: Partial<ContentDetail> = {}): ContentDetail {
@@ -82,6 +83,14 @@ describe('ContentEditorComponent', () => {
     contentService.approve.and.returnValue(of(void 0));
     contentService.draft.and.returnValue(of(void 0));
 
+    const mockSignalR = jasmine.createSpyObj('SignalRService',
+      ['connect', 'disconnect', 'sendChatMessage'],
+      { tokens$: EMPTY, generationComplete$: EMPTY, generationError$: EMPTY },
+    );
+    mockSignalR.connect.and.returnValue(Promise.resolve());
+    mockSignalR.disconnect.and.returnValue(Promise.resolve());
+    mockSignalR.sendChatMessage.and.returnValue(Promise.resolve());
+
     TestBed.configureTestingModule({
       imports: [ContentEditorComponent],
       schemas: [NO_ERRORS_SCHEMA],
@@ -101,6 +110,7 @@ describe('ContentEditorComponent', () => {
           },
         },
         { provide: ContentService, useValue: contentService },
+        { provide: SignalRService, useValue: mockSignalR },
       ],
     });
 
