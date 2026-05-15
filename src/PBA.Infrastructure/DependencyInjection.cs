@@ -6,6 +6,7 @@ using PBA.Infrastructure.Configuration;
 using PBA.Infrastructure.Data;
 using PBA.Infrastructure.Connectors;
 using PBA.Infrastructure.Publishing;
+using PBA.Infrastructure.Seeding;
 using PBA.Infrastructure.Services;
 
 namespace PBA.Infrastructure;
@@ -40,6 +41,8 @@ public static class DependencyInjection
         services.AddScoped<IContentPublisher, ContentPublisher>();
         services.AddScoped<IContentScheduler, HangfireContentScheduler>();
         services.AddHostedService<ScheduledPublishReconciler>();
+
+        services.AddScoped<IFeedSeedService, FeedSeedService>();
 
         return services;
     }

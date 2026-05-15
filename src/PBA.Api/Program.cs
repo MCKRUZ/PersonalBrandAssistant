@@ -4,6 +4,7 @@ using Hangfire.PostgreSql;
 using PBA.Api.Endpoints;
 using PBA.Api.Hubs;
 using PBA.Application;
+using PBA.Application.Common.Interfaces;
 using PBA.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -49,7 +50,15 @@ app.MapHub<ContentHub>("/hubs/content");
 app.MapHub<FeedHub>("/hubs/feed");
 
 if (app.Environment.IsDevelopment())
+{
     app.UseHangfireDashboard("/hangfire");
+
+    app.MapPost("/api/feed/seed", async (IFeedSeedService seedService, CancellationToken ct) =>
+    {
+        var count = await seedService.SeedAsync(ct);
+        return Results.Ok(new { seeded = count });
+    });
+}
 
 app.Run();
 
