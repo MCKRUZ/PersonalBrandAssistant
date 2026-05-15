@@ -11,5 +11,6 @@ public interface IAppDbContext
     DbSet<Idea> Ideas { get; }
     DbSet<SavedIdea> SavedIdeas { get; }
     DbSet<IdeaSource> IdeaSources { get; }
+    DbSet<FeedItem> FeedItems { get; }
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
