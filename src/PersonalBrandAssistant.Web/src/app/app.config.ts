@@ -8,6 +8,7 @@ import { provideAnimationsAsync } from '@angular/platform-browser/animations/asy
 import { MessageService } from 'primeng/api';
 import { providePrimeNG } from 'primeng/config';
 import Aura from '@primeng/themes/aura';
+import { provideMarkdown } from 'ngx-markdown';
 
 import { routes } from './app.routes';
 import { apiKeyInterceptor } from './core/interceptors/api-key.interceptor';
@@ -20,6 +21,7 @@ export const appConfig: ApplicationConfig = {
     provideHttpClient(withInterceptors([apiKeyInterceptor, errorInterceptor])),
     provideAnimationsAsync(),
     providePrimeNG({ theme: { preset: Aura } }),
+    provideMarkdown(),
     MessageService,
   ],
 };
