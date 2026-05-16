@@ -41,12 +41,11 @@ Follow global rules in `~/.claude/rules/coding-style.md`:
 ## Nexus Intelligence
 
 *Auto-updated by Nexus — do not edit this section manually.*
-*Last sync: 2026-05-15*
+*Last sync: 2026-05-16*
 
 ### Portfolio
 | Project | Description | Tech |
 |---------|------------|------|
-| jarvis-stack | — | — |
 | ai-video-producer | — | — |
 | **personal-brand-assistant** (this) | — | — |
 | project-avatar | — | — |
@@ -54,7 +53,7 @@ Follow global rules in `~/.claude/rules/coding-style.md`:
 | matthewkruczek-ai | **matthewkruczek.ai** — static personal brand website for Matthew Kruczek (EY M… | — |
 | claude-code-mastery | **Claude Code Mastery** — the definitive Claude Code setup and configuration sk… | — |
 | Nexus | Nexus is a local-first cross-project intelligence layer for Claude Code. | — |
-| _+32 inactive_ | — | — |
+| _+33 inactive_ | — | — |
 
 ### Project Context
 #### Deployment: Local Docker on Furious
@@ -99,16 +98,19 @@ Follow global rules in `~/.claude/rules/coding-style.md`:
 *Tags: infrastructure, ssh, mac-mini, deployment, neo4j, docker*
 
 ### Recorded Decisions
+- **[workflow]** Use git commit trails with structured review documentation for each section
+  > Workflow creates section-specific code review interview files and commits with detailed messages documenting review findings and architectural decisions
 - **[workflow]** Use project memory files (project_v2_rebuild_status.md, MEMORY.md) to track mul…
   > Enables continuation of long-running projects across multiple Claude sessions by maintaining human-readable status and next steps
 - **[integration]** Integrate FreshRSS for content aggregation
   > Enables RSS feed integration capabilities within the idea bank feature
-- **[security]** Defer authentication configuration to later phase
-  > Explicitly noted in the planning document that no authentication is configured at this stage, matching the rest of v2 rebuild. Authentication comes in a later phase.
-- **[security]** Use mock service providers in Angular tests to avoid real dependency injection
-  > Real SignalRService and other dependencies were replaced with mocks returning EMPTY observables to isolate unit tests and prevent async issues
-- **[security]** Protect main/master/release/* branches by prompting user before committing to p…
-  > Prevents accidental commits to release branches; gives user option to create feature branch first
+- **[security]** Avoid global Math object references in Angular templates; use component methods…
+  > Code review identified and fixed direct Math global usage in templates as a security/maintainability issue, replacing with component helper methods
+- **[security]** Exclude expired items from batch operations as a dead-letter mechanism
+  > Explicit decision that expired items are considered dead and must be filtered from batch operations (MarkRead, Dismiss, Act), preventing stale state mutations
+
+### Active Conflicts
+- [medium] personal-brand-assistant uses SignalR for real-time feed notifications while jarvis-stack enforces OpenRouter API (no Anthropic models) — if personal-brand-assistant's notifications embed LLM calls, the tiered model strategy incompatibility creates maintenance friction in shared deployment.
 
 > **Cross-project rule**: Before making decisions that affect shared concerns (APIs, auth, data formats, deployment) or asking the user for server/SSH/infrastructure details, run `nexus_query` to check for existing decisions, notes, and conflicts across the portfolio.
 > When the user says "save to nexus" or you learn something worth preserving across sessions (project identity, key entities, architecture decisions, cross-project relationships), call `nexus_note` with `action: "set"` and a descriptive `title`.

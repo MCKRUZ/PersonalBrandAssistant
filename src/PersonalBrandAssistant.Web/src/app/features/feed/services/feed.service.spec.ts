@@ -2,8 +2,12 @@ import { TestBed } from '@angular/core/testing';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { FeedService } from './feed.service';
-import { FeedItemType, FeedItemPriority, FeedItem } from '../models/feed-item.model';
-import { PagedResult } from '../../../models/pagination.model';
+import { FeedItemType, FeedItemPriority } from '../models/feed-item.model';
+import type { FeedItem, FeedListParams } from '../models/feed-item.model';
+import type { FeedSummary } from '../models/feed-summary.model';
+import type { TrendingTopic } from '../models/trending-topic.model';
+import type { PagedResult } from '../../../models/pagination.model';
+import { mockFeedItem, mockFeedSummary, mockTrendingTopic } from '../testing/feed-test-utils';
 
 describe('FeedService', () => {
   let service: FeedService;
@@ -21,32 +25,27 @@ describe('FeedService', () => {
     httpMock.verify();
   });
 
-  it('should be created', () => {
-    expect(service).toBeTruthy();
-  });
-
-  it('list() sends GET /api/feed with correct query params', () => {
-    const mockResult: PagedResult<FeedItem> = {
-      items: [],
-      totalCount: 0,
+  it('should list() with correct query params', () => {
+    const params: FeedListParams = {
       page: 2,
       pageSize: 10,
-      totalPages: 0,
+      type: FeedItemType.TrendAlert,
+      priority: FeedItemPriority.High,
+      isRead: false,
+      sortBy: 'CreatedAt',
+      sortDirection: 'desc',
+    };
+    const mockResult: PagedResult<FeedItem> = {
+      items: [mockFeedItem({ type: FeedItemType.TrendAlert })],
+      totalCount: 1,
+      page: 2,
+      pageSize: 10,
+      totalPages: 1,
     };
 
-    service
-      .list({
-        page: 2,
-        pageSize: 10,
-        type: FeedItemType.TrendAlert,
-        priority: FeedItemPriority.High,
-        isRead: false,
-        sortBy: 'CreatedAt',
-        sortDirection: 'desc',
-      })
-      .subscribe((result) => {
-        expect(result).toEqual(mockResult);
-      });
+    service.list(params).subscribe((result) => {
+      expect(result).toEqual(mockResult);
+    });
 
     const req = httpMock.expectOne((r) => r.url === '/api/feed');
     expect(req.request.method).toBe('GET');
@@ -60,50 +59,69 @@ describe('FeedService', () => {
     req.flush(mockResult);
   });
 
-  it('list() omits null/undefined filter params', () => {
-    service.list({}).subscribe();
+  it('should list() and deserialize PagedResult correctly', () => {
+    const items = [mockFeedItem(), mockFeedItem({ isRead: true })];
+    const mockResult: PagedResult<FeedItem> = {
+      items,
+      totalCount: 42,
+      page: 1,
+      pageSize: 20,
+      totalPages: 3,
+    };
+
+    service.list({}).subscribe((result) => {
+      expect(result.items.length).toBe(2);
+      expect(result.totalCount).toBe(42);
+      expect(result.page).toBe(1);
+      expect(result.pageSize).toBe(20);
+      expect(result.totalPages).toBe(3);
+    });
 
     const req = httpMock.expectOne((r) => r.url === '/api/feed');
     expect(req.request.params.keys().length).toBe(0);
-    req.flush({ items: [], totalCount: 0, page: 1, pageSize: 20, totalPages: 0 });
+    req.flush(mockResult);
   });
 
-  it('getSummary() sends GET /api/feed/summary', () => {
-    const mockSummary = { unreadCount: 5, pendingApprovals: 2, trendingCount: 3, engagementDelta: 12.5 };
+  it('should getSummary() via GET /api/feed/summary', () => {
+    const summary = mockFeedSummary({ unreadCount: 7 });
 
     service.getSummary().subscribe((result) => {
-      expect(result).toEqual(mockSummary);
+      expect(result).toEqual(summary);
     });
 
     const req = httpMock.expectOne('/api/feed/summary');
     expect(req.request.method).toBe('GET');
-    req.flush(mockSummary);
+    req.flush(summary);
   });
 
-  it('getTrending() sends GET /api/feed/trending', () => {
-    const mockTopics = [{ topic: 'AI', count: 10, latestAt: '2026-05-15T00:00:00Z' }];
+  it('should getTrending() via GET /api/feed/trending', () => {
+    const topics = [
+      mockTrendingTopic({ topic: 'AI' }),
+      mockTrendingTopic({ topic: '.NET', count: 8 }),
+    ];
 
     service.getTrending().subscribe((result) => {
-      expect(result).toEqual(mockTopics);
+      expect(result).toEqual(topics);
     });
 
     const req = httpMock.expectOne('/api/feed/trending');
     expect(req.request.method).toBe('GET');
-    req.flush(mockTopics);
+    req.flush(topics);
   });
 
-  it('markRead() sends PUT /api/feed/{id}/read', () => {
-    const id = '123e4567-e89b-12d3-a456-426614174000';
+  it('should markRead() via PUT /api/feed/{id}/read', () => {
+    const id = 'abc-123';
 
     service.markRead(id).subscribe();
 
     const req = httpMock.expectOne(`/api/feed/${id}/read`);
     expect(req.request.method).toBe('PUT');
+    expect(req.request.body).toEqual({});
     req.flush(null);
   });
 
-  it('actOnItem() sends PUT /api/feed/{id}/act with action body', () => {
-    const id = '123e4567-e89b-12d3-a456-426614174000';
+  it('should actOnItem() via PUT /api/feed/{id}/act with action body', () => {
+    const id = 'abc-123';
 
     service.actOnItem(id, 'approve').subscribe((result) => {
       expect(result.success).toBeTrue();
@@ -115,7 +133,7 @@ describe('FeedService', () => {
     req.flush({ success: true, navigationTarget: null, targetId: null });
   });
 
-  it('batchMarkRead() sends PUT /api/feed/batch/read with filter body', () => {
+  it('should batchMarkRead() via PUT /api/feed/batch/read with filter body', () => {
     service.batchMarkRead(FeedItemType.TrendAlert, false).subscribe((result) => {
       expect(result.count).toBe(5);
     });
@@ -126,7 +144,7 @@ describe('FeedService', () => {
     req.flush({ count: 5 });
   });
 
-  it('batchDismiss() sends PUT /api/feed/batch/dismiss with type body', () => {
+  it('should batchDismiss() via PUT /api/feed/batch/dismiss with type body', () => {
     service.batchDismiss(FeedItemType.SystemNotification).subscribe((result) => {
       expect(result.count).toBe(3);
     });
@@ -137,7 +155,20 @@ describe('FeedService', () => {
     req.flush({ count: 3 });
   });
 
-  it('batchAct() sends PUT /api/feed/batch/act with IDs and action', () => {
+  it('should batchMarkReadByIds() via PUT /api/feed/batch/read with ids body', () => {
+    const ids = ['id-1', 'id-2'];
+
+    service.batchMarkReadByIds(ids).subscribe((result) => {
+      expect(result.count).toBe(2);
+    });
+
+    const req = httpMock.expectOne('/api/feed/batch/read');
+    expect(req.request.method).toBe('PUT');
+    expect(req.request.body).toEqual({ ids, isRead: true });
+    req.flush({ count: 2 });
+  });
+
+  it('should batchAct() via PUT /api/feed/batch/act with ids and action', () => {
     const ids = ['id-1', 'id-2'];
 
     service.batchAct(ids, 'approve').subscribe((result) => {

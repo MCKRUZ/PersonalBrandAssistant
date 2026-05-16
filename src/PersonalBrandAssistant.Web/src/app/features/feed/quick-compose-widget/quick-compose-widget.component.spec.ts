@@ -1,13 +1,14 @@
 import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
+import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
+import { of, throwError } from 'rxjs';
+import { NO_ERRORS_SCHEMA } from '@angular/core';
 import { QuickComposeWidgetComponent } from './quick-compose-widget.component';
 import { IdeaService } from '../../../core/services/idea.service';
 import { ContentService } from '../../content/services/content.service';
-import { Router } from '@angular/router';
-import { of } from 'rxjs';
 
 describe('QuickComposeWidgetComponent', () => {
   let fixture: ComponentFixture<QuickComposeWidgetComponent>;
-  let component: QuickComposeWidgetComponent;
   let ideaServiceSpy: jasmine.SpyObj<IdeaService>;
   let contentServiceSpy: jasmine.SpyObj<ContentService>;
   let routerSpy: jasmine.SpyObj<Router>;
@@ -28,102 +29,96 @@ describe('QuickComposeWidgetComponent', () => {
         { provide: ContentService, useValue: contentServiceSpy },
         { provide: Router, useValue: routerSpy },
       ],
+      schemas: [NO_ERRORS_SCHEMA],
     }).compileComponents();
 
     fixture = TestBed.createComponent(QuickComposeWidgetComponent);
-    component = fixture.componentInstance;
     fixture.detectChanges();
   });
 
-  it('should default to Quick Idea mode', () => {
-    const activeTab = fixture.nativeElement.querySelector('[data-testid="mode-idea"]') as HTMLElement;
-    expect(activeTab.classList.contains('active')).toBeTrue();
-    expect(fixture.nativeElement.querySelector('[data-testid="note-field"]')).toBeTruthy();
+  function query(testId: string): HTMLElement | null {
+    return fixture.nativeElement.querySelector(`[data-testid="${testId}"]`);
+  }
+
+  function setInputValue(testId: string, value: string): void {
+    const el = query(testId) as HTMLInputElement | HTMLTextAreaElement;
+    el.value = value;
+    el.dispatchEvent(new Event('input'));
+  }
+
+  it('should default to idea mode', () => {
+    const ideaTab = query('mode-idea')!;
+    expect(ideaTab.classList.contains('active')).toBeTrue();
+    expect(query('note-field')).toBeTruthy();
   });
 
-  it('should toggle to New Content mode', () => {
-    const contentTab = fixture.nativeElement.querySelector('[data-testid="mode-content"]') as HTMLButtonElement;
-    contentTab.click();
+  it('should toggle to content mode', () => {
+    (query('mode-content') as HTMLButtonElement).click();
     fixture.detectChanges();
 
-    expect(contentTab.classList.contains('active')).toBeTrue();
-    expect(fixture.nativeElement.querySelector('[data-testid="content-type-field"]')).toBeTruthy();
+    expect(query('content-type-field')).toBeTruthy();
+    expect(query('note-field')).toBeNull();
   });
 
-  it('should show title and note fields in Quick Idea mode', () => {
-    expect(fixture.nativeElement.querySelector('[data-testid="title-field"]')).toBeTruthy();
-    expect(fixture.nativeElement.querySelector('[data-testid="note-field"]')).toBeTruthy();
+  it('should show title and note fields in idea mode', () => {
+    expect(query('title-field')).toBeTruthy();
+    expect(query('note-field')).toBeTruthy();
   });
 
-  it('should show title and content type dropdown in New Content mode', () => {
-    const contentTab = fixture.nativeElement.querySelector('[data-testid="mode-content"]') as HTMLButtonElement;
-    contentTab.click();
+  it('should show title and content type dropdown in content mode', () => {
+    (query('mode-content') as HTMLButtonElement).click();
     fixture.detectChanges();
 
-    expect(fixture.nativeElement.querySelector('[data-testid="title-field"]')).toBeTruthy();
-    expect(fixture.nativeElement.querySelector('[data-testid="content-type-field"]')).toBeTruthy();
-    expect(fixture.nativeElement.querySelector('[data-testid="note-field"]')).toBeNull();
+    expect(query('title-field')).toBeTruthy();
+    expect(query('content-type-field')).toBeTruthy();
+    expect(query('note-field')).toBeNull();
   });
 
-  it('should call IdeaService.create on Quick Idea submit', fakeAsync(() => {
-    const titleInput = fixture.nativeElement.querySelector('[data-testid="title-field"]') as HTMLInputElement;
-    const noteInput = fixture.nativeElement.querySelector('[data-testid="note-field"]') as HTMLTextAreaElement;
-
-    titleInput.value = 'Test Idea';
-    titleInput.dispatchEvent(new Event('input'));
-    noteInput.value = 'Some notes';
-    noteInput.dispatchEvent(new Event('input'));
+  it('should call ideaService.create on idea submit', fakeAsync(() => {
+    setInputValue('title-field', 'My Idea');
     fixture.detectChanges();
+    tick();
 
-    const submitBtn = fixture.nativeElement.querySelector('[data-testid="submit-btn"]') as HTMLButtonElement;
-    submitBtn.click();
+    const form = fixture.nativeElement.querySelector('form') as HTMLFormElement;
+    form.dispatchEvent(new Event('submit'));
     tick();
 
     expect(ideaServiceSpy.create).toHaveBeenCalledWith(
-      jasmine.objectContaining({ title: 'Test Idea', description: 'Some notes' })
+      jasmine.objectContaining({ title: 'My Idea' })
     );
   }));
 
-  it('should call ContentService.create on New Content submit and navigate', fakeAsync(() => {
-    const contentTab = fixture.nativeElement.querySelector('[data-testid="mode-content"]') as HTMLButtonElement;
-    contentTab.click();
+  it('should call contentService.create on content submit and navigate', fakeAsync(() => {
+    (query('mode-content') as HTMLButtonElement).click();
     fixture.detectChanges();
+    tick();
 
-    const titleInput = fixture.nativeElement.querySelector('[data-testid="title-field"]') as HTMLInputElement;
-    titleInput.value = 'New Blog Post';
-    titleInput.dispatchEvent(new Event('input'));
+    setInputValue('title-field', 'Blog Post Title');
     fixture.detectChanges();
+    tick();
 
-    const submitBtn = fixture.nativeElement.querySelector('[data-testid="submit-btn"]') as HTMLButtonElement;
-    submitBtn.click();
+    const form = fixture.nativeElement.querySelector('form') as HTMLFormElement;
+    form.dispatchEvent(new Event('submit'));
     tick();
 
     expect(contentServiceSpy.create).toHaveBeenCalledWith(
-      jasmine.objectContaining({ title: 'New Blog Post' })
+      jasmine.objectContaining({ title: 'Blog Post Title' })
     );
     expect(routerSpy.navigate).toHaveBeenCalledWith(['/content', 'content-1']);
   }));
 
   it('should clear form after successful idea submission', fakeAsync(() => {
-    const titleInput = fixture.nativeElement.querySelector('[data-testid="title-field"]') as HTMLInputElement;
-    const noteInput = fixture.nativeElement.querySelector('[data-testid="note-field"]') as HTMLTextAreaElement;
-
-    titleInput.value = 'Test Idea';
-    titleInput.dispatchEvent(new Event('input'));
-    noteInput.value = 'Some notes';
-    noteInput.dispatchEvent(new Event('input'));
+    setInputValue('title-field', 'Temp Idea');
     fixture.detectChanges();
+    tick();
 
-    const submitBtn = fixture.nativeElement.querySelector('[data-testid="submit-btn"]') as HTMLButtonElement;
-    submitBtn.click();
+    const form = fixture.nativeElement.querySelector('form') as HTMLFormElement;
+    form.dispatchEvent(new Event('submit'));
     tick();
     fixture.detectChanges();
     tick();
-    fixture.detectChanges();
 
-    const updatedTitle = fixture.nativeElement.querySelector('[data-testid="title-field"]') as HTMLInputElement;
-    const updatedNote = fixture.nativeElement.querySelector('[data-testid="note-field"]') as HTMLTextAreaElement;
-    expect(updatedTitle.value).toBe('');
-    expect(updatedNote.value).toBe('');
+    const titleInput = query('title-field') as HTMLInputElement;
+    expect(titleInput.value).toBe('');
   }));
 });

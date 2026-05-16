@@ -1,24 +1,24 @@
 import { TestBed } from '@angular/core/testing';
 import { FeedHubService } from './feed-hub.service';
-import { HUB_CONNECTION_FACTORY, HubConnectionFactory } from '../../content/services/signalr.service';
-import { FeedItem, FeedItemType, FeedItemPriority } from '../models/feed-item.model';
-import { FeedSummary } from '../models/feed-summary.model';
+import { HUB_CONNECTION_FACTORY } from '../../content/services/signalr.service';
+import type { HubConnection } from '@microsoft/signalr';
+import { mockFeedItem, mockFeedSummary } from '../testing/feed-test-utils';
 
 describe('FeedHubService', () => {
   let service: FeedHubService;
-  let mockConnection: jasmine.SpyObj<any>;
-  let handlers: Record<string, Function>;
+  let mockConnection: jasmine.SpyObj<HubConnection>;
+  let handlers: Map<string, Function>;
+  let mockFactory: jasmine.Spy;
 
   beforeEach(() => {
-    handlers = {};
-    mockConnection = jasmine.createSpyObj('HubConnection', ['on', 'start', 'stop']);
+    handlers = new Map<string, Function>();
+    mockConnection = jasmine.createSpyObj<HubConnection>('HubConnection', ['start', 'stop', 'on']);
     mockConnection.on.and.callFake((event: string, handler: Function) => {
-      handlers[event] = handler;
+      handlers.set(event, handler);
     });
     mockConnection.start.and.returnValue(Promise.resolve());
     mockConnection.stop.and.returnValue(Promise.resolve());
-
-    const mockFactory: HubConnectionFactory = (_url: string) => mockConnection;
+    mockFactory = jasmine.createSpy('HubConnectionFactory').and.returnValue(mockConnection);
 
     TestBed.configureTestingModule({
       providers: [
@@ -29,79 +29,42 @@ describe('FeedHubService', () => {
     service = TestBed.inject(FeedHubService);
   });
 
-  it('should be created', () => {
-    expect(service).toBeTruthy();
-  });
+  it('should connect() and create HubConnection to /hubs/feed', async () => {
+    await service.connect();
 
-  it('connect() establishes hub connection to /hubs/feed', async () => {
-    const factorySpy = jasmine.createSpy('factory').and.returnValue(mockConnection);
-    TestBed.resetTestingModule();
-    TestBed.configureTestingModule({
-      providers: [
-        FeedHubService,
-        { provide: HUB_CONNECTION_FACTORY, useValue: factorySpy },
-      ],
-    });
-    const svc = TestBed.inject(FeedHubService);
-
-    await svc.connect();
-
-    expect(factorySpy).toHaveBeenCalledWith('/hubs/feed');
+    expect(mockFactory).toHaveBeenCalledWith('/hubs/feed');
     expect(mockConnection.start).toHaveBeenCalled();
   });
 
-  it('connect() registers ReceiveFeedItem and FeedSummaryUpdated handlers', async () => {
+  it('should emit on feedItemReceived$ when ReceiveFeedItem handler fires', async () => {
     await service.connect();
 
-    expect(mockConnection.on).toHaveBeenCalledWith('ReceiveFeedItem', jasmine.any(Function));
-    expect(mockConnection.on).toHaveBeenCalledWith('FeedSummaryUpdated', jasmine.any(Function));
+    const item = mockFeedItem({ title: 'SignalR Item' });
+    let emitted: unknown;
+    service.feedItemReceived$.subscribe((value) => (emitted = value));
+
+    const handler = handlers.get('ReceiveFeedItem');
+    expect(handler).toBeDefined();
+    handler!(item);
+
+    expect(emitted).toEqual(item);
   });
 
-  it('feedItemReceived$ emits when ReceiveFeedItem handler fires', async () => {
+  it('should emit on summaryUpdated$ when FeedSummaryUpdated handler fires', async () => {
     await service.connect();
 
-    const mockItem: FeedItem = {
-      id: 'test-id',
-      type: FeedItemType.TrendAlert,
-      title: 'Test',
-      summary: 'Test summary',
-      data: null,
-      actionType: null,
-      actionTargetId: null,
-      priority: FeedItemPriority.Normal,
-      isRead: false,
-      isActedOn: false,
-      createdAt: '2026-05-15T00:00:00Z',
-      expiresAt: null,
-    };
+    const summary = mockFeedSummary({ unreadCount: 99 });
+    let emitted: unknown;
+    service.summaryUpdated$.subscribe((value) => (emitted = value));
 
-    let emitted: FeedItem | undefined;
-    service.feedItemReceived$.subscribe((item) => (emitted = item));
+    const handler = handlers.get('FeedSummaryUpdated');
+    expect(handler).toBeDefined();
+    handler!(summary);
 
-    handlers['ReceiveFeedItem'](mockItem);
-
-    expect(emitted).toEqual(mockItem);
+    expect(emitted).toEqual(summary);
   });
 
-  it('summaryUpdated$ emits when FeedSummaryUpdated handler fires', async () => {
-    await service.connect();
-
-    const mockSummary: FeedSummary = {
-      unreadCount: 5,
-      pendingApprovals: 2,
-      trendingCount: 3,
-      engagementDelta: 12.5,
-    };
-
-    let emitted: FeedSummary | undefined;
-    service.summaryUpdated$.subscribe((summary) => (emitted = summary));
-
-    handlers['FeedSummaryUpdated'](mockSummary);
-
-    expect(emitted).toEqual(mockSummary);
-  });
-
-  it('disconnect() stops the connection', async () => {
+  it('should disconnect() and stop connection', async () => {
     await service.connect();
     await service.disconnect();
 

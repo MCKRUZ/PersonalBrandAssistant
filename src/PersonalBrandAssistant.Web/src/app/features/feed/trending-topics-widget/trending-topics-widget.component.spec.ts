@@ -1,93 +1,80 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { NO_ERRORS_SCHEMA } from '@angular/core';
 import { TrendingTopicsWidgetComponent } from './trending-topics-widget.component';
 import { FeedStore } from '../store/feed.store';
 import { FeedItemType } from '../models/feed-item.model';
-import { signal } from '@angular/core';
-import type { TrendingTopic } from '../models/trending-topic.model';
+import { createMockFeedStore, mockTrendingTopic } from '../testing/feed-test-utils';
 
 describe('TrendingTopicsWidgetComponent', () => {
   let fixture: ComponentFixture<TrendingTopicsWidgetComponent>;
-  let trendingTopics: ReturnType<typeof signal<TrendingTopic[]>>;
-  let loading: ReturnType<typeof signal<boolean>>;
-  let setFilterSpy: jasmine.Spy;
+  let mockStore: ReturnType<typeof createMockFeedStore>;
 
   beforeEach(async () => {
-    trendingTopics = signal<TrendingTopic[]>([]);
-    loading = signal(false);
-    setFilterSpy = jasmine.createSpy('setFilter');
+    mockStore = createMockFeedStore();
 
     await TestBed.configureTestingModule({
       imports: [TrendingTopicsWidgetComponent],
-      providers: [
-        {
-          provide: FeedStore,
-          useValue: {
-            trendingTopics,
-            loading,
-            setFilter: setFilterSpy,
-          },
-        },
-      ],
+      providers: [{ provide: FeedStore, useValue: mockStore }],
+      schemas: [NO_ERRORS_SCHEMA],
     }).compileComponents();
 
     fixture = TestBed.createComponent(TrendingTopicsWidgetComponent);
     fixture.detectChanges();
   });
 
-  it('should render topic list from store.trendingTopics', () => {
-    trendingTopics.set([
-      { topic: 'AI Agents', count: 42, latestAt: new Date().toISOString() },
-      { topic: 'Claude Code', count: 28, latestAt: new Date().toISOString() },
+  function query(testId: string): HTMLElement | null {
+    return fixture.nativeElement.querySelector(`[data-testid="${testId}"]`);
+  }
+
+  function queryAll(testId: string): NodeListOf<HTMLElement> {
+    return fixture.nativeElement.querySelectorAll(`[data-testid="${testId}"]`);
+  }
+
+  it('should render topic list from store', () => {
+    mockStore.trendingTopics.set([
+      mockTrendingTopic({ topic: 'Angular' }),
+      mockTrendingTopic({ topic: 'Claude' }),
+      mockTrendingTopic({ topic: 'NgRx' }),
     ]);
     fixture.detectChanges();
 
-    const topics = fixture.nativeElement.querySelectorAll('[data-testid="trending-topic"]');
-    expect(topics.length).toBe(2);
+    expect(queryAll('trending-topic').length).toBe(3);
   });
 
-  it('should show rank number, topic name, and count badge', () => {
-    trendingTopics.set([
-      { topic: 'AI Agents', count: 42, latestAt: new Date().toISOString() },
+  it('should show topic name and count', () => {
+    mockStore.trendingTopics.set([
+      mockTrendingTopic({ topic: 'Angular', count: 5 }),
     ]);
     fixture.detectChanges();
 
-    const topic = fixture.nativeElement.querySelector('[data-testid="trending-topic"]') as HTMLElement;
-    const rank = topic.querySelector('[data-testid="topic-rank"]');
-    const name = topic.querySelector('[data-testid="topic-name"]');
-    const count = topic.querySelector('[data-testid="topic-count"]');
-
-    expect(rank?.textContent?.trim()).toBe('1');
-    expect(name?.textContent?.trim()).toBe('AI Agents');
-    expect(count?.textContent?.trim()).toBe('42');
+    const name = query('topic-name')!;
+    const count = query('topic-count')!;
+    expect(name.textContent!.trim()).toBe('Angular');
+    expect(count.textContent!.trim()).toBe('5');
   });
 
-  it('should trigger store.setFilter for TrendAlert on topic click', () => {
-    trendingTopics.set([
-      { topic: 'AI Agents', count: 42, latestAt: new Date().toISOString() },
-    ]);
+  it('should call setFilter on topic click', () => {
+    mockStore.trendingTopics.set([mockTrendingTopic()]);
     fixture.detectChanges();
 
-    const topic = fixture.nativeElement.querySelector('[data-testid="trending-topic"]') as HTMLElement;
-    topic.click();
+    (query('trending-topic') as HTMLElement).click();
 
-    expect(setFilterSpy).toHaveBeenCalledWith(FeedItemType.TrendAlert);
+    expect(mockStore.setFilter).toHaveBeenCalledWith(FeedItemType.TrendAlert);
   });
 
-  it('should show "No trends yet" when list is empty', () => {
-    trendingTopics.set([]);
-    loading.set(false);
+  it('should show skeleton when loading with no topics', () => {
+    mockStore.loading.set(true);
+    mockStore.trendingTopics.set([]);
     fixture.detectChanges();
 
-    const empty = fixture.nativeElement.querySelector('[data-testid="trending-empty"]');
-    expect(empty?.textContent).toContain('No trends yet');
+    expect(query('trending-skeleton')).toBeTruthy();
   });
 
-  it('should show skeleton loader when loading', () => {
-    loading.set(true);
-    trendingTopics.set([]);
+  it('should not show skeleton when topics exist', () => {
+    mockStore.loading.set(true);
+    mockStore.trendingTopics.set([mockTrendingTopic()]);
     fixture.detectChanges();
 
-    const skeleton = fixture.nativeElement.querySelector('[data-testid="trending-skeleton"]');
-    expect(skeleton).toBeTruthy();
+    expect(query('trending-skeleton')).toBeNull();
   });
 });

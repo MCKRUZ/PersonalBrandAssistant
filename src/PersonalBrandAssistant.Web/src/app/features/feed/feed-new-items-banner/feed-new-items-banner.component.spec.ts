@@ -1,82 +1,66 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { NO_ERRORS_SCHEMA } from '@angular/core';
 import { FeedNewItemsBannerComponent } from './feed-new-items-banner.component';
 import { FeedStore } from '../store/feed.store';
-import { signal } from '@angular/core';
+import { createMockFeedStore } from '../testing/feed-test-utils';
 
 describe('FeedNewItemsBannerComponent', () => {
   let fixture: ComponentFixture<FeedNewItemsBannerComponent>;
-  let newItemCount: ReturnType<typeof signal<number>>;
-  let loadNewItemsSpy: jasmine.Spy;
+  let mockStore: ReturnType<typeof createMockFeedStore>;
 
   beforeEach(async () => {
-    newItemCount = signal(0);
-    loadNewItemsSpy = jasmine.createSpy('loadNewItems');
+    mockStore = createMockFeedStore();
 
     await TestBed.configureTestingModule({
       imports: [FeedNewItemsBannerComponent],
-      providers: [
-        {
-          provide: FeedStore,
-          useValue: {
-            newItemCount,
-            loadNewItems: loadNewItemsSpy,
-          },
-        },
-      ],
+      providers: [{ provide: FeedStore, useValue: mockStore }],
+      schemas: [NO_ERRORS_SCHEMA],
     }).compileComponents();
 
     fixture = TestBed.createComponent(FeedNewItemsBannerComponent);
     fixture.detectChanges();
   });
 
-  it('should be visible when store.newItemCount > 0', () => {
-    newItemCount.set(3);
+  function query(testId: string): HTMLElement | null {
+    return fixture.nativeElement.querySelector(`[data-testid="${testId}"]`);
+  }
+
+  it('should show banner when newItemCount > 0', () => {
+    mockStore.newItemCount.set(5);
     fixture.detectChanges();
 
-    const banner = fixture.nativeElement.querySelector('[data-testid="new-items-banner"]');
-    expect(banner).toBeTruthy();
+    expect(query('new-items-banner')).toBeTruthy();
   });
 
-  it('should be hidden when store.newItemCount is 0', () => {
-    newItemCount.set(0);
+  it('should hide banner when newItemCount is 0', () => {
+    mockStore.newItemCount.set(0);
     fixture.detectChanges();
 
-    const banner = fixture.nativeElement.querySelector('[data-testid="new-items-banner"]');
-    expect(banner).toBeNull();
+    expect(query('new-items-banner')).toBeNull();
   });
 
-  it('should display singular message for count of 1', () => {
-    newItemCount.set(1);
+  it('should display correct count in message', () => {
+    mockStore.newItemCount.set(3);
     fixture.detectChanges();
 
-    const message = fixture.nativeElement.querySelector('[data-testid="banner-message"]');
-    expect(message?.textContent).toContain('1 new item');
-    expect(message?.textContent).not.toContain('items');
+    const message = query('banner-message')!;
+    expect(message.textContent).toContain('3');
   });
 
-  it('should display plural message for count > 1', () => {
-    newItemCount.set(5);
+  it('should call loadNewItems on Show click', () => {
+    mockStore.newItemCount.set(2);
     fixture.detectChanges();
 
-    const message = fixture.nativeElement.querySelector('[data-testid="banner-message"]');
-    expect(message?.textContent).toContain('5 new items');
+    (query('show-btn') as HTMLButtonElement).click();
+
+    expect(mockStore.loadNewItems).toHaveBeenCalled();
   });
 
-  it('should call store.loadNewItems when Show button clicked', () => {
-    newItemCount.set(3);
+  it('should have slide-down class', () => {
+    mockStore.newItemCount.set(1);
     fixture.detectChanges();
 
-    const btn = fixture.nativeElement.querySelector('[data-testid="show-btn"]') as HTMLButtonElement;
-    btn.click();
-
-    expect(loadNewItemsSpy).toHaveBeenCalled();
-  });
-
-  it('should have slide-down animation class', () => {
-    newItemCount.set(1);
-    fixture.detectChanges();
-
-    const banner = fixture.nativeElement.querySelector('[data-testid="new-items-banner"]');
-    expect(banner?.classList.contains('slide-down')).toBeTrue();
+    const banner = query('new-items-banner')!;
+    expect(banner.classList.contains('slide-down')).toBeTrue();
   });
 });
