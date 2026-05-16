@@ -109,7 +109,7 @@ describe('FeedPageComponent', () => {
   });
 
   it('hides new items banner when newItemCount is 0', () => {
-    const banner = fixture.nativeElement.querySelector('[data-testid="new-items-banner-slot"]');
+    const banner = fixture.nativeElement.querySelector('[data-testid="new-items-banner"]');
     expect(banner).toBeFalsy();
   });
 
@@ -117,7 +117,7 @@ describe('FeedPageComponent', () => {
     feedItemSubject.next(mockItem);
     fixture.detectChanges();
 
-    const banner = fixture.nativeElement.querySelector('[data-testid="new-items-banner-slot"]');
+    const banner = fixture.nativeElement.querySelector('[data-testid="new-items-banner"]');
     expect(banner).toBeTruthy();
   });
 

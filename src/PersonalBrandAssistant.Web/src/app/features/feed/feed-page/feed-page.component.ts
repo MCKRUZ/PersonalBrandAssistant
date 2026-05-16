@@ -4,12 +4,13 @@ import { FeedFilterTabsComponent } from '../feed-filter-tabs/feed-filter-tabs.co
 import { FeedBatchToolbarComponent } from '../feed-batch-toolbar/feed-batch-toolbar.component';
 import { FeedCardListComponent } from '../feed-card-list/feed-card-list.component';
 import { FeedSidebarComponent } from '../feed-sidebar/feed-sidebar.component';
+import { FeedNewItemsBannerComponent } from '../feed-new-items-banner/feed-new-items-banner.component';
 import { FeedStore } from '../store/feed.store';
 
 @Component({
   selector: 'app-feed-page',
   standalone: true,
-  imports: [FeedStatsBarComponent, FeedFilterTabsComponent, FeedBatchToolbarComponent, FeedCardListComponent, FeedSidebarComponent],
+  imports: [FeedStatsBarComponent, FeedFilterTabsComponent, FeedBatchToolbarComponent, FeedCardListComponent, FeedSidebarComponent, FeedNewItemsBannerComponent],
   template: `
     <div class="page">
       <h1>Feed</h1>
@@ -23,11 +24,7 @@ import { FeedStore } from '../store/feed.store';
 
           <app-feed-batch-toolbar />
 
-          @if (store.newItemCount() > 0) {
-            <div data-testid="new-items-banner-slot" class="placeholder">
-              {{ store.newItemCount() }} new items
-            </div>
-          }
+          <app-feed-new-items-banner />
 
           <app-feed-card-list
             [items]="store.items()"
@@ -71,16 +68,6 @@ import { FeedStore } from '../store/feed.store';
     .feed-sidebar {
       position: sticky;
       top: 24px;
-    }
-
-    .placeholder {
-      background: #161b22;
-      border: 1px dashed #30363d;
-      border-radius: 8px;
-      padding: 24px;
-      color: #484f58;
-      text-align: center;
-      font-size: 13px;
     }
 
     .paginator {
