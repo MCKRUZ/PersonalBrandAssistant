@@ -48,7 +48,7 @@ public static class FeedEndpoints
 
         group.MapPut("/batch/read", async (BatchReadRequest body, ISender sender, CancellationToken ct) =>
         {
-            var result = await sender.Send(new BatchMarkRead.Command(body.Type), ct);
+            var result = await sender.Send(new BatchMarkRead.Command(body.Type, body.Ids), ct);
             return result.ToApiResult();
         });
 

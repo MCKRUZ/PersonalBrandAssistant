@@ -8,7 +8,7 @@ namespace PBA.Application.Features.Feed.Commands;
 
 public static class BatchMarkRead
 {
-    public record Command(FeedItemType? Type = null) : IRequest<Result<int>>;
+    public record Command(FeedItemType? Type = null, IReadOnlyList<Guid>? Ids = null) : IRequest<Result<int>>;
 
     public sealed class Handler(IAppDbContext db) : IRequestHandler<Command, Result<int>>
     {
@@ -18,7 +18,9 @@ public static class BatchMarkRead
                 .Where(x => !x.IsRead)
                 .Where(x => x.ExpiresAt == null || x.ExpiresAt > DateTimeOffset.UtcNow);
 
-            if (request.Type.HasValue)
+            if (request.Ids is { Count: > 0 })
+                query = query.Where(x => request.Ids.Contains(x.Id));
+            else if (request.Type.HasValue)
                 query = query.Where(x => x.Type == request.Type.Value);
 
             var items = await query.ToListAsync(cancellationToken);

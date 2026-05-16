@@ -1,11 +1,13 @@
 import { Component, computed, inject } from '@angular/core';
 import { FeedStatsBarComponent } from '../feed-stats-bar/feed-stats-bar.component';
+import { FeedFilterTabsComponent } from '../feed-filter-tabs/feed-filter-tabs.component';
+import { FeedBatchToolbarComponent } from '../feed-batch-toolbar/feed-batch-toolbar.component';
 import { FeedStore } from '../store/feed.store';
 
 @Component({
   selector: 'app-feed-page',
   standalone: true,
-  imports: [FeedStatsBarComponent],
+  imports: [FeedStatsBarComponent, FeedFilterTabsComponent, FeedBatchToolbarComponent],
   template: `
     <div class="page">
       <h1>Feed</h1>
@@ -15,11 +17,9 @@ import { FeedStore } from '../store/feed.store';
 
       <div class="feed-grid">
         <div class="feed-main">
-          <div data-testid="filter-tabs-slot" class="placeholder">Filter Tabs</div>
+          <app-feed-filter-tabs />
 
-          @if (store.hasSelection()) {
-            <div data-testid="batch-toolbar-slot" class="placeholder">Batch Toolbar</div>
-          }
+          <app-feed-batch-toolbar />
 
           @if (store.newItemCount() > 0) {
             <div data-testid="new-items-banner-slot" class="placeholder">

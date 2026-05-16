@@ -47,6 +47,10 @@ export class FeedService {
     return this.http.put<{ count: number }>(`${this.baseUrl}/batch/read`, { type, isRead });
   }
 
+  batchMarkReadByIds(ids: string[], isRead: boolean = true): Observable<{ count: number }> {
+    return this.http.put<{ count: number }>(`${this.baseUrl}/batch/read`, { ids, isRead });
+  }
+
   batchDismiss(type: FeedItemType): Observable<{ count: number }> {
     return this.http.put<{ count: number }>(`${this.baseUrl}/batch/dismiss`, { type });
   }

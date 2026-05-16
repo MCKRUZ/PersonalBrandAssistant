@@ -176,6 +176,21 @@ export const FeedStore = signalStore(
         });
       },
 
+      batchMarkReadByIds(ids: string[], isRead: boolean = true): void {
+        feedService.batchMarkReadByIds(ids, isRead).subscribe({
+          next: () => {
+            patchState(store, {
+              items: store.items().map((item) =>
+                ids.includes(item.id) ? { ...item, isRead } : item
+              ),
+              selectedIds: [],
+            });
+            loadSummary();
+          },
+          error: (err: Error) => patchState(store, { error: err.message }),
+        });
+      },
+
       batchDismiss(type: FeedItemType): void {
         feedService.batchDismiss(type).subscribe({
           next: () => {

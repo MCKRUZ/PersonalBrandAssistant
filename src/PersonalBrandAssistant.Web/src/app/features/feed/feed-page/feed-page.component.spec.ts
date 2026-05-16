@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of, Subject } from 'rxjs';
+import { ActivatedRoute, Router } from '@angular/router';
 import { FeedPageComponent } from './feed-page.component';
 import { FeedStore } from '../store/feed.store';
 import { FeedService } from '../services/feed.service';
@@ -54,6 +55,8 @@ describe('FeedPageComponent', () => {
             summaryUpdated$: of(),
           },
         },
+        { provide: Router, useValue: jasmine.createSpyObj('Router', ['navigate']) },
+        { provide: ActivatedRoute, useValue: { queryParams: of({}) } },
       ],
     }).compileComponents();
 
@@ -68,9 +71,9 @@ describe('FeedPageComponent', () => {
     expect(statsBar).toBeTruthy();
   });
 
-  it('renders filter tabs placeholder', () => {
-    const placeholder = fixture.nativeElement.querySelector('[data-testid="filter-tabs-slot"]');
-    expect(placeholder).toBeTruthy();
+  it('renders FeedFilterTabs component', () => {
+    const filterTabs = fixture.nativeElement.querySelector('app-feed-filter-tabs');
+    expect(filterTabs).toBeTruthy();
   });
 
   it('renders card list placeholder', () => {
@@ -83,16 +86,21 @@ describe('FeedPageComponent', () => {
     expect(placeholder).toBeTruthy();
   });
 
-  it('hides batch toolbar when no items selected', () => {
-    const toolbar = fixture.nativeElement.querySelector('[data-testid="batch-toolbar-slot"]');
+  it('renders FeedBatchToolbar component', () => {
+    const toolbar = fixture.nativeElement.querySelector('app-feed-batch-toolbar');
+    expect(toolbar).toBeTruthy();
+  });
+
+  it('hides batch toolbar content when no items selected', () => {
+    const toolbar = fixture.nativeElement.querySelector('[data-testid="batch-toolbar"]');
     expect(toolbar).toBeFalsy();
   });
 
-  it('renders batch toolbar when items are selected', () => {
+  it('renders batch toolbar content when items are selected', () => {
     store.toggleSelect('feed-1');
     fixture.detectChanges();
 
-    const toolbar = fixture.nativeElement.querySelector('[data-testid="batch-toolbar-slot"]');
+    const toolbar = fixture.nativeElement.querySelector('[data-testid="batch-toolbar"]');
     expect(toolbar).toBeTruthy();
   });
 
