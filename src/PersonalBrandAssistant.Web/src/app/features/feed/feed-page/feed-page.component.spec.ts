@@ -1,4 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { of, Subject } from 'rxjs';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FeedPageComponent } from './feed-page.component';
@@ -46,6 +48,8 @@ describe('FeedPageComponent', () => {
     await TestBed.configureTestingModule({
       imports: [FeedPageComponent],
       providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
         FeedStore,
         { provide: FeedService, useValue: feedService },
         {
@@ -76,14 +80,14 @@ describe('FeedPageComponent', () => {
     expect(filterTabs).toBeTruthy();
   });
 
-  it('renders card list placeholder', () => {
-    const placeholder = fixture.nativeElement.querySelector('[data-testid="card-list-slot"]');
-    expect(placeholder).toBeTruthy();
+  it('renders FeedCardList component', () => {
+    const cardList = fixture.nativeElement.querySelector('app-feed-card-list');
+    expect(cardList).toBeTruthy();
   });
 
-  it('renders sidebar placeholder', () => {
-    const placeholder = fixture.nativeElement.querySelector('[data-testid="sidebar-slot"]');
-    expect(placeholder).toBeTruthy();
+  it('renders FeedSidebar component', () => {
+    const sidebar = fixture.nativeElement.querySelector('app-feed-sidebar');
+    expect(sidebar).toBeTruthy();
   });
 
   it('renders FeedBatchToolbar component', () => {

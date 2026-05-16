@@ -3,12 +3,13 @@ import { FeedStatsBarComponent } from '../feed-stats-bar/feed-stats-bar.componen
 import { FeedFilterTabsComponent } from '../feed-filter-tabs/feed-filter-tabs.component';
 import { FeedBatchToolbarComponent } from '../feed-batch-toolbar/feed-batch-toolbar.component';
 import { FeedCardListComponent } from '../feed-card-list/feed-card-list.component';
+import { FeedSidebarComponent } from '../feed-sidebar/feed-sidebar.component';
 import { FeedStore } from '../store/feed.store';
 
 @Component({
   selector: 'app-feed-page',
   standalone: true,
-  imports: [FeedStatsBarComponent, FeedFilterTabsComponent, FeedBatchToolbarComponent, FeedCardListComponent],
+  imports: [FeedStatsBarComponent, FeedFilterTabsComponent, FeedBatchToolbarComponent, FeedCardListComponent, FeedSidebarComponent],
   template: `
     <div class="page">
       <h1>Feed</h1>
@@ -43,7 +44,7 @@ import { FeedStore } from '../store/feed.store';
         </div>
 
         <aside class="feed-sidebar" data-testid="sidebar-slot">
-          <div class="placeholder">Sidebar</div>
+          <app-feed-sidebar />
         </aside>
       </div>
     </div>
