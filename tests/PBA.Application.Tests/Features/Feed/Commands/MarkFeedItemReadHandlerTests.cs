@@ -1,27 +1,18 @@
-using Microsoft.EntityFrameworkCore;
 using PBA.Application.Features.Feed.Commands;
-using PBA.Domain.Entities;
+using PBA.Domain.Common;
 using PBA.Domain.Enums;
-using PBA.Infrastructure.Data;
 using Xunit;
+using static PBA.Application.Tests.Features.Feed.FeedTestHelpers;
 
 namespace PBA.Application.Tests.Features.Feed.Commands;
 
 public class MarkFeedItemReadHandlerTests
 {
-    private static ApplicationDbContext CreateContext()
-    {
-        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
-            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
-            .Options;
-        return new ApplicationDbContext(options);
-    }
-
     [Fact]
     public async Task Handle_MarksItemAsRead()
     {
         await using var context = CreateContext();
-        var item = new FeedItem { Title = "Test", Type = FeedItemType.SystemNotification, IsRead = false };
+        var item = CreateFeedItem(type: FeedItemType.SystemNotification, isRead: false);
         context.FeedItems.Add(item);
         await context.SaveChangesAsync();
 
@@ -34,10 +25,10 @@ public class MarkFeedItemReadHandlerTests
     }
 
     [Fact]
-    public async Task Handle_AlreadyRead_ReturnsSuccess()
+    public async Task Handle_AlreadyReadItem_ReturnsSuccess()
     {
         await using var context = CreateContext();
-        var item = new FeedItem { Title = "Test", Type = FeedItemType.SystemNotification, IsRead = true };
+        var item = CreateFeedItem(type: FeedItemType.SystemNotification, isRead: true);
         context.FeedItems.Add(item);
         await context.SaveChangesAsync();
 
@@ -56,6 +47,6 @@ public class MarkFeedItemReadHandlerTests
         var result = await handler.Handle(new MarkFeedItemRead.Command(Guid.NewGuid()), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(Domain.Common.ResultFailureType.NotFound, result.FailureType);
+        Assert.Equal(ResultFailureType.NotFound, result.FailureType);
     }
 }

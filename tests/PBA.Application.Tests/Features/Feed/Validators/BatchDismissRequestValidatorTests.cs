@@ -13,8 +13,11 @@ public class BatchDismissRequestValidatorTests
     [Theory]
     [InlineData(FeedItemType.AgentDraft)]
     [InlineData(FeedItemType.TrendAlert)]
+    [InlineData(FeedItemType.AnalyticsHighlight)]
+    [InlineData(FeedItemType.IdeaSuggestion)]
+    [InlineData(FeedItemType.ApprovalRequest)]
     [InlineData(FeedItemType.SystemNotification)]
-    public void Validate_ValidType_NoError(FeedItemType type)
+    public void Validate_ValidFeedItemType_NoErrors(FeedItemType type)
     {
         var request = new BatchDismissRequest { Type = type };
         var result = _validator.TestValidate(request);

@@ -25,23 +25,23 @@ public class ActOnFeedItemRequestValidatorTests
         result.ShouldHaveValidationErrorFor(x => x.Action);
     }
 
+    [Fact]
+    public void Validate_InvalidAction_HasError()
+    {
+        var request = new ActOnFeedItemRequest { Action = "invalid-action" };
+        var result = _validator.TestValidate(request);
+        result.ShouldHaveValidationErrorFor(x => x.Action);
+    }
+
     [Theory]
     [InlineData("approve")]
     [InlineData("dismiss")]
     [InlineData("view")]
     [InlineData("create-content")]
-    public void Validate_ValidAction_NoError(string action)
+    public void Validate_ValidAction_NoErrors(string action)
     {
         var request = new ActOnFeedItemRequest { Action = action };
         var result = _validator.TestValidate(request);
-        result.ShouldNotHaveValidationErrorFor(x => x.Action);
-    }
-
-    [Fact]
-    public void Validate_UnknownAction_HasError()
-    {
-        var request = new ActOnFeedItemRequest { Action = "unknown-action" };
-        var result = _validator.TestValidate(request);
-        result.ShouldHaveValidationErrorFor(x => x.Action);
+        result.ShouldNotHaveAnyValidationErrors();
     }
 }

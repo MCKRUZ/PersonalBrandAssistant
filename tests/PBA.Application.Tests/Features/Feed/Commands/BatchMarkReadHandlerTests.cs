@@ -1,77 +1,101 @@
 using Microsoft.EntityFrameworkCore;
 using PBA.Application.Features.Feed.Commands;
-using PBA.Domain.Entities;
 using PBA.Domain.Enums;
-using PBA.Infrastructure.Data;
 using Xunit;
+using static PBA.Application.Tests.Features.Feed.FeedTestHelpers;
 
 namespace PBA.Application.Tests.Features.Feed.Commands;
 
 public class BatchMarkReadHandlerTests
 {
-    private static ApplicationDbContext CreateContext()
-    {
-        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
-            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
-            .Options;
-        return new ApplicationDbContext(options);
-    }
-
     [Fact]
-    public async Task Handle_MarksAllUnreadItemsAsRead()
+    public async Task Handle_MarksAllUnreadItemsAsRead_ReturnsCount()
     {
         await using var context = CreateContext();
+        for (var i = 0; i < 5; i++)
+            context.FeedItems.Add(CreateFeedItem(type: FeedItemType.SystemNotification, isRead: false));
         for (var i = 0; i < 3; i++)
-            context.FeedItems.Add(new FeedItem { Title = $"Unread {i}", Type = FeedItemType.SystemNotification, IsRead = false });
-        context.FeedItems.Add(new FeedItem { Title = "Already Read", Type = FeedItemType.SystemNotification, IsRead = true });
+            context.FeedItems.Add(CreateFeedItem(type: FeedItemType.SystemNotification, isRead: true));
         await context.SaveChangesAsync();
 
         var handler = new BatchMarkRead.Handler(context);
         var result = await handler.Handle(new BatchMarkRead.Command(), CancellationToken.None);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal(3, result.Value);
+        Assert.Equal(5, result.Value);
         Assert.True(await context.FeedItems.AllAsync(f => f.IsRead));
     }
 
     [Fact]
-    public async Task Handle_FiltersByTypeWhenSpecified()
+    public async Task Handle_FiltersByType_WhenSpecified()
     {
         await using var context = CreateContext();
-        context.FeedItems.Add(new FeedItem { Title = "Alert", Type = FeedItemType.TrendAlert, IsRead = false });
-        context.FeedItems.Add(new FeedItem { Title = "Alert 2", Type = FeedItemType.TrendAlert, IsRead = false });
-        context.FeedItems.Add(new FeedItem { Title = "Notif", Type = FeedItemType.SystemNotification, IsRead = false });
+        context.FeedItems.Add(CreateFeedItem(type: FeedItemType.TrendAlert, isRead: false));
+        context.FeedItems.Add(CreateFeedItem(type: FeedItemType.TrendAlert, isRead: false));
+        context.FeedItems.Add(CreateFeedItem(type: FeedItemType.SystemNotification, isRead: false));
+        context.FeedItems.Add(CreateFeedItem(type: FeedItemType.AgentDraft, isRead: false));
         await context.SaveChangesAsync();
 
         var handler = new BatchMarkRead.Handler(context);
-        var result = await handler.Handle(new BatchMarkRead.Command(Type: FeedItemType.TrendAlert), CancellationToken.None);
+        var result = await handler.Handle(
+            new BatchMarkRead.Command(Type: FeedItemType.TrendAlert), CancellationToken.None);
 
         Assert.True(result.IsSuccess);
         Assert.Equal(2, result.Value);
-        var notif = await context.FeedItems.FirstAsync(f => f.Type == FeedItemType.SystemNotification);
-        Assert.False(notif.IsRead);
+        var notification = await context.FeedItems.FirstAsync(f => f.Type == FeedItemType.SystemNotification);
+        Assert.False(notification.IsRead);
+        var draft = await context.FeedItems.FirstAsync(f => f.Type == FeedItemType.AgentDraft);
+        Assert.False(draft.IsRead);
+    }
+
+    [Fact]
+    public async Task Handle_FiltersByIds_WhenSpecified()
+    {
+        await using var context = CreateContext();
+        var item1 = CreateFeedItem();
+        var item2 = CreateFeedItem();
+        var item3 = CreateFeedItem();
+        context.FeedItems.AddRange(item1, item2, item3);
+        await context.SaveChangesAsync();
+
+        var handler = new BatchMarkRead.Handler(context);
+        var result = await handler.Handle(
+            new BatchMarkRead.Command(Ids: [item1.Id, item2.Id]),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(2, result.Value);
+        var updated3 = await context.FeedItems.FindAsync(item3.Id);
+        Assert.False(updated3!.IsRead);
     }
 
     [Fact]
     public async Task Handle_SkipsExpiredItems()
     {
         await using var context = CreateContext();
-        context.FeedItems.Add(new FeedItem { Title = "Active", Type = FeedItemType.SystemNotification, IsRead = false });
-        context.FeedItems.Add(new FeedItem { Title = "Expired", Type = FeedItemType.SystemNotification, IsRead = false, ExpiresAt = DateTimeOffset.UtcNow.AddHours(-1) });
+        context.FeedItems.Add(CreateFeedItem(
+            type: FeedItemType.SystemNotification,
+            isRead: false,
+            expiresAt: DateTimeOffset.UtcNow.AddHours(-1)));
+        context.FeedItems.Add(CreateFeedItem(
+            type: FeedItemType.TrendAlert,
+            isRead: false,
+            expiresAt: DateTimeOffset.UtcNow.AddHours(-2)));
         await context.SaveChangesAsync();
 
         var handler = new BatchMarkRead.Handler(context);
         var result = await handler.Handle(new BatchMarkRead.Command(), CancellationToken.None);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal(1, result.Value);
+        Assert.Equal(0, result.Value);
     }
 
     [Fact]
-    public async Task Handle_NoMatchingItems_ReturnsZero()
+    public async Task Handle_Returns0_WhenNoMatchingItems()
     {
         await using var context = CreateContext();
-        context.FeedItems.Add(new FeedItem { Title = "Already Read", Type = FeedItemType.SystemNotification, IsRead = true });
+        context.FeedItems.Add(CreateFeedItem(type: FeedItemType.SystemNotification, isRead: true));
+        context.FeedItems.Add(CreateFeedItem(type: FeedItemType.TrendAlert, isRead: true));
         await context.SaveChangesAsync();
 
         var handler = new BatchMarkRead.Handler(context);

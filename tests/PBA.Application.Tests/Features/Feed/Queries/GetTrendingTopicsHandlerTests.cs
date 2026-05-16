@@ -1,53 +1,37 @@
-using Microsoft.EntityFrameworkCore;
 using PBA.Application.Features.Feed.Queries;
 using PBA.Domain.Entities;
 using PBA.Domain.Enums;
-using PBA.Infrastructure.Data;
 using Xunit;
+using static PBA.Application.Tests.Features.Feed.FeedTestHelpers;
 
 namespace PBA.Application.Tests.Features.Feed.Queries;
 
 public class GetTrendingTopicsHandlerTests
 {
-    private static ApplicationDbContext CreateContext()
-    {
-        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
-            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
-            .Options;
-        return new ApplicationDbContext(options);
-    }
-
-    private static FeedItem CreateTrendAlert(string topic, DateTimeOffset? createdAt = null)
-    {
-        return new FeedItem
-        {
-            Title = $"Trend: {topic}",
-            Type = FeedItemType.TrendAlert,
-            CreatedAt = createdAt ?? DateTimeOffset.UtcNow,
-            Data = $@"{{""topic"":""{topic}"",""source"":""Twitter"",""mentionCount"":10,""sentiment"":""positive""}}"
-        };
-    }
+    private static FeedItem CreateTrendAlert(string topic, DateTimeOffset? createdAt = null) =>
+        CreateFeedItem(
+            type: FeedItemType.TrendAlert,
+            data: $@"{{""topic"":""{topic}"",""source"":""Twitter"",""mentionCount"":10,""sentiment"":""positive""}}",
+            createdAt: createdAt);
 
     [Fact]
-    public async Task Handle_ReturnsTopicsGroupedAndCounted()
+    public async Task Handle_ReturnsTopicsGroupedByTopicField()
     {
         await using var context = CreateContext();
-        context.FeedItems.Add(CreateTrendAlert("AI"));
-        context.FeedItems.Add(CreateTrendAlert("AI"));
-        context.FeedItems.Add(CreateTrendAlert("AI"));
-        context.FeedItems.Add(CreateTrendAlert("Rust"));
-        context.FeedItems.Add(CreateTrendAlert("Rust"));
+        for (var i = 0; i < 3; i++)
+            context.FeedItems.Add(CreateTrendAlert("Claude Code"));
+        for (var i = 0; i < 2; i++)
+            context.FeedItems.Add(CreateTrendAlert("AI Agents"));
         await context.SaveChangesAsync();
 
         var handler = new GetTrendingTopics.Handler(context);
         var result = await handler.Handle(new GetTrendingTopics.Query(), CancellationToken.None);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal(2, result.Value!.Count);
-        Assert.Equal("AI", result.Value[0].Topic);
-        Assert.Equal(3, result.Value[0].Count);
-        Assert.Equal("Rust", result.Value[1].Topic);
-        Assert.Equal(2, result.Value[1].Count);
+        var topics = result.Value!;
+        Assert.Equal(2, topics.Count);
+        Assert.Contains(topics, t => t.Topic == "Claude Code" && t.Count == 3);
+        Assert.Contains(topics, t => t.Topic == "AI Agents" && t.Count == 2);
     }
 
     [Fact]
@@ -55,24 +39,30 @@ public class GetTrendingTopicsHandlerTests
     {
         await using var context = CreateContext();
         context.FeedItems.Add(CreateTrendAlert("Less Popular"));
-        context.FeedItems.Add(CreateTrendAlert("Most Popular"));
-        context.FeedItems.Add(CreateTrendAlert("Most Popular"));
-        context.FeedItems.Add(CreateTrendAlert("Most Popular"));
+        for (var i = 0; i < 5; i++)
+            context.FeedItems.Add(CreateTrendAlert("Most Popular"));
+        for (var i = 0; i < 3; i++)
+            context.FeedItems.Add(CreateTrendAlert("Mid Popular"));
         await context.SaveChangesAsync();
 
         var handler = new GetTrendingTopics.Handler(context);
         var result = await handler.Handle(new GetTrendingTopics.Query(), CancellationToken.None);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal("Most Popular", result.Value![0].Topic);
-        Assert.Equal(3, result.Value[0].Count);
+        var topics = result.Value!;
+        Assert.Equal("Most Popular", topics[0].Topic);
+        Assert.Equal(5, topics[0].Count);
+        Assert.Equal("Mid Popular", topics[1].Topic);
+        Assert.Equal(3, topics[1].Count);
+        Assert.Equal("Less Popular", topics[2].Topic);
+        Assert.Equal(1, topics[2].Count);
     }
 
     [Fact]
-    public async Task Handle_LimitsToTop10()
+    public async Task Handle_LimitsToTop10Results()
     {
         await using var context = CreateContext();
-        for (var i = 0; i < 12; i++)
+        for (var i = 0; i < 15; i++)
             context.FeedItems.Add(CreateTrendAlert($"Topic {i}"));
         await context.SaveChangesAsync();
 
@@ -105,14 +95,12 @@ public class GetTrendingTopicsHandlerTests
     }
 
     [Fact]
-    public async Task Handle_ReturnsEmptyListWhenNoTrendAlertItems()
+    public async Task Handle_ReturnsEmptyList_WhenNoTrendAlertItems()
     {
         await using var context = CreateContext();
-        context.FeedItems.Add(new FeedItem
-        {
-            Title = "Not a trend",
-            Type = FeedItemType.SystemNotification,
-        });
+        context.FeedItems.Add(CreateFeedItem(type: FeedItemType.AgentDraft));
+        context.FeedItems.Add(CreateFeedItem(type: FeedItemType.SystemNotification));
+        context.FeedItems.Add(CreateFeedItem(type: FeedItemType.AnalyticsHighlight));
         await context.SaveChangesAsync();
 
         var handler = new GetTrendingTopics.Handler(context);
@@ -126,9 +114,11 @@ public class GetTrendingTopicsHandlerTests
     public async Task Handle_SetsLatestAtToMostRecentCreatedAtPerTopic()
     {
         await using var context = CreateContext();
-        var oldest = DateTimeOffset.UtcNow.AddDays(-3);
+        var oldest = DateTimeOffset.UtcNow.AddDays(-5);
+        var middle = DateTimeOffset.UtcNow.AddDays(-3);
         var newest = DateTimeOffset.UtcNow.AddDays(-1);
         context.FeedItems.Add(CreateTrendAlert("AI", createdAt: oldest));
+        context.FeedItems.Add(CreateTrendAlert("AI", createdAt: middle));
         context.FeedItems.Add(CreateTrendAlert("AI", createdAt: newest));
         await context.SaveChangesAsync();
 
@@ -138,6 +128,7 @@ public class GetTrendingTopicsHandlerTests
         Assert.True(result.IsSuccess);
         var topics = result.Value!;
         Assert.Single(topics);
+        Assert.Equal(3, topics[0].Count);
         Assert.Equal(newest, topics[0].LatestAt);
     }
 }

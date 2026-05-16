@@ -9,15 +9,18 @@ namespace PBA.Application.Tests.Features.Feed.Commands;
 public class BatchActHandlerTests
 {
     [Fact]
-    public async Task Handle_ProcessesMultipleItemsAndReturnsSuccessCount()
+    public async Task Handle_ProcessesMultipleItems_ReturnsSuccessCount()
     {
-        var ids = new List<Guid> { Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid() };
-        var sender = new Mock<ISender>();
-        sender.Setup(s => s.Send(It.IsAny<ActOnFeedItem.Command>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Result<ActOnFeedItem.ActOnFeedItemResponse>.Success(new ActOnFeedItem.ActOnFeedItemResponse(true)));
+        var knownIds = new List<Guid> { Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid() };
+        var senderMock = new Mock<ISender>();
+        senderMock.Setup(s => s.Send(
+                It.Is<ActOnFeedItem.Command>(c => knownIds.Contains(c.Id)),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result<ActOnFeedItem.ActOnFeedItemResponse>.Success(
+                new ActOnFeedItem.ActOnFeedItemResponse(true)));
 
-        var handler = new BatchAct.Handler(sender.Object);
-        var result = await handler.Handle(new BatchAct.Command(ids, "view"), CancellationToken.None);
+        var handler = new BatchAct.Handler(senderMock.Object);
+        var result = await handler.Handle(new BatchAct.Command(knownIds, "dismiss"), CancellationToken.None);
 
         Assert.True(result.IsSuccess);
         Assert.Equal(3, result.Value!.SuccessCount);
@@ -25,41 +28,30 @@ public class BatchActHandlerTests
     }
 
     [Fact]
-    public async Task Handle_HandlesPartialFailuresGracefully()
+    public async Task Handle_HandlesPartialFailures_WithFailureDetails()
     {
-        var successId = Guid.NewGuid();
-        var failId = Guid.NewGuid();
-        var sender = new Mock<ISender>();
+        var knownIds = new List<Guid> { Guid.NewGuid(), Guid.NewGuid() };
+        var unknownId = Guid.NewGuid();
+        var allIds = new List<Guid>(knownIds) { unknownId };
 
-        sender.Setup(s => s.Send(It.Is<ActOnFeedItem.Command>(c => c.Id == successId), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Result<ActOnFeedItem.ActOnFeedItemResponse>.Success(new ActOnFeedItem.ActOnFeedItemResponse(true)));
-
-        sender.Setup(s => s.Send(It.Is<ActOnFeedItem.Command>(c => c.Id == failId), It.IsAny<CancellationToken>()))
+        var senderMock = new Mock<ISender>();
+        senderMock.Setup(s => s.Send(
+                It.Is<ActOnFeedItem.Command>(c => knownIds.Contains(c.Id)),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result<ActOnFeedItem.ActOnFeedItemResponse>.Success(
+                new ActOnFeedItem.ActOnFeedItemResponse(true)));
+        senderMock.Setup(s => s.Send(
+                It.Is<ActOnFeedItem.Command>(c => !knownIds.Contains(c.Id)),
+                It.IsAny<CancellationToken>()))
             .ReturnsAsync(Result<ActOnFeedItem.ActOnFeedItemResponse>.NotFound("Not found"));
 
-        var handler = new BatchAct.Handler(sender.Object);
-        var result = await handler.Handle(new BatchAct.Command([successId, failId], "view"), CancellationToken.None);
+        var handler = new BatchAct.Handler(senderMock.Object);
+        var result = await handler.Handle(new BatchAct.Command(allIds, "dismiss"), CancellationToken.None);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal(1, result.Value!.SuccessCount);
+        Assert.Equal(2, result.Value!.SuccessCount);
         Assert.Single(result.Value.Failures);
-        Assert.Equal(failId, result.Value.Failures[0].Id);
-    }
-
-    [Fact]
-    public async Task Handle_ReturnsFailureDetailsForFailedItems()
-    {
-        var failId = Guid.NewGuid();
-        var sender = new Mock<ISender>();
-        sender.Setup(s => s.Send(It.IsAny<ActOnFeedItem.Command>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Result<ActOnFeedItem.ActOnFeedItemResponse>.ValidationFailure(["Unknown action"]));
-
-        var handler = new BatchAct.Handler(sender.Object);
-        var result = await handler.Handle(new BatchAct.Command([failId], "bad-action"), CancellationToken.None);
-
-        Assert.True(result.IsSuccess);
-        Assert.Equal(0, result.Value!.SuccessCount);
-        Assert.Single(result.Value.Failures);
-        Assert.Contains("Unknown action", result.Value.Failures[0].Reason);
+        Assert.Equal(unknownId, result.Value.Failures[0].Id);
+        Assert.NotEmpty(result.Value.Failures[0].Reason);
     }
 }

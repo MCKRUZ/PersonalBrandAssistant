@@ -8,7 +8,7 @@ namespace PBA.Application.Tests.Features.Feed.Mappings;
 public class FeedMappingsTests
 {
     [Fact]
-    public void ToDto_AllFieldsPopulated_MapsCorrectly()
+    public void ToDto_MapsAllFieldsCorrectly()
     {
         var id = Guid.NewGuid();
         var targetId = Guid.NewGuid();
@@ -48,7 +48,7 @@ public class FeedMappingsTests
     }
 
     [Fact]
-    public void ToDto_NullOptionalFields_HandlesGracefully()
+    public void ToDto_HandlesNullOptionalFields()
     {
         var entity = new FeedItem
         {
