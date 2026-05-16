@@ -2,12 +2,13 @@ import { Component, computed, inject } from '@angular/core';
 import { FeedStatsBarComponent } from '../feed-stats-bar/feed-stats-bar.component';
 import { FeedFilterTabsComponent } from '../feed-filter-tabs/feed-filter-tabs.component';
 import { FeedBatchToolbarComponent } from '../feed-batch-toolbar/feed-batch-toolbar.component';
+import { FeedCardListComponent } from '../feed-card-list/feed-card-list.component';
 import { FeedStore } from '../store/feed.store';
 
 @Component({
   selector: 'app-feed-page',
   standalone: true,
-  imports: [FeedStatsBarComponent, FeedFilterTabsComponent, FeedBatchToolbarComponent],
+  imports: [FeedStatsBarComponent, FeedFilterTabsComponent, FeedBatchToolbarComponent, FeedCardListComponent],
   template: `
     <div class="page">
       <h1>Feed</h1>
@@ -27,7 +28,12 @@ import { FeedStore } from '../store/feed.store';
             </div>
           }
 
-          <div data-testid="card-list-slot" class="placeholder">Card List</div>
+          <app-feed-card-list
+            [items]="store.items()"
+            [loading]="store.loading()"
+            [selectedIds]="store.selectedIds()"
+            (action)="onCardAction($event)"
+            (select)="store.toggleSelect($event)" />
 
           @if (store.totalCount() > store.pageSize()) {
             <div data-testid="paginator" class="paginator">
@@ -99,4 +105,8 @@ export class FeedPageComponent {
   protected readonly totalPages = computed(() =>
     Math.ceil(this.store.totalCount() / this.store.pageSize())
   );
+
+  protected onCardAction(event: { id: string; action: string }): void {
+    this.store.actOnItem(event.id, event.action);
+  }
 }
