@@ -15,7 +15,6 @@ public class TrendMonitoringOptionsTests
             {
                 ["TrendMonitoring:AggregationIntervalMinutes"] = "60",
                 ["TrendMonitoring:TrendRadarApiUrl"] = "http://custom:9000/api",
-                ["TrendMonitoring:FreshRssApiUrl"] = "http://rss:8080/api",
                 ["TrendMonitoring:RedditSubreddits:0"] = "csharp",
                 ["TrendMonitoring:RedditSubreddits:1"] = "aspnetcore",
                 ["TrendMonitoring:HackerNewsApiUrl"] = "https://hn.custom/v0",
@@ -32,7 +31,6 @@ public class TrendMonitoringOptionsTests
 
         Assert.Equal(60, options.AggregationIntervalMinutes);
         Assert.Equal("http://custom:9000/api", options.TrendRadarApiUrl);
-        Assert.Equal("http://rss:8080/api", options.FreshRssApiUrl);
         Assert.Contains("csharp", options.RedditSubreddits);
         Assert.Contains("aspnetcore", options.RedditSubreddits);
         Assert.Equal("https://hn.custom/v0", options.HackerNewsApiUrl);

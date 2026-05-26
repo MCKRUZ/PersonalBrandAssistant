@@ -3,6 +3,7 @@ using Hangfire;
 using Hangfire.PostgreSql;
 using PBA.Api.Endpoints;
 using PBA.Api.Hubs;
+using PBA.Api.Services;
 using PBA.Application;
 using PBA.Application.Common.Interfaces;
 using PBA.Infrastructure;
@@ -16,7 +17,7 @@ builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
     {
-        policy.WithOrigins("http://localhost:4200")
+        policy.WithOrigins("http://localhost:4200", "http://localhost:4201")
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials();
@@ -24,6 +25,7 @@ builder.Services.AddCors(options =>
 });
 
 builder.Services.AddSignalR();
+builder.Services.AddScoped<IFeedNotifier, FeedNotifier>();
 
 builder.Services.AddHangfire(config =>
     config.UsePostgreSqlStorage(o =>

@@ -14,14 +14,10 @@ services:
       - default
       - internal
 
-  freshrss:
-    ports:
-      - "8080:80"
-
   api:
     build:
       context: .
-      dockerfile: src/PersonalBrandAssistant.Api/Dockerfile
+      dockerfile: src/PBA.Api/Dockerfile
     volumes:
       - ./secrets:/app/secrets:ro
     environment:

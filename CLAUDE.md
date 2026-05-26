@@ -41,7 +41,7 @@ Follow global rules in `~/.claude/rules/coding-style.md`:
 ## Nexus Intelligence
 
 *Auto-updated by Nexus — do not edit this section manually.*
-*Last sync: 2026-05-16*
+*Last sync: 2026-05-26*
 
 ### Portfolio
 | Project | Description | Tech |
@@ -49,11 +49,10 @@ Follow global rules in `~/.claude/rules/coding-style.md`:
 | ai-video-producer | — | — |
 | **personal-brand-assistant** (this) | — | — |
 | project-avatar | — | — |
-| ComfyUI | **ComfyUI** — the main local ComfyUI installation at E:/ComfyUI-Easy-Install/Co… | — |
 | matthewkruczek-ai | **matthewkruczek.ai** — static personal brand website for Matthew Kruczek (EY M… | — |
 | claude-code-mastery | **Claude Code Mastery** — the definitive Claude Code setup and configuration sk… | — |
 | Nexus | Nexus is a local-first cross-project intelligence layer for Claude Code. | — |
-| _+33 inactive_ | — | — |
+| _+34 inactive_ | — | — |
 
 ### Project Context
 #### Deployment: Local Docker on Furious
@@ -74,6 +73,14 @@ Follow global rules in `~/.claude/rules/coding-style.md`:
 *Tags: analytics, google-search-console, ga4, matthewkruczek-ai, seo, website-stats*
 
 ### Context from project-avatar
+#### Mac Mini SSH & Infrastructure
+## Mac Mini (PRIMARY — Sage lives here)
+
+- **Host:** 192.168.50.103
+- **SSH:** `ssh matthewkruczek@192.168.50.103`
+- **Platform:** Apple Silicon (arm…
+*Tags: infrastructure, ssh, mac-mini, deployment, neo4j, docker, pba*
+
 #### Civitai API Key
 ## Civitai API Key
 
@@ -89,13 +96,21 @@ Follow global rules in `~/.claude/rules/coding-style.md`:
 **API:** `http://127.0.0.1:…
 *Tags: voicebox, tts, voice-clone, jennifer-garner, sage-voice, api, furious*
 
-#### Mac Mini SSH & Infrastructure
-## Mac Mini (PRIMARY — Sage lives here)
+### Context from ai-video-producer
+#### Bifrost MCP Gateway — Docker Setup & Credentials
+## Bifrost MCP Gateway (Docker on Mac Mini)
 
-- **Host:** 192.168.50.189
-- **SSH:** `ssh matthewkruczek@192.168.50.189`
-- **Platform:** Apple Silicon (arm…
-*Tags: infrastructure, ssh, mac-mini, deployment, neo4j, docker*
+**Host:** Mac Mini (192.168.50.189)
+**Path:** ~/bifrost/
+**Container:** bifrost (from maximhq/bifrost:la…
+*Tags: bifrost, mcp, docker, credentials, mac-mini, infrastructure*
+
+#### Qwen3-Omni-30B-A3B — Local vLLM Server on Furious
+## Qwen3-Omni-30B-A3B on Furious
+
+**Host:** Furious (local Windows 11, RTX 5090 32GB)
+**Runtime:** Docker CE 29.5.0 in WSL Ubuntu (not Docker Desktop…
+*Tags: qwen3-omni, vllm, furious, local-llm, multimodal, docker, gpu, infrastructure*
 
 ### Recorded Decisions
 - **[workflow]** Use git commit trails with structured review documentation for each section
@@ -104,10 +119,10 @@ Follow global rules in `~/.claude/rules/coding-style.md`:
   > Enables continuation of long-running projects across multiple Claude sessions by maintaining human-readable status and next steps
 - **[integration]** Integrate FreshRSS for content aggregation
   > Enables RSS feed integration capabilities within the idea bank feature
-- **[security]** Avoid global Math object references in Angular templates; use component methods…
-  > Code review identified and fixed direct Math global usage in templates as a security/maintainability issue, replacing with component helper methods
-- **[security]** Exclude expired items from batch operations as a dead-letter mechanism
-  > Explicit decision that expired items are considered dead and must be filtered from batch operations (MarkRead, Dismiss, Act), preventing stale state mutations
+- **[security]** Enforce hostname validation via `allowedHosts` config in Angular dev server
+  > Prevent host header injection attacks; required when exposing dev server through external URLs like Tailscale Funnel
+- **[security]** Include article URLs in IdeaDto API response for clickable content
+  > Provides direct access to source material without additional service calls; enables transparent content tracing
 
 ### Active Conflicts
 - [medium] personal-brand-assistant uses SignalR for real-time feed notifications while jarvis-stack enforces OpenRouter API (no Anthropic models) — if personal-brand-assistant's notifications embed LLM calls, the tiered model strategy incompatibility creates maintenance friction in shared deployment.

@@ -21,9 +21,15 @@ import { Idea, IdeaStatus } from '../../../../models/idea.model';
           <span class="source-name">{{ idea().sourceName }}</span>
           <span class="detected-at">{{ idea().detectedAt | date: 'shortDate' }}</span>
         </div>
-        <h3 class="card-title">{{ idea().title }}</h3>
-        @if (idea().summary) {
-          <p class="card-summary">{{ truncate(idea().summary!, 120) }}</p>
+        @if (idea().url) {
+          <a [href]="idea().url" target="_blank" rel="noopener noreferrer" class="card-title-link">
+            <h3 class="card-title">{{ idea().title }}</h3>
+          </a>
+        } @else {
+          <h3 class="card-title">{{ idea().title }}</h3>
+        }
+        @if (idea().summary || idea().description) {
+          <p class="card-summary">{{ truncate((idea().summary || idea().description)!, 120) }}</p>
         }
         @if (idea().tags.length > 0) {
           <div class="card-tags">
@@ -115,12 +121,19 @@ import { Idea, IdeaStatus } from '../../../../models/idea.model';
         background: #f8514933;
         color: #f85149;
       }
+      .card-title-link {
+        text-decoration: none;
+      }
+      .card-title-link:hover .card-title {
+        color: #58a6ff;
+      }
       .card-title {
         font-size: 15px;
         font-weight: 600;
         color: #f0f6fc;
         margin: 0 0 8px;
         line-height: 1.3;
+        transition: color 0.15s;
       }
       .card-summary {
         font-size: 13px;

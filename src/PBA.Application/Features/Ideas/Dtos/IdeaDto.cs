@@ -6,6 +6,8 @@ public record IdeaDto
 {
     public Guid Id { get; init; }
     public string Title { get; init; } = string.Empty;
+    public string? Description { get; init; }
+    public string? Url { get; init; }
     public string SourceName { get; init; } = string.Empty;
     public string? Category { get; init; }
     public string? Summary { get; init; }

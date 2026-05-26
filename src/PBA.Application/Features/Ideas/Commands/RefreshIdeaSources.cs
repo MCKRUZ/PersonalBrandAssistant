@@ -14,13 +14,13 @@ public static class RefreshIdeaSources
 
     internal sealed class Handler(
         IAppDbContext db,
-        IFreshRssClient rssClient,
+        IRssFeedReader feedReader,
         ILogger<Handler> logger) : IRequestHandler<Command, Result<int>>
     {
         public async Task<Result<int>> Handle(Command request, CancellationToken cancellationToken)
         {
             var sources = await db.IdeaSources
-                .Where(s => s.IsEnabled)
+                .Where(s => s.IsEnabled && s.FeedUrl != null && s.FeedUrl != "")
                 .ToListAsync(cancellationToken);
 
             var newIdeaCount = 0;
@@ -29,8 +29,8 @@ public static class RefreshIdeaSources
             {
                 try
                 {
-                    var entries = await rssClient.GetEntriesAsync(
-                        source.LastPolledAt, 200, cancellationToken);
+                    var entries = await feedReader.ReadFeedAsync(
+                        source.FeedUrl!, source.LastPolledAt, cancellationToken);
 
                     foreach (var entry in entries)
                     {
@@ -47,7 +47,7 @@ public static class RefreshIdeaSources
                             Title = entry.Title,
                             Description = entry.Description,
                             Url = entry.Url,
-                            SourceName = entry.FeedTitle,
+                            SourceName = source.Name,
                             IdeaSourceId = source.Id,
                             ThumbnailUrl = entry.ThumbnailUrl,
                             Category = entry.Category ?? source.Category,

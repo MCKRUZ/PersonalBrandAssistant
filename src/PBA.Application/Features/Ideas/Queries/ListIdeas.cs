@@ -35,6 +35,8 @@ public static class ListIdeas
 
             if (request.Status.HasValue)
                 query = query.Where(i => i.Status == request.Status.Value);
+            else
+                query = query.Where(i => i.Status != IdeaStatus.Dismissed);
 
             if (request.IdeaSourceId.HasValue)
                 query = query.Where(i => i.IdeaSourceId == request.IdeaSourceId.Value);
@@ -72,6 +74,8 @@ public static class ListIdeas
                 {
                     Id = i.Id,
                     Title = i.Title,
+                    Description = i.Description,
+                    Url = i.Url,
                     SourceName = i.SourceName,
                     Category = i.Category,
                     Summary = i.Summary,

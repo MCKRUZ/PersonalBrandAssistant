@@ -37,7 +37,13 @@ import { Idea } from '../../../../models/idea.model';
           <span class="col-status">
             <span class="status-dot" [attr.data-status]="idea.status"></span>
           </span>
-          <span class="col-title">{{ idea.title }}</span>
+          <span class="col-title">
+            @if (idea.url) {
+              <a [href]="idea.url" target="_blank" rel="noopener noreferrer" class="title-link">{{ idea.title }}</a>
+            } @else {
+              {{ idea.title }}
+            }
+          </span>
           <span class="col-source">{{ idea.sourceName }}</span>
           <span class="col-category">{{ idea.category }}</span>
           <span class="col-date">{{ idea.detectedAt | date: 'shortDate' }}</span>
@@ -111,6 +117,14 @@ import { Idea } from '../../../../models/idea.model';
         text-overflow: ellipsis;
         white-space: nowrap;
       }
+      .title-link {
+        color: #c9d1d9;
+        text-decoration: none;
+        transition: color 0.15s;
+      }
+      .title-link:hover {
+        color: #58a6ff;
+      }
       .col-source, .col-category {
         overflow: hidden;
         text-overflow: ellipsis;
@@ -129,6 +143,30 @@ import { Idea } from '../../../../models/idea.model';
         text-align: center;
         padding: 48px 16px;
         color: #8b949e;
+      }
+
+      @media (max-width: 768px) {
+        .list-header { display: none; }
+        .list-row {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+          padding: 10px 12px;
+          border-bottom: 1px solid #21262d;
+        }
+        .col-status { order: -1; }
+        .col-title {
+          white-space: normal;
+          font-weight: 600;
+          font-size: 0.9rem;
+        }
+        .col-source, .col-category, .col-date {
+          font-size: 0.72rem;
+        }
+        .col-actions {
+          justify-content: flex-end;
+          margin-top: 4px;
+        }
       }
     `,
   ],

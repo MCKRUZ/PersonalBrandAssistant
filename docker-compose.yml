@@ -37,7 +37,7 @@ services:
   api:
     build:
       context: .
-      dockerfile: src/PersonalBrandAssistant.Api/Dockerfile
+      dockerfile: src/PBA.Api/Dockerfile
     container_name: pba-api
     ports:
       - "5000:8080"
@@ -50,7 +50,6 @@ services:
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
       Sidecar__WebSocketUrl: ws://sidecar:3001/ws
       TrendMonitoring__TrendRadarApiUrl: http://trendradar:8000/api
-      TrendMonitoring__FreshRssApiUrl: http://freshrss:80/api
     volumes:
       - logs:/app/logs
     networks:
@@ -66,20 +65,6 @@ services:
     volumes:
       - trendradar_data:/data
     networks:
-      - internal
-    restart: unless-stopped
-
-  freshrss:
-    image: freshrss/freshrss:1.24.3
-    container_name: pba-freshrss
-    environment:
-      CRON_MIN: "*/15"
-      TZ: America/New_York
-    volumes:
-      - freshrss_data:/var/www/FreshRSS/data
-      - freshrss_extensions:/var/www/FreshRSS/extensions
-    networks:
-      - default
       - internal
     restart: unless-stopped
 
@@ -103,5 +88,3 @@ volumes:
   pgdata:
   logs:
   trendradar_data:
-  freshrss_data:
-  freshrss_extensions:

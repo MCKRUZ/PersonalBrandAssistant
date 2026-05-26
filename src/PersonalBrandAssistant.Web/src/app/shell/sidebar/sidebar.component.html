@@ -3,7 +3,7 @@
   @for (item of navItems; track item.route) {
     <a [routerLink]="item.route" routerLinkActive="active">
       <span class="icon">{{ item.icon }}</span>
-      {{ item.label }}
+      <span class="label">{{ item.label }}</span>
     </a>
   }
 </nav>

@@ -1,8 +1,6 @@
-using System.Security.Cryptography;
-using System.Text;
-using System.Web;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using PBA.Application.Common;
 using PBA.Application.Common.Interfaces;
 using PBA.Domain.Common;
 using PBA.Domain.Entities;
@@ -25,7 +23,7 @@ public static class CreateIdea
     {
         public async Task<Result<Guid>> Handle(Command request, CancellationToken cancellationToken)
         {
-            var deduplicationKey = GenerateDeduplicationKey(request.Url, request.Title);
+            var deduplicationKey = DeduplicationKeyGenerator.Generate(request.Url, request.Title);
 
             var exists = await db.Ideas.AnyAsync(
                 i => i.DeduplicationKey == deduplicationKey, cancellationToken);
@@ -53,37 +51,5 @@ public static class CreateIdea
     }
 
     internal static string GenerateDeduplicationKey(string? url, string title)
-    {
-        var input = string.IsNullOrWhiteSpace(url)
-            ? title.Trim().ToLowerInvariant()
-            : NormalizeUrl(url);
-
-        return HashSha256(input);
-    }
-
-    private static string NormalizeUrl(string url)
-    {
-        url = url.Trim().ToLowerInvariant().TrimEnd('/');
-
-        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
-            return url;
-
-        var query = HttpUtility.ParseQueryString(uri.Query);
-        var keysToRemove = query.AllKeys
-            .Where(k => k != null && k.StartsWith("utm_", StringComparison.OrdinalIgnoreCase))
-            .ToList();
-
-        foreach (var key in keysToRemove)
-            query.Remove(key);
-
-        var cleanQuery = query.ToString();
-        var builder = new UriBuilder(uri) { Query = cleanQuery ?? string.Empty };
-        return builder.Uri.ToString().TrimEnd('/');
-    }
-
-    private static string HashSha256(string input)
-    {
-        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(input));
-        return Convert.ToHexStringLower(bytes);
-    }
+        => DeduplicationKeyGenerator.Generate(url, title);
 }

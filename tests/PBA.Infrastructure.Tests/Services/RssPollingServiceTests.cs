@@ -3,6 +3,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
+using PBA.Application.Common;
+using PBA.Application.Common.Interfaces;
 using PBA.Domain.Entities;
 using PBA.Domain.Enums;
 using PBA.Infrastructure.Configuration;
@@ -15,13 +17,9 @@ namespace PBA.Infrastructure.Tests.Services;
 public class RssPollingServiceTests : IDisposable
 {
     private readonly ApplicationDbContext _dbContext;
-    private readonly Mock<FreshRssClient> _mockClient;
-    private readonly FreshRssOptions _options = new()
+    private readonly Mock<IRssFeedReader> _mockReader;
+    private readonly RssPollingOptions _options = new()
     {
-        BaseUrl = "http://freshrss.local",
-        Username = "admin",
-        ApiPassword = "secret",
-        BatchSize = 200,
         PollIntervalMinutes = 15,
         MaxConsecutiveFailures = 5,
     };
@@ -32,16 +30,14 @@ public class RssPollingServiceTests : IDisposable
             .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
             .Options;
         _dbContext = new ApplicationDbContext(dbOptions);
-
-        var httpClient = new HttpClient(new MockHttpMessageHandler());
-        var optsMon = Mock.Of<IOptionsMonitor<FreshRssOptions>>(o => o.CurrentValue == _options);
-        _mockClient = new Mock<FreshRssClient>(httpClient, optsMon, NullLogger<FreshRssClient>.Instance);
+        _mockReader = new Mock<IRssFeedReader>();
     }
 
     private RssPollingService CreateService()
     {
         var serviceProvider = new Mock<IServiceProvider>();
         serviceProvider.Setup(p => p.GetService(typeof(ApplicationDbContext))).Returns(_dbContext);
+        serviceProvider.Setup(p => p.GetService(typeof(IRssFeedReader))).Returns(_mockReader.Object);
 
         var scope = new Mock<IServiceScope>();
         scope.Setup(s => s.ServiceProvider).Returns(serviceProvider.Object);
@@ -49,11 +45,10 @@ public class RssPollingServiceTests : IDisposable
         var scopeFactory = new Mock<IServiceScopeFactory>();
         scopeFactory.Setup(f => f.CreateScope()).Returns(scope.Object);
 
-        var optsMon = Mock.Of<IOptionsMonitor<FreshRssOptions>>(o => o.CurrentValue == _options);
+        var optsMon = Mock.Of<IOptionsMonitor<RssPollingOptions>>(o => o.CurrentValue == _options);
 
         return new RssPollingService(
             scopeFactory.Object,
-            _mockClient.Object,
             optsMon,
             NullLogger<RssPollingService>.Instance);
     }
@@ -80,14 +75,12 @@ public class RssPollingServiceTests : IDisposable
     public async Task PollAsync_CreatesIdeasForNewEntries()
     {
         var source = AddRssSource();
-        _mockClient.Setup(c => c.GetEntriesAsync(It.IsAny<DateTimeOffset?>(), It.IsAny<int?>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<RssEntry>
+        _mockReader.Setup(r => r.ReadFeedAsync(source.FeedUrl!, It.IsAny<DateTimeOffset?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<RssFeedItem>
             {
-                new("1", "Article 1", "Content", "https://testblog.com/article-1", "Test Blog", null, ["tech"], DateTimeOffset.UtcNow),
-                new("2", "Article 2", "Content", "https://testblog.com/article-2", "Test Blog", null, [], DateTimeOffset.UtcNow),
+                new("Article 1", "Content", "https://testblog.com/article-1", null, "tech", DateTimeOffset.UtcNow),
+                new("Article 2", "Content", "https://testblog.com/article-2", null, null, DateTimeOffset.UtcNow),
             });
-        _mockClient.Setup(c => c.MarkAsReadAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
 
         var service = CreateService();
         await service.PollAsync(CancellationToken.None);
@@ -101,7 +94,7 @@ public class RssPollingServiceTests : IDisposable
     public async Task PollAsync_SkipsDuplicateEntries()
     {
         var source = AddRssSource();
-        var existingKey = RssPollingService.GenerateDeduplicationKey("https://testblog.com/existing", "Existing");
+        var existingKey = DeduplicationKeyGenerator.Generate("https://testblog.com/existing", "Existing");
         _dbContext.Ideas.Add(new Idea
         {
             Title = "Existing",
@@ -112,14 +105,12 @@ public class RssPollingServiceTests : IDisposable
         });
         _dbContext.SaveChanges();
 
-        _mockClient.Setup(c => c.GetEntriesAsync(It.IsAny<DateTimeOffset?>(), It.IsAny<int?>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<RssEntry>
+        _mockReader.Setup(r => r.ReadFeedAsync(source.FeedUrl!, It.IsAny<DateTimeOffset?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<RssFeedItem>
             {
-                new("1", "Existing", "Content", "https://testblog.com/existing", "Test Blog", null, [], DateTimeOffset.UtcNow),
-                new("2", "New Article", "Content", "https://testblog.com/new", "Test Blog", null, [], DateTimeOffset.UtcNow),
+                new("Existing", "Content", "https://testblog.com/existing", null, null, DateTimeOffset.UtcNow),
+                new("New Article", "Content", "https://testblog.com/new", null, null, DateTimeOffset.UtcNow),
             });
-        _mockClient.Setup(c => c.MarkAsReadAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
 
         var service = CreateService();
         await service.PollAsync(CancellationToken.None);
@@ -132,10 +123,8 @@ public class RssPollingServiceTests : IDisposable
     public async Task PollAsync_UpdatesSourceTimestampsOnSuccess()
     {
         var source = AddRssSource();
-        _mockClient.Setup(c => c.GetEntriesAsync(It.IsAny<DateTimeOffset?>(), It.IsAny<int?>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<RssEntry>());
-        _mockClient.Setup(c => c.MarkAsReadAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
+        _mockReader.Setup(r => r.ReadFeedAsync(source.FeedUrl!, It.IsAny<DateTimeOffset?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<RssFeedItem>());
 
         var service = CreateService();
         await service.PollAsync(CancellationToken.None);
@@ -149,10 +138,8 @@ public class RssPollingServiceTests : IDisposable
     public async Task PollAsync_ResetsConsecutiveFailuresOnSuccess()
     {
         var source = AddRssSource(failures: 3);
-        _mockClient.Setup(c => c.GetEntriesAsync(It.IsAny<DateTimeOffset?>(), It.IsAny<int?>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<RssEntry>());
-        _mockClient.Setup(c => c.MarkAsReadAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
+        _mockReader.Setup(r => r.ReadFeedAsync(source.FeedUrl!, It.IsAny<DateTimeOffset?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<RssFeedItem>());
 
         var service = CreateService();
         await service.PollAsync(CancellationToken.None);
@@ -163,51 +150,59 @@ public class RssPollingServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task PollAsync_DisablesSourceAfterMaxFailures()
+    public async Task PollAsync_IncrementsFailuresOnError()
     {
-        var source = AddRssSource(failures: 4);
-
-        _mockClient.Setup(c => c.GetEntriesAsync(It.IsAny<DateTimeOffset?>(), It.IsAny<int?>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<RssEntry>
-            {
-                new("1", "Bad", "Content", "https://other-domain.com/1", "Other", null, [], DateTimeOffset.UtcNow),
-            });
-        _mockClient.Setup(c => c.MarkAsReadAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
+        var source = AddRssSource();
+        _mockReader.Setup(r => r.ReadFeedAsync(source.FeedUrl!, It.IsAny<DateTimeOffset?>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new HttpRequestException("Connection refused"));
 
         var service = CreateService();
         await service.PollAsync(CancellationToken.None);
 
         var updated = await _dbContext.IdeaSources.FindAsync(source.Id);
-        Assert.Equal(0, updated!.ConsecutiveFailures);
+        Assert.Equal(1, updated!.ConsecutiveFailures);
+        Assert.Equal("Connection refused", updated.LastError);
+    }
+
+    [Fact]
+    public async Task PollAsync_DisablesSourceAfterMaxFailures()
+    {
+        var source = AddRssSource(failures: 4);
+        _mockReader.Setup(r => r.ReadFeedAsync(source.FeedUrl!, It.IsAny<DateTimeOffset?>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new HttpRequestException("Timeout"));
+
+        var service = CreateService();
+        await service.PollAsync(CancellationToken.None);
+
+        var updated = await _dbContext.IdeaSources.FindAsync(source.Id);
+        Assert.False(updated!.IsEnabled);
+        Assert.Equal(5, updated.ConsecutiveFailures);
     }
 
     [Fact]
     public async Task PollAsync_SkipsDisabledSources()
     {
         AddRssSource(enabled: false);
-        _mockClient.Setup(c => c.GetEntriesAsync(It.IsAny<DateTimeOffset?>(), It.IsAny<int?>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<RssEntry>());
 
         var service = CreateService();
         await service.PollAsync(CancellationToken.None);
 
-        _mockClient.Verify(c => c.GetEntriesAsync(It.IsAny<DateTimeOffset?>(), It.IsAny<int?>(), It.IsAny<CancellationToken>()), Times.Never);
+        _mockReader.Verify(r => r.ReadFeedAsync(It.IsAny<string>(), It.IsAny<DateTimeOffset?>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
     public void GenerateDeduplicationKey_NormalizesUrls()
     {
-        var key1 = RssPollingService.GenerateDeduplicationKey("https://example.com/article?utm_source=twitter", "Title");
-        var key2 = RssPollingService.GenerateDeduplicationKey("https://example.com/article", "Title");
+        var key1 = DeduplicationKeyGenerator.Generate("https://example.com/article?utm_source=twitter", "Title");
+        var key2 = DeduplicationKeyGenerator.Generate("https://example.com/article", "Title");
         Assert.Equal(key1, key2);
     }
 
     [Fact]
     public void GenerateDeduplicationKey_FallsBackToTitle()
     {
-        var key1 = RssPollingService.GenerateDeduplicationKey(null, "Same Title");
-        var key2 = RssPollingService.GenerateDeduplicationKey("", "Same Title");
+        var key1 = DeduplicationKeyGenerator.Generate(null, "Same Title");
+        var key2 = DeduplicationKeyGenerator.Generate("", "Same Title");
         Assert.Equal(key1, key2);
     }
 

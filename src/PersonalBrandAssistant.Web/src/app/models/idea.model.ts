@@ -15,6 +15,8 @@ export enum IdeaSourceType {
 export interface Idea {
   id: string;
   title: string;
+  description: string | null;
+  url: string | null;
   sourceName: string;
   category: string | null;
   summary: string | null;

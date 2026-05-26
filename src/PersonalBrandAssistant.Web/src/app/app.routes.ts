@@ -7,7 +7,7 @@ export const routes: Routes = [
     component: LayoutComponent,
     children: [
       { path: '', redirectTo: 'feed', pathMatch: 'full' },
-      { path: 'feed', loadComponent: () => import('./features/feed/feed-page/feed-page.component').then(m => m.FeedPageComponent) },
+      { path: 'feed', loadChildren: () => import('./features/news/news.routes').then(m => m.NEWS_ROUTES) },
       { path: 'discover', loadComponent: () => import('./features/discover/discover.component').then(m => m.DiscoverComponent) },
       { path: 'ideas', loadChildren: () => import('./features/ideas/ideas.routes').then(m => m.IDEAS_ROUTES) },
       { path: 'content', loadChildren: () => import('./features/content/content.routes').then(m => m.CONTENT_ROUTES) },

@@ -41,7 +41,7 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>
             services.AddScoped<IAppDbContext>(sp =>
                 sp.GetRequiredService<ApplicationDbContext>());
 
-            services.AddSingleton(new Mock<IFreshRssClient>().Object);
+            services.AddSingleton(new Mock<IRssFeedReader>().Object);
             services.AddSingleton(new Mock<IContentScheduler>().Object);
 
             var sidecarMock = new Mock<ISidecarClient>();

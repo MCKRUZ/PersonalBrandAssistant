@@ -62,6 +62,45 @@ interface NavItem {
       width: 20px;
       text-align: center;
     }
+    .label { white-space: nowrap; }
+
+    @media (max-width: 768px) {
+      :host {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        width: 100%;
+        min-width: 0;
+        flex-direction: row;
+        background: #161b22;
+        border-right: none;
+        border-top: 1px solid #30363d;
+        padding: 0;
+        z-index: 1000;
+      }
+      .brand { display: none; }
+      nav {
+        flex-direction: row;
+        width: 100%;
+        padding: 0;
+        gap: 0;
+        justify-content: space-around;
+      }
+      a {
+        flex-direction: column;
+        gap: 2px;
+        padding: 8px 4px 6px;
+        border-radius: 0;
+        font-size: 10px;
+        flex: 1;
+        justify-content: center;
+        align-items: center;
+      }
+      a:hover { background: transparent; }
+      a.active { background: rgba(31,111,235,0.12); }
+      .icon { font-size: 18px; }
+    }
   `]
 })
 export class SidebarComponent {

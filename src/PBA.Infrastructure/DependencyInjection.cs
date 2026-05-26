@@ -17,17 +17,23 @@ public static class DependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
+        var connectionString = configuration.GetConnectionString("DefaultConnection");
+        var dataSourceBuilder = new Npgsql.NpgsqlDataSourceBuilder(connectionString);
+        dataSourceBuilder.EnableDynamicJson();
+        var dataSource = dataSourceBuilder.Build();
+
         services.AddDbContext<ApplicationDbContext>(options =>
             options.UseNpgsql(
-                configuration.GetConnectionString("DefaultConnection"),
+                dataSource,
                 npgsql => npgsql.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName)));
 
         services.AddScoped<IAppDbContext>(sp => sp.GetRequiredService<ApplicationDbContext>());
 
         services.AddHttpClient();
 
-        services.Configure<FreshRssOptions>(configuration.GetSection(FreshRssOptions.SectionName));
-        services.AddHttpClient<FreshRssClient>();
+        services.Configure<RssPollingOptions>(configuration.GetSection(RssPollingOptions.SectionName));
+        services.AddHttpClient<RssFeedReader>();
+        services.AddScoped<IRssFeedReader, RssFeedReader>();
         services.AddHostedService<RssPollingService>();
 
         services.Configure<SidecarOptions>(configuration.GetSection(SidecarOptions.SectionName));

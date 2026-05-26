@@ -84,6 +84,12 @@
         },
         "serve": {
           "builder": "@angular-devkit/build-angular:dev-server",
+          "options": {
+            "allowedHosts": [
+              "furious.tail2800e3.ts.net",
+              "matthews-mac-mini.tail2800e3.ts.net"
+            ]
+          },
           "configurations": {
             "production": {
               "buildTarget": "personal-brand-assistant:build:production"

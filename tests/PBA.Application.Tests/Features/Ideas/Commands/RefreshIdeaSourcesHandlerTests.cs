@@ -1,11 +1,9 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using PBA.Application.Common.Interfaces;
 using PBA.Application.Features.Ideas.Commands;
 using PBA.Domain.Entities;
-using PBA.Domain.Enums;
 using PBA.Infrastructure.Data;
 using Xunit;
 
@@ -22,26 +20,27 @@ public class RefreshIdeaSourcesHandlerTests
     }
 
     [Fact]
-    public async Task Handle_CallsFreshRssClient_ForAllEnabledSources()
+    public async Task Handle_CallsFeedReader_ForEachEnabledSourceWithFeedUrl()
     {
         using var db = CreateContext();
-        var enabled1 = new IdeaSource { Name = "Source 1", Category = "Tech", IsEnabled = true };
-        var enabled2 = new IdeaSource { Name = "Source 2", Category = "AI", IsEnabled = true };
-        var disabled = new IdeaSource { Name = "Disabled", Category = "Off", IsEnabled = false };
-        db.IdeaSources.AddRange(enabled1, enabled2, disabled);
+        var source1 = new IdeaSource { Name = "Source 1", Category = "Tech", IsEnabled = true, FeedUrl = "https://blog1.com/rss" };
+        var source2 = new IdeaSource { Name = "Source 2", Category = "AI", IsEnabled = true, FeedUrl = "https://blog2.com/feed" };
+        var disabled = new IdeaSource { Name = "Disabled", Category = "Off", IsEnabled = false, FeedUrl = "https://disabled.com/rss" };
+        var noFeed = new IdeaSource { Name = "No Feed", Category = "Manual", IsEnabled = true, FeedUrl = "" };
+        db.IdeaSources.AddRange(source1, source2, disabled, noFeed);
         await db.SaveChangesAsync();
 
-        var mockClient = new Mock<IFreshRssClient>();
-        mockClient.Setup(c => c.GetEntriesAsync(It.IsAny<DateTimeOffset?>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<RssEntry>());
+        var mockReader = new Mock<IRssFeedReader>();
+        mockReader.Setup(r => r.ReadFeedAsync(It.IsAny<string>(), It.IsAny<DateTimeOffset?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<RssFeedItem>());
 
         var handler = new RefreshIdeaSources.Handler(
-            db, mockClient.Object, NullLogger<RefreshIdeaSources.Handler>.Instance);
+            db, mockReader.Object, NullLogger<RefreshIdeaSources.Handler>.Instance);
 
         await handler.Handle(new RefreshIdeaSources.Command(), CancellationToken.None);
 
-        mockClient.Verify(c => c.GetEntriesAsync(
-            It.IsAny<DateTimeOffset?>(), It.IsAny<int>(), It.IsAny<CancellationToken>()),
+        mockReader.Verify(r => r.ReadFeedAsync(
+            It.IsAny<string>(), It.IsAny<DateTimeOffset?>(), It.IsAny<CancellationToken>()),
             Times.Exactly(2));
     }
 
@@ -49,23 +48,23 @@ public class RefreshIdeaSourcesHandlerTests
     public async Task Handle_ReturnsCountOfNewIdeas()
     {
         using var db = CreateContext();
-        var source = new IdeaSource { Name = "Source", Category = "Tech", IsEnabled = true };
+        var source = new IdeaSource { Name = "Source", Category = "Tech", IsEnabled = true, FeedUrl = "https://blog.com/rss" };
         db.IdeaSources.Add(source);
         await db.SaveChangesAsync();
 
-        var entries = new List<RssEntry>
+        var items = new List<RssFeedItem>
         {
-            new("Article 1", "Desc 1", "https://example.com/1", "Feed", null, "Tech", DateTimeOffset.UtcNow, "e1"),
-            new("Article 2", "Desc 2", "https://example.com/2", "Feed", null, "Tech", DateTimeOffset.UtcNow, "e2"),
-            new("Article 3", "Desc 3", "https://example.com/3", "Feed", null, "Tech", DateTimeOffset.UtcNow, "e3")
+            new("Article 1", "Desc 1", "https://example.com/1", null, "Tech", DateTimeOffset.UtcNow),
+            new("Article 2", "Desc 2", "https://example.com/2", null, "Tech", DateTimeOffset.UtcNow),
+            new("Article 3", "Desc 3", "https://example.com/3", null, "Tech", DateTimeOffset.UtcNow),
         };
 
-        var mockClient = new Mock<IFreshRssClient>();
-        mockClient.Setup(c => c.GetEntriesAsync(It.IsAny<DateTimeOffset?>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(entries);
+        var mockReader = new Mock<IRssFeedReader>();
+        mockReader.Setup(r => r.ReadFeedAsync(source.FeedUrl!, It.IsAny<DateTimeOffset?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(items);
 
         var handler = new RefreshIdeaSources.Handler(
-            db, mockClient.Object, NullLogger<RefreshIdeaSources.Handler>.Instance);
+            db, mockReader.Object, NullLogger<RefreshIdeaSources.Handler>.Instance);
 
         var result = await handler.Handle(new RefreshIdeaSources.Command(), CancellationToken.None);
 
@@ -75,31 +74,25 @@ public class RefreshIdeaSourcesHandlerTests
     }
 
     [Fact]
-    public async Task Handle_HandlesClientErrors_GracefullyPerSource()
+    public async Task Handle_HandlesFeedErrors_GracefullyPerSource()
     {
         using var db = CreateContext();
-        var failSource = new IdeaSource { Name = "Failing", Category = "Fail", IsEnabled = true };
-        var okSource = new IdeaSource { Name = "Working", Category = "OK", IsEnabled = true };
+        var failSource = new IdeaSource { Name = "Failing", Category = "Fail", IsEnabled = true, FeedUrl = "https://failing.com/rss" };
+        var okSource = new IdeaSource { Name = "Working", Category = "OK", IsEnabled = true, FeedUrl = "https://working.com/rss" };
         db.IdeaSources.AddRange(failSource, okSource);
         await db.SaveChangesAsync();
 
-        var entries = new List<RssEntry>
-        {
-            new("Good Article", "Desc", "https://example.com/good", "Feed", null, "OK", DateTimeOffset.UtcNow, "e1")
-        };
-
-        var callCount = 0;
-        var mockClient = new Mock<IFreshRssClient>();
-        mockClient.Setup(c => c.GetEntriesAsync(It.IsAny<DateTimeOffset?>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(() =>
+        var mockReader = new Mock<IRssFeedReader>();
+        mockReader.Setup(r => r.ReadFeedAsync(failSource.FeedUrl!, It.IsAny<DateTimeOffset?>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new HttpRequestException("Connection refused"));
+        mockReader.Setup(r => r.ReadFeedAsync(okSource.FeedUrl!, It.IsAny<DateTimeOffset?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<RssFeedItem>
             {
-                callCount++;
-                if (callCount == 1) throw new HttpRequestException("Connection refused");
-                return entries;
+                new("Good Article", "Desc", "https://working.com/good", null, "OK", DateTimeOffset.UtcNow),
             });
 
         var handler = new RefreshIdeaSources.Handler(
-            db, mockClient.Object, NullLogger<RefreshIdeaSources.Handler>.Instance);
+            db, mockReader.Object, NullLogger<RefreshIdeaSources.Handler>.Instance);
 
         var result = await handler.Handle(new RefreshIdeaSources.Command(), CancellationToken.None);
 

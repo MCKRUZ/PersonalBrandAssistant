@@ -26,7 +26,7 @@ public static class FeedEndpoints
                 Type = p.Type,
                 Priority = p.Priority,
                 IsRead = p.IsRead,
-                IncludeExpired = p.IncludeExpired,
+                IncludeExpired = p.IncludeExpired ?? false,
                 SortBy = p.SortBy ?? "CreatedAt",
                 SortDirection = p.SortDirection ?? "desc"
             };
@@ -83,7 +83,7 @@ public record ListFeedQueryParams
     public FeedItemType? Type { get; init; }
     public FeedItemPriority? Priority { get; init; }
     public bool? IsRead { get; init; }
-    public bool IncludeExpired { get; init; } = false;
+    public bool? IncludeExpired { get; init; }
     public string? SortBy { get; init; }
     public string? SortDirection { get; init; }
     public int? Page { get; init; }
