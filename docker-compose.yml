@@ -40,7 +40,7 @@ services:
       dockerfile: src/PBA.Api/Dockerfile
     container_name: pba-api
     ports:
-      - "5000:8080"
+      - "5001:8080"
     depends_on:
       db:
         condition: service_healthy
