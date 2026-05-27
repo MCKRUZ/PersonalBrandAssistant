@@ -13,6 +13,8 @@ public class ContentPlatformPublishConfiguration : IEntityTypeConfiguration<Cont
         builder.Property(c => c.PlatformPostId).HasMaxLength(500);
         builder.Property(c => c.ErrorMessage).HasMaxLength(2000);
 
+        builder.Property(c => c.RetryCount).HasDefaultValue(0);
+
         builder.HasIndex(c => new { c.Platform, c.Status });
     }
 }

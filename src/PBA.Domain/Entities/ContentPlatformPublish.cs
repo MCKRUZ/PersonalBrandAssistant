@@ -17,6 +17,8 @@ public class ContentPlatformPublish
     public int Shares { get; set; }
     public int Views { get; set; }
     public DateTimeOffset? MetricsRefreshedAt { get; set; }
+    public int RetryCount { get; set; }
+    public DateTimeOffset? NextRetryAt { get; set; }
 
     public Content? Content { get; set; }
 }

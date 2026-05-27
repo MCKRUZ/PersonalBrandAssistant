@@ -13,7 +13,7 @@ public class CreateContentCommandValidatorTests
     [Fact]
     public void Validate_EmptyTitle_HasError()
     {
-        var command = new CreateContent.Command("", ContentType.BlogPost, Platform.Blog, null, []);
+        var command = new CreateContent.Command("", ContentType.Blog, Platform.Blog, null, []);
         var result = _validator.TestValidate(command);
         result.ShouldHaveValidationErrorFor(x => x.Title);
     }
@@ -21,7 +21,7 @@ public class CreateContentCommandValidatorTests
     [Fact]
     public void Validate_TitleExceeds200Chars_HasError()
     {
-        var command = new CreateContent.Command(new string('x', 201), ContentType.BlogPost, Platform.Blog, null, []);
+        var command = new CreateContent.Command(new string('x', 201), ContentType.Blog, Platform.Blog, null, []);
         var result = _validator.TestValidate(command);
         result.ShouldHaveValidationErrorFor(x => x.Title);
     }
@@ -37,7 +37,7 @@ public class CreateContentCommandValidatorTests
     [Fact]
     public void Validate_InvalidPlatform_HasError()
     {
-        var command = new CreateContent.Command("Valid Title", ContentType.BlogPost, (Platform)999, null, []);
+        var command = new CreateContent.Command("Valid Title", ContentType.Blog, (Platform)999, null, []);
         var result = _validator.TestValidate(command);
         result.ShouldHaveValidationErrorFor(x => x.PrimaryPlatform);
     }
@@ -45,7 +45,7 @@ public class CreateContentCommandValidatorTests
     [Fact]
     public void Validate_ValidCommand_NoErrors()
     {
-        var command = new CreateContent.Command("Valid Title", ContentType.BlogPost, Platform.Blog, null, []);
+        var command = new CreateContent.Command("Valid Title", ContentType.Blog, Platform.Blog, null, []);
         var result = _validator.TestValidate(command);
         result.ShouldNotHaveAnyValidationErrors();
     }

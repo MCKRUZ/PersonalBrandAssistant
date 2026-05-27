@@ -22,13 +22,13 @@ public class CreateContentFromIdeaTests
     public async Task Handle_CreatesContentFromIdea()
     {
         using var db = CreateContext();
-        var idea = new Idea { Title = "AI Governance Trends", Description = "Some analysis", DeduplicationKey = "k1" };
+        var idea = new Idea { Title = "AI Governance Trends", Description = "Some analysis", DeduplicationKey = "k1", SourceName = "test-source" };
         db.Ideas.Add(idea);
         await db.SaveChangesAsync();
 
         var handler = new CreateContentFromIdea.Handler(db);
         var result = await handler.Handle(
-            new CreateContentFromIdea.Command(idea.Id, ContentType.BlogPost, Platform.LinkedIn),
+            new CreateContentFromIdea.Command(idea.Id, ContentType.Blog, Platform.LinkedIn),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -36,7 +36,7 @@ public class CreateContentFromIdeaTests
         Assert.NotNull(content);
         Assert.Equal("AI Governance Trends", content.Title);
         Assert.Equal("Some analysis", content.Body);
-        Assert.Equal(ContentType.BlogPost, content.ContentType);
+        Assert.Equal(ContentType.Blog, content.ContentType);
         Assert.Equal(Platform.LinkedIn, content.PrimaryPlatform);
         Assert.Equal(idea.Id, content.SourceIdeaId);
     }
@@ -45,7 +45,7 @@ public class CreateContentFromIdeaTests
     public async Task Handle_SetsBodyToEmptyString_WhenDescriptionIsNull()
     {
         using var db = CreateContext();
-        var idea = new Idea { Title = "No Description", Description = null, DeduplicationKey = "k2" };
+        var idea = new Idea { Title = "No Description", Description = null, DeduplicationKey = "k2", SourceName = "test-source" };
         db.Ideas.Add(idea);
         await db.SaveChangesAsync();
 
@@ -63,7 +63,7 @@ public class CreateContentFromIdeaTests
     public async Task Handle_SetsContentStatusToIdea()
     {
         using var db = CreateContext();
-        var idea = new Idea { Title = "Test", DeduplicationKey = "k3" };
+        var idea = new Idea { Title = "Test", DeduplicationKey = "k3", SourceName = "test-source" };
         db.Ideas.Add(idea);
         await db.SaveChangesAsync();
 
@@ -80,13 +80,13 @@ public class CreateContentFromIdeaTests
     public async Task Handle_SetsIdeaStatusToUsed()
     {
         using var db = CreateContext();
-        var idea = new Idea { Title = "Test", DeduplicationKey = "k4", Status = IdeaStatus.Saved };
+        var idea = new Idea { Title = "Test", DeduplicationKey = "k4", Status = IdeaStatus.Saved, SourceName = "test-source" };
         db.Ideas.Add(idea);
         await db.SaveChangesAsync();
 
         var handler = new CreateContentFromIdea.Handler(db);
         await handler.Handle(
-            new CreateContentFromIdea.Command(idea.Id, ContentType.BlogPost, Platform.Blog),
+            new CreateContentFromIdea.Command(idea.Id, ContentType.Blog, Platform.Blog),
             CancellationToken.None);
 
         var updated = await db.Ideas.FindAsync(idea.Id);
@@ -100,7 +100,7 @@ public class CreateContentFromIdeaTests
         var handler = new CreateContentFromIdea.Handler(db);
 
         var result = await handler.Handle(
-            new CreateContentFromIdea.Command(Guid.NewGuid(), ContentType.BlogPost, Platform.Blog),
+            new CreateContentFromIdea.Command(Guid.NewGuid(), ContentType.Blog, Platform.Blog),
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
@@ -111,13 +111,13 @@ public class CreateContentFromIdeaTests
     public async Task Handle_ReturnsNewContentId()
     {
         using var db = CreateContext();
-        var idea = new Idea { Title = "Test", DeduplicationKey = "k5" };
+        var idea = new Idea { Title = "Test", DeduplicationKey = "k5", SourceName = "test-source" };
         db.Ideas.Add(idea);
         await db.SaveChangesAsync();
 
         var handler = new CreateContentFromIdea.Handler(db);
         var result = await handler.Handle(
-            new CreateContentFromIdea.Command(idea.Id, ContentType.BlogPost, Platform.Blog),
+            new CreateContentFromIdea.Command(idea.Id, ContentType.Blog, Platform.Blog),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);

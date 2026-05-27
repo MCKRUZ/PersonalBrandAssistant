@@ -35,7 +35,8 @@ public class ListIdeasHandlerTests
             DetectedAt = detectedAt ?? DateTimeOffset.UtcNow,
             Description = description,
             Summary = summary,
-            DeduplicationKey = Guid.NewGuid().ToString()
+            DeduplicationKey = Guid.NewGuid().ToString(),
+            SourceName = "test-source"
         };
     }
 

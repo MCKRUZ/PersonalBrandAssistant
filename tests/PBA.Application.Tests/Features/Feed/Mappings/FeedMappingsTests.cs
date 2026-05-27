@@ -53,6 +53,7 @@ public class FeedMappingsTests
         var entity = new FeedItem
         {
             Title = "System notification",
+            Summary = "System notification summary",
             Type = FeedItemType.SystemNotification,
             Data = null,
             ActionType = null,

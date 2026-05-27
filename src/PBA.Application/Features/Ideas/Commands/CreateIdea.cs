@@ -40,6 +40,7 @@ public static class CreateIdea
                 Tags = request.Tags.ToList(),
                 SourceName = "Manual",
                 Status = IdeaStatus.New,
+                DetectedAt = DateTimeOffset.UtcNow,
                 DeduplicationKey = deduplicationKey
             };
 

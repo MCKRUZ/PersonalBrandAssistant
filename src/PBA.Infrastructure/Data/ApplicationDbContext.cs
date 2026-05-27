@@ -14,6 +14,7 @@ public class ApplicationDbContext : DbContext, IAppDbContext
     public DbSet<Idea> Ideas => Set<Idea>();
     public DbSet<SavedIdea> SavedIdeas => Set<SavedIdea>();
     public DbSet<FeedItem> FeedItems => Set<FeedItem>();
+    public DbSet<PlatformCredential> PlatformCredentials => Set<PlatformCredential>();
     public DbSet<BrandProfile> BrandProfiles => Set<BrandProfile>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

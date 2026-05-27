@@ -42,7 +42,7 @@ public class IdeaSourceEndpointsTests : IClassFixture<TestWebApplicationFactory>
     public async Task DeleteSource_Returns204()
     {
         var createResponse = await _client.PostAsJsonAsync("/api/idea-sources",
-            new IdeaSourceRequest { Name = "Delete Me", Type = IdeaSourceType.Manual, Category = "Test" });
+            new IdeaSourceRequest { Name = "Delete Me", Type = IdeaSourceType.API, Category = "Test" });
         var id = await createResponse.Content.ReadFromJsonAsync<Guid>();
 
         var response = await _client.DeleteAsync($"/api/idea-sources/{id}");
@@ -62,7 +62,7 @@ public class IdeaSourceEndpointsTests : IClassFixture<TestWebApplicationFactory>
     public async Task PutSource_Returns200()
     {
         var createResponse = await _client.PostAsJsonAsync("/api/idea-sources",
-            new IdeaSourceRequest { Name = "Update Me", Type = IdeaSourceType.Manual, Category = "Test" });
+            new IdeaSourceRequest { Name = "Update Me", Type = IdeaSourceType.API, Category = "Test" });
         var id = await createResponse.Content.ReadFromJsonAsync<Guid>();
 
         var updateBody = new IdeaSourceRequest { Name = "Updated Name", Category = "Updated" };

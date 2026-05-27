@@ -45,7 +45,8 @@ public class DeleteIdeaSourceHandlerTests
         {
             Title = "Child Idea",
             DeduplicationKey = "child1",
-            IdeaSourceId = source.Id
+            IdeaSourceId = source.Id,
+            SourceName = "test-source"
         };
         db.Ideas.Add(idea);
         await db.SaveChangesAsync();

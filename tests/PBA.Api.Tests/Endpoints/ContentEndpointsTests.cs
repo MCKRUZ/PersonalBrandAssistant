@@ -24,7 +24,7 @@ public class ContentEndpointsTests : IClassFixture<TestWebApplicationFactory>
 
     private async Task<Guid> CreateTestContent(
         string title = "Test Content",
-        ContentType contentType = ContentType.BlogPost,
+        ContentType contentType = ContentType.Blog,
         Platform platform = Platform.Blog)
     {
         var body = new CreateContentRequest
@@ -51,7 +51,7 @@ public class ContentEndpointsTests : IClassFixture<TestWebApplicationFactory>
         var body = new CreateContentRequest
         {
             Title = "Integration Test Content",
-            ContentType = ContentType.BlogPost,
+            ContentType = ContentType.Blog,
             PrimaryPlatform = Platform.Blog
         };
 
@@ -69,7 +69,7 @@ public class ContentEndpointsTests : IClassFixture<TestWebApplicationFactory>
         var body = new CreateContentRequest
         {
             Title = "",
-            ContentType = ContentType.BlogPost,
+            ContentType = ContentType.Blog,
             PrimaryPlatform = Platform.Blog
         };
 
@@ -89,9 +89,9 @@ public class ContentEndpointsTests : IClassFixture<TestWebApplicationFactory>
     [Fact]
     public async Task GetContentList_RespectsQueryFilters()
     {
-        await CreateTestContent("Filter Test", ContentType.BlogPost, Platform.Blog);
+        await CreateTestContent("Filter Test", ContentType.Blog, Platform.Blog);
 
-        var response = await _client.GetAsync("/api/content?status=Idea&platform=Blog&contentType=BlogPost&search=Filter");
+        var response = await _client.GetAsync("/api/content?status=Idea&platform=Blog&contentType=Blog&search=Filter");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }

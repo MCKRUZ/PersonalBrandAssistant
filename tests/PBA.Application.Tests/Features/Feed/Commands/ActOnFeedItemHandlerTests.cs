@@ -103,7 +103,7 @@ public class ActOnFeedItemHandlerTests
         var item = CreateFeedItem(
             type: FeedItemType.IdeaSuggestion,
             actionTargetId: ideaId,
-            data: @"{""contentType"":""BlogPost"",""primaryPlatform"":""Blog"",""keywords"":[""AI""],""confidence"":0.85,""sourceIdeaTitle"":""Test""}");
+            data: @"{""contentType"":""Blog"",""primaryPlatform"":""Blog"",""keywords"":[""AI""],""confidence"":0.85,""sourceIdeaTitle"":""Test""}");
         context.FeedItems.Add(item);
         await context.SaveChangesAsync();
 
@@ -121,7 +121,7 @@ public class ActOnFeedItemHandlerTests
             s => s.Send(
                 It.Is<CreateContentFromIdea.Command>(c =>
                     c.IdeaId == ideaId &&
-                    c.ContentType == ContentType.BlogPost &&
+                    c.ContentType == ContentType.Blog &&
                     c.PrimaryPlatform == Platform.Blog),
                 It.IsAny<CancellationToken>()),
             Times.Once);

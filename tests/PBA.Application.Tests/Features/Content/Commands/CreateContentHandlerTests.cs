@@ -26,7 +26,7 @@ public class CreateContentHandlerTests
         var handler = new CreateContent.Handler(context);
 
         var command = new CreateContent.Command(
-            "Test Title", ContentType.BlogPost, Platform.Blog, null, ["tag1", "tag2"]);
+            "Test Title", ContentType.Blog, Platform.Blog, null, ["tag1", "tag2"]);
 
         var result = await handler.Handle(command, CancellationToken.None);
 
@@ -34,7 +34,7 @@ public class CreateContentHandlerTests
         var content = await context.Contents.FindAsync(result.Value);
         Assert.NotNull(content);
         Assert.Equal("Test Title", content.Title);
-        Assert.Equal(ContentType.BlogPost, content.ContentType);
+        Assert.Equal(ContentType.Blog, content.ContentType);
         Assert.Equal(Platform.Blog, content.PrimaryPlatform);
         Assert.Equal(["tag1", "tag2"], content.Tags);
     }
@@ -62,14 +62,16 @@ public class CreateContentHandlerTests
         {
             Title = "Idea Title",
             Description = "Idea Description",
-            Status = IdeaStatus.New
+            Status = IdeaStatus.New,
+            DeduplicationKey = "test-key",
+            SourceName = "test-source"
         };
         context.Ideas.Add(idea);
         await context.SaveChangesAsync();
 
         var handler = new CreateContent.Handler(context);
         var command = new CreateContent.Command(
-            "", ContentType.BlogPost, Platform.Blog, idea.Id, []);
+            "", ContentType.Blog, Platform.Blog, idea.Id, []);
 
         var result = await handler.Handle(command, CancellationToken.None);
 
@@ -87,14 +89,16 @@ public class CreateContentHandlerTests
         {
             Title = "Idea",
             Description = "Description",
-            Status = IdeaStatus.New
+            Status = IdeaStatus.New,
+            DeduplicationKey = "test-key-2",
+            SourceName = "test-source"
         };
         context.Ideas.Add(idea);
         await context.SaveChangesAsync();
 
         var handler = new CreateContent.Handler(context);
         var command = new CreateContent.Command(
-            "", ContentType.BlogPost, Platform.Blog, idea.Id, []);
+            "", ContentType.Blog, Platform.Blog, idea.Id, []);
 
         await handler.Handle(command, CancellationToken.None);
 
@@ -124,7 +128,7 @@ public class CreateContentHandlerTests
         var handler = new CreateContent.Handler(context);
 
         var command = new CreateContent.Command(
-            "Title", ContentType.BlogPost, Platform.Blog, Guid.NewGuid(), []);
+            "Title", ContentType.Blog, Platform.Blog, Guid.NewGuid(), []);
 
         var result = await handler.Handle(command, CancellationToken.None);
 

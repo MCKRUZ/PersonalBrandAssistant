@@ -86,7 +86,7 @@ public class CreateIdeaHandlerTests
         var handler = new CreateIdea.Handler(db);
 
         var key = CreateIdea.GenerateDeduplicationKey(null, "Duplicate Idea");
-        db.Ideas.Add(new Idea { Title = "Duplicate Idea", DeduplicationKey = key });
+        db.Ideas.Add(new Idea { Title = "Duplicate Idea", DeduplicationKey = key, SourceName = "test-source" });
         await db.SaveChangesAsync();
 
         var result = await handler.Handle(

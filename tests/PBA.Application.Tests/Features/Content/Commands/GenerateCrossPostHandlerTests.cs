@@ -30,7 +30,7 @@ public class GenerateCrossPostHandlerTests
         {
             Title = "Original Post",
             Body = "Original body content",
-            ContentType = ContentType.BlogPost,
+            ContentType = ContentType.Blog,
             PrimaryPlatform = Platform.Blog,
             Status = ContentStatus.Draft
         };
@@ -58,7 +58,7 @@ public class GenerateCrossPostHandlerTests
         {
             Title = "Post",
             Body = "Content",
-            ContentType = ContentType.BlogPost,
+            ContentType = ContentType.Blog,
             PrimaryPlatform = Platform.Blog,
             Status = ContentStatus.Draft
         };
@@ -86,7 +86,7 @@ public class GenerateCrossPostHandlerTests
         {
             Title = "Post",
             Body = "Content",
-            ContentType = ContentType.BlogPost,
+            ContentType = ContentType.Blog,
             PrimaryPlatform = Platform.Blog,
             Status = ContentStatus.Draft
         };
@@ -114,7 +114,7 @@ public class GenerateCrossPostHandlerTests
         {
             Title = "Post",
             Body = "Content",
-            ContentType = ContentType.BlogPost,
+            ContentType = ContentType.Blog,
             PrimaryPlatform = Platform.Blog,
             Status = ContentStatus.Draft
         };
@@ -142,7 +142,7 @@ public class GenerateCrossPostHandlerTests
         {
             Title = "Post",
             Body = "Original",
-            ContentType = ContentType.BlogPost,
+            ContentType = ContentType.Blog,
             PrimaryPlatform = Platform.Blog,
             Status = ContentStatus.Draft
         };
@@ -169,7 +169,7 @@ public class GenerateCrossPostHandlerTests
         {
             Title = "Post",
             Body = "Content",
-            ContentType = ContentType.BlogPost,
+            ContentType = ContentType.Blog,
             PrimaryPlatform = Platform.Blog,
             Status = ContentStatus.Draft
         };
@@ -192,7 +192,7 @@ public class GenerateCrossPostHandlerTests
         {
             Title = "Post",
             Body = "Content",
-            ContentType = ContentType.BlogPost,
+            ContentType = ContentType.Blog,
             PrimaryPlatform = Platform.Blog,
             Status = ContentStatus.Draft
         };

@@ -23,7 +23,7 @@ public class ListIdeaSourcesHandlerTests
         await using var context = CreateContext();
         context.IdeaSources.Add(new IdeaSource { Name = "Zeta Feed", Type = IdeaSourceType.RSS, IsEnabled = true });
         context.IdeaSources.Add(new IdeaSource { Name = "Alpha Feed", Type = IdeaSourceType.API, IsEnabled = true });
-        context.IdeaSources.Add(new IdeaSource { Name = "Beta Feed", Type = IdeaSourceType.Manual, IsEnabled = false });
+        context.IdeaSources.Add(new IdeaSource { Name = "Beta Feed", Type = IdeaSourceType.API, IsEnabled = false });
         await context.SaveChangesAsync();
 
         var handler = new ListIdeaSources.Handler(context);
@@ -95,7 +95,8 @@ public class ListIdeaSourcesHandlerTests
                 {
                     Title = $"Idea {i}",
                     IdeaSourceId = source.Id,
-                    DeduplicationKey = $"dedup-{i}"
+                    DeduplicationKey = $"dedup-{i}",
+                    SourceName = "test-source"
                 });
             }
             await seedContext.SaveChangesAsync();

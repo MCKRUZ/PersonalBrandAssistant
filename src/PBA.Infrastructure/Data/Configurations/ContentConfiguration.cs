@@ -12,6 +12,7 @@ public class ContentConfiguration : IEntityTypeConfiguration<Content>
         builder.Property(c => c.Title).IsRequired().HasMaxLength(500);
         builder.Property(c => c.Body).HasColumnType("text");
         builder.Property(c => c.Tags).HasColumnType("jsonb");
+        builder.Property(c => c.TargetPlatforms).HasColumnType("jsonb");
         builder.Property(c => c.VoiceScore).HasPrecision(5, 2);
         builder.Property(c => c.ViralityPrediction).HasPrecision(5, 2);
 

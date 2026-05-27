@@ -7,6 +7,7 @@ public interface IAppDbContext
 {
     DbSet<Content> Contents { get; }
     DbSet<ContentPlatformPublish> ContentPlatformPublishes { get; }
+    DbSet<PlatformCredential> PlatformCredentials { get; }
     DbSet<BrandProfile> BrandProfiles { get; }
     DbSet<Idea> Ideas { get; }
     DbSet<SavedIdea> SavedIdeas { get; }

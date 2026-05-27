@@ -54,7 +54,7 @@ public class BlogConnectorTests : IDisposable
         {
             Title = title,
             Body = body,
-            ContentType = ContentType.BlogPost,
+            ContentType = ContentType.Blog,
             PrimaryPlatform = Platform.Blog,
             Tags = ["AI", "Engineering"],
             CreatedAt = new DateTimeOffset(2026, 5, 11, 0, 0, 0, TimeSpan.Zero)
@@ -89,7 +89,7 @@ public class BlogConnectorTests : IDisposable
         Assert.Contains("2026-05-11", result);
         Assert.Contains("Matt Kruczek", result);
         Assert.Contains("AI, Engineering", result);
-        Assert.Contains("BlogPost", result);
+        Assert.Contains("Blog", result);
     }
 
     [Fact]

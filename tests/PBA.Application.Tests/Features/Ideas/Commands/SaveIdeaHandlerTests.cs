@@ -21,7 +21,7 @@ public class SaveIdeaHandlerTests
     public async Task Handle_CreatesNewSavedIdea_WhenNoExistingSavedDetails()
     {
         using var db = CreateContext();
-        var idea = new Idea { Title = "Test", DeduplicationKey = "key1" };
+        var idea = new Idea { Title = "Test", DeduplicationKey = "key1", SourceName = "test-source" };
         db.Ideas.Add(idea);
         await db.SaveChangesAsync();
 
@@ -41,7 +41,7 @@ public class SaveIdeaHandlerTests
     public async Task Handle_UpdatesExistingSavedIdea_WhenAlreadySaved()
     {
         using var db = CreateContext();
-        var idea = new Idea { Title = "Test", DeduplicationKey = "key2" };
+        var idea = new Idea { Title = "Test", DeduplicationKey = "key2", SourceName = "test-source" };
         idea.SavedDetails = new SavedIdea { IdeaId = idea.Id, Notes = "Old notes" };
         db.Ideas.Add(idea);
         await db.SaveChangesAsync();
@@ -62,7 +62,7 @@ public class SaveIdeaHandlerTests
     public async Task Handle_SetsStatusToSaved()
     {
         using var db = CreateContext();
-        var idea = new Idea { Title = "Test", DeduplicationKey = "key3", Status = IdeaStatus.New };
+        var idea = new Idea { Title = "Test", DeduplicationKey = "key3", Status = IdeaStatus.New, SourceName = "test-source" };
         db.Ideas.Add(idea);
         await db.SaveChangesAsync();
 

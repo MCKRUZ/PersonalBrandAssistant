@@ -21,7 +21,7 @@ public class ListContentHandlerTests
         string title = "Test Content",
         ContentStatus status = ContentStatus.Draft,
         Platform platform = Platform.Blog,
-        ContentType contentType = ContentType.BlogPost,
+        ContentType contentType = ContentType.Blog,
         Guid? parentContentId = null,
         bool isDeleted = false,
         DateTimeOffset? updatedAt = null)
@@ -92,16 +92,16 @@ public class ListContentHandlerTests
     public async Task Handle_ContentTypeFilter_ReturnsMatchingOnly()
     {
         await using var context = CreateContext();
-        context.Contents.Add(CreateContent(contentType: ContentType.BlogPost));
+        context.Contents.Add(CreateContent(contentType: ContentType.Blog));
         context.Contents.Add(CreateContent(contentType: ContentType.Tweet));
         await context.SaveChangesAsync();
 
         var handler = new ListContent.Handler(context);
-        var result = await handler.Handle(new ListContent.Query { ContentType = ContentType.BlogPost }, CancellationToken.None);
+        var result = await handler.Handle(new ListContent.Query { ContentType = ContentType.Blog }, CancellationToken.None);
 
         Assert.True(result.IsSuccess);
         Assert.Single(result.Value!.Items);
-        Assert.Equal(ContentType.BlogPost, result.Value.Items[0].ContentType);
+        Assert.Equal(ContentType.Blog, result.Value.Items[0].ContentType);
     }
 
     [Fact]

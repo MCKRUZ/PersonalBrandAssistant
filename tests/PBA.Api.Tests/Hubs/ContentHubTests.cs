@@ -26,7 +26,7 @@ public class ContentHubTests
         Id = Guid.NewGuid(),
         Title = "Test Post",
         Body = "Some content body",
-        ContentType = ContentType.BlogPost,
+        ContentType = ContentType.Blog,
         PrimaryPlatform = Platform.Blog,
     };
 

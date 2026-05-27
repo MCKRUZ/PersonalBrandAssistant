@@ -31,7 +31,7 @@ public class DraftContentHandlerTests
         {
             Title = "My Post",
             Body = "Some context",
-            ContentType = ContentType.BlogPost,
+            ContentType = ContentType.Blog,
             PrimaryPlatform = Platform.Blog,
             Status = ContentStatus.Idea
         };
@@ -62,7 +62,7 @@ public class DraftContentHandlerTests
             Title = "Post",
             Body = "Rough draft",
             Status = ContentStatus.Draft,
-            ContentType = ContentType.BlogPost,
+            ContentType = ContentType.Blog,
             PrimaryPlatform = Platform.Blog
         };
         context.Contents.Add(content);
@@ -118,7 +118,7 @@ public class DraftContentHandlerTests
             Title = "Post",
             Body = "Brief",
             Status = ContentStatus.Draft,
-            ContentType = ContentType.BlogPost,
+            ContentType = ContentType.Blog,
             PrimaryPlatform = Platform.Blog
         };
         context.Contents.Add(content);
@@ -146,7 +146,7 @@ public class DraftContentHandlerTests
             Title = "Post",
             Body = "Casual text",
             Status = ContentStatus.Draft,
-            ContentType = ContentType.BlogPost,
+            ContentType = ContentType.Blog,
             PrimaryPlatform = Platform.Blog
         };
         context.Contents.Add(content);
@@ -182,7 +182,7 @@ public class DraftContentHandlerTests
             Title = "Post",
             Body = "Text",
             Status = ContentStatus.Draft,
-            ContentType = ContentType.BlogPost,
+            ContentType = ContentType.Blog,
             PrimaryPlatform = Platform.Blog
         };
         context.Contents.Add(content);
@@ -212,7 +212,7 @@ public class DraftContentHandlerTests
             Title = "Post",
             Body = "",
             Status = ContentStatus.Idea,
-            ContentType = ContentType.BlogPost,
+            ContentType = ContentType.Blog,
             PrimaryPlatform = Platform.Blog
         };
         context.Contents.Add(content);
@@ -239,7 +239,7 @@ public class DraftContentHandlerTests
             Title = "Post",
             Body = "Existing",
             Status = ContentStatus.Draft,
-            ContentType = ContentType.BlogPost,
+            ContentType = ContentType.Blog,
             PrimaryPlatform = Platform.Blog
         };
         context.Contents.Add(content);
@@ -266,7 +266,7 @@ public class DraftContentHandlerTests
             Title = "Post",
             Body = "Old",
             Status = ContentStatus.Draft,
-            ContentType = ContentType.BlogPost,
+            ContentType = ContentType.Blog,
             PrimaryPlatform = Platform.Blog
         };
         context.Contents.Add(content);
@@ -293,7 +293,7 @@ public class DraftContentHandlerTests
             Title = "Post",
             Body = "Old",
             Status = ContentStatus.Draft,
-            ContentType = ContentType.BlogPost,
+            ContentType = ContentType.Blog,
             PrimaryPlatform = Platform.Blog
         };
         context.Contents.Add(content);
@@ -321,7 +321,7 @@ public class DraftContentHandlerTests
             Title = "Post",
             Body = "Text",
             Status = ContentStatus.Draft,
-            ContentType = ContentType.BlogPost,
+            ContentType = ContentType.Blog,
             PrimaryPlatform = Platform.Blog
         };
         context.Contents.Add(content);

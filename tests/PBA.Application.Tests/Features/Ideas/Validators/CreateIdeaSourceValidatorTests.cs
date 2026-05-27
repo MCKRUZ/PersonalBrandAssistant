@@ -73,7 +73,7 @@ public class CreateIdeaSourceValidatorTests
         var command = new CreateIdeaSource.Command
         {
             Name = "Manual Source",
-            Type = IdeaSourceType.Manual,
+            Type = IdeaSourceType.API,
             FeedUrl = null,
             PollIntervalMinutes = 30
         };
@@ -87,7 +87,7 @@ public class CreateIdeaSourceValidatorTests
         var command = new CreateIdeaSource.Command
         {
             Name = "Source",
-            Type = IdeaSourceType.Manual,
+            Type = IdeaSourceType.API,
             PollIntervalMinutes = 4
         };
         var result = _validator.TestValidate(command);
@@ -100,7 +100,7 @@ public class CreateIdeaSourceValidatorTests
         var command = new CreateIdeaSource.Command
         {
             Name = "Source",
-            Type = IdeaSourceType.Manual,
+            Type = IdeaSourceType.API,
             PollIntervalMinutes = 1441
         };
         var result = _validator.TestValidate(command);
@@ -113,7 +113,7 @@ public class CreateIdeaSourceValidatorTests
         var command = new CreateIdeaSource.Command
         {
             Name = "Source",
-            Type = IdeaSourceType.Manual,
+            Type = IdeaSourceType.API,
             PollIntervalMinutes = 60
         };
         var result = _validator.TestValidate(command);

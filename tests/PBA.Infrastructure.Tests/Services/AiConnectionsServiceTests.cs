@@ -57,6 +57,7 @@ public class AiConnectionsServiceTests : IDisposable
                 Status = status,
                 DetectedAt = DateTimeOffset.UtcNow.AddHours(-i),
                 DeduplicationKey = $"key-{i}",
+                SourceName = "test-source",
             });
         }
         _dbContext.SaveChanges();
@@ -104,6 +105,7 @@ public class AiConnectionsServiceTests : IDisposable
             Tags = ["ai", "governance"],
             Status = IdeaStatus.Saved,
             DeduplicationKey = "k1",
+            SourceName = "test-source",
         });
         _dbContext.SaveChanges();
 
@@ -126,8 +128,8 @@ public class AiConnectionsServiceTests : IDisposable
     [Fact]
     public async Task AnalyzeConnectionsAsync_ParsesValidJsonAndUpdatesIdeas()
     {
-        var idea1 = new Idea { Title = "Idea A", Status = IdeaStatus.Saved, DeduplicationKey = "k1" };
-        var idea2 = new Idea { Title = "Idea B", Status = IdeaStatus.Saved, DeduplicationKey = "k2" };
+        var idea1 = new Idea { Title = "Idea A", Status = IdeaStatus.Saved, DeduplicationKey = "k1", SourceName = "test-source" };
+        var idea2 = new Idea { Title = "Idea B", Status = IdeaStatus.Saved, DeduplicationKey = "k2", SourceName = "test-source" };
         _dbContext.Ideas.AddRange(idea1, idea2);
         _dbContext.SaveChanges();
 
@@ -160,7 +162,7 @@ public class AiConnectionsServiceTests : IDisposable
     [Fact]
     public async Task AnalyzeConnectionsAsync_StripsMarkdownFences()
     {
-        var idea = new Idea { Title = "Test", Status = IdeaStatus.Saved, DeduplicationKey = "k1" };
+        var idea = new Idea { Title = "Test", Status = IdeaStatus.Saved, DeduplicationKey = "k1", SourceName = "test-source" };
         _dbContext.Ideas.Add(idea);
         _dbContext.SaveChanges();
 
@@ -215,7 +217,7 @@ public class AiConnectionsServiceTests : IDisposable
     [Fact]
     public async Task AnalyzeConnectionsAsync_SkipsUnknownIdeaIds()
     {
-        var idea = new Idea { Title = "Known", Status = IdeaStatus.Saved, DeduplicationKey = "k1" };
+        var idea = new Idea { Title = "Known", Status = IdeaStatus.Saved, DeduplicationKey = "k1", SourceName = "test-source" };
         _dbContext.Ideas.Add(idea);
         _dbContext.SaveChanges();
 

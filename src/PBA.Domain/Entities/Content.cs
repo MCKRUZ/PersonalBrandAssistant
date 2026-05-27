@@ -15,6 +15,7 @@ public class Content
     public Guid? SourceIdeaId { get; set; }
     public Guid? ParentContentId { get; set; }
     public List<string> Tags { get; set; } = [];
+    public List<Platform> TargetPlatforms { get; set; } = [];
     public DateTimeOffset CreatedAt { get; init; } = DateTimeOffset.UtcNow;
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? ScheduledAt { get; set; }

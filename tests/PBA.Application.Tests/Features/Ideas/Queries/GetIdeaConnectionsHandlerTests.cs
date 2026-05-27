@@ -37,14 +37,16 @@ public class GetIdeaConnectionsHandlerTests
             Title = "Idea 1",
             Status = IdeaStatus.Saved,
             AIConnections = JsonSerializer.Serialize(connections1),
-            DeduplicationKey = "key-1"
+            DeduplicationKey = "key-1",
+            SourceName = "test-source"
         });
         context.Ideas.Add(new Idea
         {
             Title = "Idea 2",
             Status = IdeaStatus.Saved,
             AIConnections = JsonSerializer.Serialize(connections2),
-            DeduplicationKey = "key-2"
+            DeduplicationKey = "key-2",
+            SourceName = "test-source"
         });
         await context.SaveChangesAsync();
 
@@ -66,7 +68,8 @@ public class GetIdeaConnectionsHandlerTests
             Title = "New Idea",
             Status = IdeaStatus.New,
             AIConnections = "[{\"Theme\":\"Test\"}]",
-            DeduplicationKey = "key-new"
+            DeduplicationKey = "key-new",
+            SourceName = "test-source"
         });
         await context.SaveChangesAsync();
 
@@ -91,14 +94,16 @@ public class GetIdeaConnectionsHandlerTests
             Title = "Valid",
             Status = IdeaStatus.Saved,
             AIConnections = JsonSerializer.Serialize(validConnections),
-            DeduplicationKey = "key-valid"
+            DeduplicationKey = "key-valid",
+            SourceName = "test-source"
         });
         context.Ideas.Add(new Idea
         {
             Title = "Broken",
             Status = IdeaStatus.Saved,
             AIConnections = "not valid json {{{",
-            DeduplicationKey = "key-broken"
+            DeduplicationKey = "key-broken",
+            SourceName = "test-source"
         });
         await context.SaveChangesAsync();
 
@@ -120,10 +125,10 @@ public class GetIdeaConnectionsHandlerTests
             new() { Theme = "Saved Theme", RelatedIdeaIds = [], SuggestedAngle = "Angle", Confidence = 0.8 }
         });
 
-        context.Ideas.Add(new Idea { Title = "Saved", Status = IdeaStatus.Saved, AIConnections = connections, DeduplicationKey = "k1" });
-        context.Ideas.Add(new Idea { Title = "New", Status = IdeaStatus.New, AIConnections = connections, DeduplicationKey = "k2" });
-        context.Ideas.Add(new Idea { Title = "Used", Status = IdeaStatus.Used, AIConnections = connections, DeduplicationKey = "k3" });
-        context.Ideas.Add(new Idea { Title = "Dismissed", Status = IdeaStatus.Dismissed, AIConnections = connections, DeduplicationKey = "k4" });
+        context.Ideas.Add(new Idea { Title = "Saved", Status = IdeaStatus.Saved, AIConnections = connections, DeduplicationKey = "k1", SourceName = "test-source" });
+        context.Ideas.Add(new Idea { Title = "New", Status = IdeaStatus.New, AIConnections = connections, DeduplicationKey = "k2", SourceName = "test-source" });
+        context.Ideas.Add(new Idea { Title = "Used", Status = IdeaStatus.Used, AIConnections = connections, DeduplicationKey = "k3", SourceName = "test-source" });
+        context.Ideas.Add(new Idea { Title = "Dismissed", Status = IdeaStatus.Dismissed, AIConnections = connections, DeduplicationKey = "k4", SourceName = "test-source" });
         await context.SaveChangesAsync();
 
         var handler = new GetIdeaConnections.Handler(context);

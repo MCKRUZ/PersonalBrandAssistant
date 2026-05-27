@@ -22,7 +22,7 @@ public class DismissIdeaHandlerTests
     public async Task Handle_SetsStatusToDismissed()
     {
         using var db = CreateContext();
-        var idea = new Idea { Title = "Test", DeduplicationKey = "key1", Status = IdeaStatus.New };
+        var idea = new Idea { Title = "Test", DeduplicationKey = "key1", Status = IdeaStatus.New, SourceName = "test-source" };
         db.Ideas.Add(idea);
         await db.SaveChangesAsync();
 
@@ -39,7 +39,7 @@ public class DismissIdeaHandlerTests
     public async Task Handle_RemovesSavedDetails_WhenTheyExist()
     {
         using var db = CreateContext();
-        var idea = new Idea { Title = "Test", DeduplicationKey = "key2", Status = IdeaStatus.Saved };
+        var idea = new Idea { Title = "Test", DeduplicationKey = "key2", Status = IdeaStatus.Saved, SourceName = "test-source" };
         idea.SavedDetails = new SavedIdea { IdeaId = idea.Id, Notes = "Keep this" };
         db.Ideas.Add(idea);
         await db.SaveChangesAsync();
@@ -54,7 +54,7 @@ public class DismissIdeaHandlerTests
     public async Task Handle_Succeeds_WhenNoSavedDetails()
     {
         using var db = CreateContext();
-        var idea = new Idea { Title = "Test", DeduplicationKey = "key3", Status = IdeaStatus.New };
+        var idea = new Idea { Title = "Test", DeduplicationKey = "key3", Status = IdeaStatus.New, SourceName = "test-source" };
         db.Ideas.Add(idea);
         await db.SaveChangesAsync();
 

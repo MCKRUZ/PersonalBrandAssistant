@@ -88,7 +88,8 @@ public class GetIdeaHandlerTests
         {
             Title = "Connected Idea",
             AIConnections = JsonSerializer.Serialize(connections),
-            DeduplicationKey = "connected-key"
+            DeduplicationKey = "connected-key",
+            SourceName = "test-source"
         };
         context.Ideas.Add(idea);
         await context.SaveChangesAsync();
@@ -111,7 +112,8 @@ public class GetIdeaHandlerTests
         {
             Title = "Unsaved Idea",
             Status = IdeaStatus.New,
-            DeduplicationKey = "unsaved-key"
+            DeduplicationKey = "unsaved-key",
+            SourceName = "test-source"
         };
         context.Ideas.Add(idea);
         await context.SaveChangesAsync();
