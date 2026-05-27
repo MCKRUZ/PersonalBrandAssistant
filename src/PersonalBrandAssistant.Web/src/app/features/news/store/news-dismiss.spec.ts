@@ -3,32 +3,40 @@ import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
 import { MessageService } from 'primeng/api';
 import { NewsStore } from './news.store';
-import { environment } from '../../../environments/environment';
+import { IdeaStatus } from '../../../models/idea.model';
+import type { Idea } from '../../../models/idea.model';
+import type { PagedResult } from '../../../models/pagination.model';
 
 describe('NewsStore dismiss', () => {
   let store: InstanceType<typeof NewsStore>;
   let httpMock: HttpTestingController;
 
-  const makeSuggestion = (id: string, title: string) => ({
+  const makeIdea = (id: string, title: string): Idea => ({
     id,
-    topic: title,
-    rationale: 'test',
-    relevanceScore: 0.8,
-    suggestedContentType: 'SocialPost',
-    suggestedPlatforms: ['LinkedIn'],
-    createdAt: new Date().toISOString(),
-    status: 'Pending',
-    relatedTrends: [{
-      trendItemId: `ti-${id}`,
-      source: 'TestSource',
-      sourceName: 'Test',
-      title,
-      description: 'desc',
-      url: 'https://example.com',
-      score: 0.8,
-      sourceCategory: 'AI/ML',
-    }],
+    title,
+    sourceName: 'TestSource',
+    category: 'AI/ML',
+    summary: 'desc',
+    thumbnailUrl: null,
+    status: IdeaStatus.New,
+    tags: [],
+    detectedAt: new Date().toISOString(),
+    hasSavedDetails: false,
+    description: null,
+    url: `https://example.com/${id}`,
   });
+
+  const flushIdeasLoad = (ideas: Idea[]) => {
+    const page: PagedResult<Idea> = {
+      items: ideas,
+      totalCount: ideas.length,
+      page: 1,
+      pageSize: 5000,
+      totalPages: 1,
+    };
+    const req = httpMock.expectOne(r => r.url.includes('/api/ideas'));
+    req.flush(page);
+  };
 
   beforeEach(() => {
     TestBed.configureTestingModule({
@@ -47,106 +55,94 @@ describe('NewsStore dismiss', () => {
     httpMock.verify();
   });
 
-  it('should have 3 suggestions initially after manual state set', () => {
-    // Manually load suggestions into the store
-    const suggestions = [
-      makeSuggestion('aaa', 'First Story'),
-      makeSuggestion('bbb', 'Second Story'),
-      makeSuggestion('ccc', 'Third Story'),
+  it('should have 3 items after load', () => {
+    const ideas = [
+      makeIdea('aaa', 'First Story'),
+      makeIdea('bbb', 'Second Story'),
+      makeIdea('ccc', 'Third Story'),
     ];
 
-    // Use load and intercept the HTTP call to inject test data
     store.load(undefined);
-    const req = httpMock.expectOne(r => r.url.includes('trends/suggestions'));
-    req.flush(suggestions);
+    flushIdeasLoad(ideas);
 
-    expect(store.suggestions().length).toBe(3);
+    expect(store.items().length).toBe(3);
     expect(store.filteredItems().length).toBe(3);
     expect(store.groupedByCategory().length).toBeGreaterThan(0);
   });
 
-  it('should remove the dismissed suggestion from state immediately', fakeAsync(() => {
-    const suggestions = [
-      makeSuggestion('aaa', 'First Story'),
-      makeSuggestion('bbb', 'Second Story'),
-      makeSuggestion('ccc', 'Third Story'),
+  it('should remove the dismissed item from state immediately', fakeAsync(() => {
+    const ideas = [
+      makeIdea('aaa', 'First Story'),
+      makeIdea('bbb', 'Second Story'),
+      makeIdea('ccc', 'Third Story'),
     ];
 
     store.load(undefined);
-    const loadReq = httpMock.expectOne(r => r.url.includes('trends/suggestions'));
-    loadReq.flush(suggestions);
+    flushIdeasLoad(ideas);
     tick();
 
-    expect(store.suggestions().length).toBe(3);
+    expect(store.items().length).toBe(3);
 
-    // Dismiss the first item — feedItemId format is "suggestionId-trendIndex"
-    store.dismiss('aaa-0');
+    store.dismiss('aaa');
     tick();
 
-    // Should immediately drop to 2 suggestions
-    expect(store.suggestions().length).toBe(2);
-    expect(store.suggestions().find(s => s.id === 'aaa')).toBeUndefined();
+    expect(store.items().length).toBe(2);
+    expect(store.items().find(i => i.id === 'aaa')).toBeUndefined();
     expect(store.filteredItems().length).toBe(2);
 
-    // The API call should be in-flight
-    const dismissReq = httpMock.expectOne(r => r.url.includes('trends/suggestions/aaa/dismiss'));
-    expect(dismissReq.request.method).toBe('POST');
+    const dismissReq = httpMock.expectOne(r => r.url.includes('/api/ideas/aaa/dismiss'));
+    expect(dismissReq.request.method).toBe('PUT');
     dismissReq.flush(null);
     tick();
 
-    // Still 2 after API success
-    expect(store.suggestions().length).toBe(2);
+    expect(store.items().length).toBe(2);
   }));
 
   it('should rollback on API error', fakeAsync(() => {
-    const suggestions = [
-      makeSuggestion('aaa', 'First Story'),
-      makeSuggestion('bbb', 'Second Story'),
+    const ideas = [
+      makeIdea('aaa', 'First Story'),
+      makeIdea('bbb', 'Second Story'),
     ];
 
     store.load(undefined);
-    httpMock.expectOne(r => r.url.includes('trends/suggestions')).flush(suggestions);
+    flushIdeasLoad(ideas);
     tick();
 
-    store.dismiss('aaa-0');
+    store.dismiss('aaa');
     tick();
 
-    expect(store.suggestions().length).toBe(1);
+    expect(store.items().length).toBe(1);
 
-    // API fails
-    const dismissReq = httpMock.expectOne(r => r.url.includes('trends/suggestions/aaa/dismiss'));
+    const dismissReq = httpMock.expectOne(r => r.url.includes('/api/ideas/aaa/dismiss'));
     dismissReq.flush('error', { status: 500, statusText: 'Server Error' });
     tick();
 
-    // Should rollback
-    expect(store.suggestions().length).toBe(2);
+    expect(store.items().length).toBe(2);
   }));
 
   it('should update groupedByCategory after dismiss', fakeAsync(() => {
-    const suggestions = [
-      makeSuggestion('aaa', 'First Story'),
-      makeSuggestion('bbb', 'Second Story'),
-      makeSuggestion('ccc', 'Third Story'),
+    const ideas = [
+      makeIdea('aaa', 'First Story'),
+      makeIdea('bbb', 'Second Story'),
+      makeIdea('ccc', 'Third Story'),
     ];
 
     store.load(undefined);
-    httpMock.expectOne(r => r.url.includes('trends/suggestions')).flush(suggestions);
+    flushIdeasLoad(ideas);
     tick();
 
-    const groupBefore = store.groupedByCategory();
-    const itemsBefore = groupBefore.flatMap(g => g.items);
+    const itemsBefore = store.groupedByCategory().flatMap(g => g.items);
     expect(itemsBefore.length).toBe(3);
 
-    store.dismiss('aaa-0');
+    store.dismiss('aaa');
     tick();
 
-    const groupAfter = store.groupedByCategory();
-    const itemsAfter = groupAfter.flatMap(g => g.items);
+    const itemsAfter = store.groupedByCategory().flatMap(g => g.items);
     expect(itemsAfter.length).toBe(2);
     expect(itemsAfter.find(i => i.title === 'First Story')).toBeUndefined();
     expect(itemsAfter[0].title).toBe('Second Story');
 
-    httpMock.expectOne(r => r.url.includes('dismiss')).flush(null);
+    httpMock.expectOne(r => r.url.includes('/api/ideas/aaa/dismiss')).flush(null);
     tick();
   }));
 });

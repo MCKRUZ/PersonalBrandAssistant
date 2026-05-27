@@ -17,6 +17,8 @@ describe('IdeaCardComponent', () => {
     tags: ['angular', 'typescript', 'testing', 'extra-tag'],
     detectedAt: '2026-01-15T10:00:00Z',
     hasSavedDetails: false,
+    description: null,
+    url: null,
   };
 
   beforeEach(async () => {

@@ -14,7 +14,7 @@ export const routes: Routes = [
       { path: 'calendar', loadComponent: () => import('./features/calendar/calendar.component').then(m => m.CalendarComponent) },
       { path: 'analytics', loadComponent: () => import('./features/analytics/analytics.component').then(m => m.AnalyticsComponent) },
       { path: 'listening', loadComponent: () => import('./features/listening/listening.component').then(m => m.ListeningComponent) },
-      { path: 'settings', loadComponent: () => import('./features/settings/settings.component').then(m => m.SettingsComponent) },
+      { path: 'settings', loadChildren: () => import('./features/settings/settings.routes').then(m => m.SETTINGS_ROUTES) },
     ]
   }
 ];

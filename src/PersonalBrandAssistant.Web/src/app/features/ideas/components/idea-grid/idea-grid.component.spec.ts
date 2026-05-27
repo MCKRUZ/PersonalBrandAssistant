@@ -18,6 +18,8 @@ describe('IdeaGridComponent', () => {
       tags: [],
       detectedAt: '2026-01-01T00:00:00Z',
       hasSavedDetails: false,
+      description: null,
+      url: null,
     },
     {
       id: 'idea-2',
@@ -30,6 +32,8 @@ describe('IdeaGridComponent', () => {
       tags: [],
       detectedAt: '2026-01-02T00:00:00Z',
       hasSavedDetails: false,
+      description: null,
+      url: null,
     },
   ];
 

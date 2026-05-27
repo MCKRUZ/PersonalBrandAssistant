@@ -21,6 +21,8 @@ describe('SaveIdeaDialogComponent', () => {
     tags: ['existing-tag'],
     detectedAt: '2026-01-01T00:00:00Z',
     hasSavedDetails: false,
+    description: null,
+    url: null,
   };
 
   beforeEach(async () => {
