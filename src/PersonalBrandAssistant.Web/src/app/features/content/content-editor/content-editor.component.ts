@@ -27,6 +27,9 @@ import {
   ContentType,
   Platform,
 } from '../models/content.model';
+import type { PlatformConnectionStatus } from '../models/content.model';
+import { PlatformTargetsComponent } from './platform-targets/platform-targets.component';
+import { PublishModalComponent } from './publish-modal/publish-modal.component';
 
 @Component({
   selector: 'app-content-editor',
@@ -46,6 +49,8 @@ import {
     MarkdownEditorComponent,
     EditorToolbarComponent,
     SidecarChatComponent,
+    PlatformTargetsComponent,
+    PublishModalComponent,
   ],
   template: `
     <div class="editor-page" data-testid="content-editor-page">
@@ -111,6 +116,15 @@ import {
         [hasBody]="!!store.content()?.body"
         (draftAction)="onDraftAction($event)"
         (crossPostAction)="onCrossPostAction()" />
+
+      <app-platform-targets
+        [selectedPlatforms]="store.content()?.targetPlatforms ?? []"
+        [primaryPlatform]="store.content()?.primaryPlatform ?? Platform.Blog"
+        [connectedPlatforms]="connectedPlatforms()"
+        [bodyLength]="(store.content()?.body ?? '').length"
+        [wordCount]="wordCount()"
+        (targetPlatformsChange)="onTargetPlatformsChange($event)"
+        data-testid="platform-targets" />
 
       <p-splitter [style]="{ flex: 1, minHeight: 0 }" [panelSizes]="[50, 50]">
         <ng-template pTemplate>
@@ -180,6 +194,16 @@ import {
         [visible]="chatPanelVisible()"
         (visibleChange)="chatPanelVisible.set($event)"
         [contentId]="store.content()?.id ?? ''" />
+
+      @if (store.content()) {
+        <app-publish-modal
+          [visible]="publishModalVisible()"
+          [content]="store.content()!"
+          [connectedPlatforms]="connectedPlatforms()"
+          [mode]="publishMode()"
+          (confirm)="onPublishConfirm($event)"
+          (cancel)="publishModalVisible.set(false)" />
+      }
     </div>
   `,
   styles: [`
@@ -268,11 +292,21 @@ export class ContentEditorComponent implements OnInit {
 
   readonly chatPanelVisible = signal(false);
   readonly isAiLoading = signal(false);
+  readonly publishModalVisible = signal(false);
+  readonly publishMode = signal<'publish' | 'schedule'>('publish');
+  readonly connectedPlatforms = signal<PlatformConnectionStatus[]>([]);
 
   private autoSaveTimer: ReturnType<typeof setTimeout> | null = null;
 
   readonly platformOptions = Object.values(Platform);
   readonly typeOptions = Object.values(ContentType);
+
+  readonly wordCount = computed(() => {
+    const body = this.store.content()?.body ?? '';
+    return body.trim() ? body.trim().split(/\s+/).length : 0;
+  });
+
+  readonly Platform = Platform;
 
   readonly canEdit = computed(() => {
     const status = this.store.content()?.status;
@@ -317,6 +351,11 @@ export class ContentEditorComponent implements OnInit {
           error: () => this.router.navigate(['/content']),
         });
     }
+
+    this.contentService.getPlatforms().subscribe({
+      next: (platforms) => this.connectedPlatforms.set(platforms),
+      error: () => this.connectedPlatforms.set([]),
+    });
 
     this.destroyRef.onDestroy(() => {
       if (this.autoSaveTimer) clearTimeout(this.autoSaveTimer);
@@ -403,23 +442,44 @@ export class ContentEditorComponent implements OnInit {
   onApprove(): void { this.doStatusAction((id) => this.contentService.approve(id)); }
   onSubmitForReview(): void { this.doStatusAction((id) => this.contentService.submitForReview(id)); }
   onRequestChanges(): void { this.doStatusAction((id) => this.contentService.requestChanges(id)); }
-  onPublish(): void { this.doStatusAction((id) => this.contentService.publish(id)); }
   onUnpublish(): void { this.doStatusAction((id) => this.contentService.unpublish(id)); }
   onUnschedule(): void { this.doStatusAction((id) => this.contentService.unschedule(id)); }
   onRestore(): void { this.doStatusAction((id) => this.contentService.restore(id)); }
 
+  onPublish(): void {
+    this.publishMode.set('publish');
+    this.publishModalVisible.set(true);
+  }
+
   onSchedule(): void {
+    this.publishMode.set('schedule');
+    this.publishModalVisible.set(true);
+  }
+
+  onPublishConfirm(event: { platforms: Platform[]; scheduledAt?: string }): void {
     const id = this.store.content()?.id;
     if (!id) return;
-    const dateStr = prompt('Enter schedule date (ISO format, e.g. 2026-01-15T10:00:00Z):');
-    if (!dateStr) return;
-    if (isNaN(new Date(dateStr).getTime())) {
-      alert('Invalid date format. Please use ISO format (e.g. 2026-01-15T10:00:00Z).');
-      return;
+    this.publishModalVisible.set(false);
+    if (event.scheduledAt) {
+      this.contentService
+        .schedule(id, { scheduledAt: event.scheduledAt })
+        .subscribe({
+          next: () => this.store.loadContent(id),
+          error: () => this.store.loadContent(id),
+        });
+    } else {
+      this.contentService
+        .publish(id, { targetPlatforms: event.platforms })
+        .subscribe({
+          next: () => this.store.loadContent(id),
+          error: () => this.store.loadContent(id),
+        });
     }
-    this.contentService
-      .schedule(id, { scheduledAt: dateStr })
-      .subscribe(() => this.store.loadContent(id));
+  }
+
+  onTargetPlatformsChange(platforms: Platform[]): void {
+    this.store.updateField('targetPlatforms', platforms);
+    this.scheduleAutoSave();
   }
 
   private doStatusAction(action: (id: string) => import('rxjs').Observable<void>): void {

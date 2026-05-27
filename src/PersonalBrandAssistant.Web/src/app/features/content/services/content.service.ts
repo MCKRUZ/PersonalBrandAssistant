@@ -11,6 +11,12 @@ import {
   ScheduleContentRequest,
   CrossPostRequest,
   VoiceCheckResult,
+  Platform,
+} from '../models/content.model';
+import type {
+  PublishRequest,
+  PublishStatusResponse,
+  PlatformConnectionStatus,
 } from '../models/content.model';
 import { PagedResult } from '../../../models/pagination.model';
 
@@ -83,8 +89,8 @@ export class ContentService {
     return this.http.put<void>(`${this.baseUrl}/${id}/unschedule`, {});
   }
 
-  publish(id: string): Observable<void> {
-    return this.http.post<void>(`${this.baseUrl}/${id}/publish`, {});
+  publish(id: string, request?: PublishRequest): Observable<void> {
+    return this.http.post<void>(`${this.baseUrl}/${id}/publish`, request ?? {});
   }
 
   unpublish(id: string): Observable<void> {
@@ -97,5 +103,17 @@ export class ContentService {
 
   voiceCheck(id: string): Observable<VoiceCheckResult> {
     return this.http.get<VoiceCheckResult>(`${this.baseUrl}/${id}/voice-check`);
+  }
+
+  getPublishStatus(id: string): Observable<PublishStatusResponse> {
+    return this.http.get<PublishStatusResponse>(`${this.baseUrl}/${id}/publish-status`);
+  }
+
+  retryPlatform(id: string, platform: Platform): Observable<void> {
+    return this.http.post<void>(`${this.baseUrl}/${id}/retry/${platform}`, {});
+  }
+
+  getPlatforms(): Observable<PlatformConnectionStatus[]> {
+    return this.http.get<PlatformConnectionStatus[]>('/api/platforms');
   }
 }

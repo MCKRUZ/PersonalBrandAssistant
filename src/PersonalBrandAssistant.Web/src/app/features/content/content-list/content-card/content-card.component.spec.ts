@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ContentCardComponent } from './content-card.component';
-import { ContentStatus, ContentType, Platform } from '../../models/content.model';
+import { ContentStatus, ContentType, Platform, PublishStatus } from '../../models/content.model';
 import type { Content } from '../../models/content.model';
 
 describe('ContentCardComponent', () => {
@@ -13,12 +13,14 @@ describe('ContentCardComponent', () => {
     contentType: ContentType.BlogPost,
     status: ContentStatus.Draft,
     primaryPlatform: Platform.Blog,
+    targetPlatforms: [Platform.Blog],
     voiceScore: 85,
     tags: ['angular', 'typescript', 'ai', 'extra'],
     createdAt: '2026-01-01T00:00:00Z',
     updatedAt: '2026-01-01T00:00:00Z',
     scheduledAt: null,
     publishedAt: null,
+    platformPublishes: [],
   };
 
   beforeEach(() => {
@@ -102,5 +104,67 @@ describe('ContentCardComponent', () => {
     const btn = fixture.nativeElement.querySelector('[data-testid="duplicate-btn"] button');
     btn.click();
     expect(component.duplicate.emit).toHaveBeenCalledWith('content-1');
+  });
+
+  it('should show green badge for Published platform status', () => {
+    fixture.componentRef.setInput('content', {
+      ...mockContent,
+      platformPublishes: [
+        { platform: Platform.Blog, publishStatus: PublishStatus.Published, publishedUrl: 'https://example.com/1' },
+      ],
+    });
+    fixture.detectChanges();
+    const badge = fixture.nativeElement.querySelector('[data-status="Published"]');
+    expect(badge).toBeTruthy();
+  });
+
+  it('should show red badge with retry button for Failed platform status', () => {
+    fixture.componentRef.setInput('content', {
+      ...mockContent,
+      platformPublishes: [
+        { platform: Platform.LinkedIn, publishStatus: PublishStatus.Failed, publishedUrl: null },
+      ],
+    });
+    fixture.detectChanges();
+    const badge = fixture.nativeElement.querySelector('[data-status="Failed"]');
+    expect(badge).toBeTruthy();
+    const retryBtn = fixture.nativeElement.querySelector('[data-testid="retry-btn"]');
+    expect(retryBtn).toBeTruthy();
+  });
+
+  it('should show pending badge for Pending platform status', () => {
+    fixture.componentRef.setInput('content', {
+      ...mockContent,
+      platformPublishes: [
+        { platform: Platform.Blog, publishStatus: PublishStatus.Pending, publishedUrl: null },
+      ],
+    });
+    fixture.detectChanges();
+    const badge = fixture.nativeElement.querySelector('[data-status="Pending"]');
+    expect(badge).toBeTruthy();
+  });
+
+  it('should not show badges when platformPublishes is empty', () => {
+    fixture.componentRef.setInput('content', { ...mockContent, platformPublishes: [] });
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[data-testid="publish-badges"]')).toBeNull();
+  });
+
+  it('should emit retry event when retry button clicked', () => {
+    fixture.componentRef.setInput('content', {
+      ...mockContent,
+      platformPublishes: [
+        { platform: Platform.LinkedIn, publishStatus: PublishStatus.Failed, publishedUrl: null },
+      ],
+    });
+    fixture.detectChanges();
+
+    let emitted: Platform | undefined;
+    component.retry.subscribe((v: Platform) => (emitted = v));
+
+    const retryBtn = fixture.nativeElement.querySelector('[data-testid="retry-btn"]');
+    retryBtn.click();
+
+    expect(emitted).toBe(Platform.LinkedIn);
   });
 });

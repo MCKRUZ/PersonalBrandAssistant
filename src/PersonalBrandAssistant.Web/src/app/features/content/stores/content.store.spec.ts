@@ -24,12 +24,14 @@ describe('ContentStore', () => {
     contentType: ContentType.BlogPost,
     status: ContentStatus.Draft,
     primaryPlatform: Platform.Blog,
+    targetPlatforms: [Platform.Blog],
     voiceScore: null,
     tags: ['test'],
     createdAt: '2026-01-01T00:00:00Z',
     updatedAt: '2026-01-01T00:00:00Z',
     scheduledAt: null,
     publishedAt: null,
+    platformPublishes: [],
   };
 
   beforeEach(() => {

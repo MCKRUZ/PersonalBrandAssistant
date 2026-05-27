@@ -21,6 +21,7 @@ export enum ContentType {
 
 export enum Platform {
   Blog = 'Blog',
+  Medium = 'Medium',
   Substack = 'Substack',
   LinkedIn = 'LinkedIn',
   Twitter = 'Twitter',
@@ -35,18 +36,33 @@ export enum PublishStatus {
   Failed = 'Failed',
 }
 
+export const PUBLISHABLE_PLATFORMS: readonly Platform[] = [
+  Platform.Blog,
+  Platform.Medium,
+  Platform.Substack,
+  Platform.LinkedIn,
+  Platform.Twitter,
+];
+
+export const PLATFORM_CHAR_LIMITS: Partial<Record<Platform, number>> = {
+  [Platform.Twitter]: 280,
+  [Platform.LinkedIn]: 3000,
+};
+
 export interface Content {
   id: string;
   title: string;
   contentType: ContentType;
   status: ContentStatus;
   primaryPlatform: Platform;
+  targetPlatforms: Platform[];
   voiceScore: number | null;
   tags: string[];
   createdAt: string;
   updatedAt: string;
   scheduledAt: string | null;
   publishedAt: string | null;
+  platformPublishes: PlatformPublishSummary[];
 }
 
 export interface ContentDetail extends Content {
@@ -64,6 +80,14 @@ export interface PlatformPublish {
   publishStatus: PublishStatus;
   publishedUrl: string | null;
   publishedAt: string | null;
+  retryCount: number;
+  nextRetryAt: string | null;
+}
+
+export interface PlatformPublishSummary {
+  platform: Platform;
+  publishStatus: PublishStatus;
+  publishedUrl: string | null;
 }
 
 export interface ChildContent {
@@ -86,6 +110,7 @@ export interface CreateContentRequest {
   primaryPlatform: Platform;
   sourceIdeaId?: string;
   tags: string[];
+  targetPlatforms?: Platform[];
 }
 
 export interface UpdateContentRequest {
@@ -94,6 +119,7 @@ export interface UpdateContentRequest {
   tags?: string[];
   contentType?: ContentType;
   primaryPlatform?: Platform;
+  targetPlatforms?: Platform[];
   lastUpdatedAt: string;
 }
 
@@ -109,6 +135,33 @@ export interface ScheduleContentRequest {
 
 export interface CrossPostRequest {
   targetPlatform: Platform;
+}
+
+export interface PublishRequest {
+  targetPlatforms?: Platform[];
+}
+
+export interface PublishStatusResponse {
+  contentId: string;
+  primaryPlatform: Platform;
+  platformStatuses: PlatformPublish[];
+}
+
+export interface PlatformConnectionStatus {
+  platform: Platform;
+  isConnected: boolean;
+  isExpiring: boolean;
+  expiresAt: string | null;
+  capabilities: PlatformCapabilities;
+}
+
+export interface PlatformCapabilities {
+  maxCharacters: number;
+  supportsMarkdown: boolean;
+  supportsHtml: boolean;
+  supportsImages: boolean;
+  supportsScheduling: boolean;
+  supportsThreads: boolean;
 }
 
 export interface ContentFilterState {

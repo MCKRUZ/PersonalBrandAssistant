@@ -108,6 +108,7 @@ export const ContentEditorStore = signalStore(
             tags: content.tags,
             contentType: content.contentType,
             primaryPlatform: content.primaryPlatform,
+            targetPlatforms: content.targetPlatforms,
             lastUpdatedAt: content.updatedAt,
           })
           .subscribe({

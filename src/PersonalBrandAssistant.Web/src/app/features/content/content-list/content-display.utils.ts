@@ -12,6 +12,7 @@ export function voiceScoreClass(score: number | null): string {
 export function platformIconClass(platform: string): string {
   const icons: Record<string, string> = {
     Blog: 'pi pi-globe',
+    Medium: 'pi pi-book',
     LinkedIn: 'pi pi-linkedin',
     Twitter: 'pi pi-twitter',
     Substack: 'pi pi-envelope',
@@ -23,4 +24,16 @@ export function platformIconClass(platform: string): string {
 
 export function truncateText(text: string, maxLength: number): string {
   return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
+}
+
+import { PublishStatus } from '../models/content.model';
+
+export function publishStatusSeverity(status: PublishStatus | string): 'success' | 'danger' | 'warn' | 'info' {
+  switch (status) {
+    case PublishStatus.Published: return 'success';
+    case PublishStatus.Failed: return 'danger';
+    case PublishStatus.Pending:
+    case PublishStatus.Formatting: return 'warn';
+    default: return 'info';
+  }
 }

@@ -2,7 +2,7 @@ import { Component, input, output } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { ButtonModule } from 'primeng/button';
 import { TagModule } from 'primeng/tag';
-import { Content } from '../../models/content.model';
+import { Content, Platform } from '../../models/content.model';
 import { formatContentType, voiceScoreClass, platformIconClass, truncateText } from '../content-display.utils';
 
 @Component({
@@ -26,6 +26,22 @@ import { formatContentType, voiceScoreClass, platformIconClass, truncateText } f
         <div class="card-meta">
           <span class="updated-at">{{ content().updatedAt | date: 'shortDate' }}</span>
         </div>
+        @if (content().platformPublishes?.length > 0) {
+          <div class="publish-badges" data-testid="publish-badges">
+            @for (pub of content().platformPublishes; track pub.platform) {
+              <span class="pub-badge" [attr.data-status]="pub.publishStatus"
+                    [attr.data-platform]="pub.platform">
+                <i [class]="platformIcon(pub.platform)"></i>
+                @if (pub.publishStatus === 'Failed') {
+                  <button class="retry-btn" (click)="retry.emit(pub.platform); $event.stopPropagation()"
+                          data-testid="retry-btn">
+                    <i class="pi pi-refresh"></i>
+                  </button>
+                }
+              </span>
+            }
+          </div>
+        }
         @if (content().tags.length > 0) {
           <div class="card-tags">
             @for (tag of content().tags.slice(0, 3); track tag) {
@@ -142,6 +158,28 @@ import { formatContentType, voiceScoreClass, platformIconClass, truncateText } f
         color: #8b949e;
         align-self: center;
       }
+      .publish-badges {
+        display: flex;
+        gap: 4px;
+        flex-wrap: wrap;
+        margin-bottom: 8px;
+      }
+      .pub-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 12px;
+      }
+      .pub-badge[data-status='Published'] { background: #2ea04333; color: #2ea043; }
+      .pub-badge[data-status='Failed'] { background: #f8514933; color: #f85149; }
+      .pub-badge[data-status='Pending'],
+      .pub-badge[data-status='Formatting'] { background: #d2992233; color: #d29922; }
+      .retry-btn {
+        background: none; border: none; color: inherit; cursor: pointer;
+        padding: 0; font-size: 11px; line-height: 1;
+      }
       .card-actions {
         display: flex;
         gap: 4px;
@@ -156,6 +194,7 @@ export class ContentCardComponent {
   readonly edit = output<string>();
   readonly onDelete = output<string>();
   readonly duplicate = output<string>();
+  readonly retry = output<Platform>();
 
   readonly truncate = truncateText;
   readonly platformIcon = platformIconClass;

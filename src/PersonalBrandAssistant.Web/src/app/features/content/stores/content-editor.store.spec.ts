@@ -20,6 +20,7 @@ describe('ContentEditorStore', () => {
     contentType: ContentType.BlogPost,
     status: ContentStatus.Draft,
     primaryPlatform: Platform.Blog,
+    targetPlatforms: [Platform.Blog],
     voiceScore: 0.85,
     viralityPrediction: null,
     sourceIdeaId: null,
@@ -92,6 +93,7 @@ describe('ContentEditorStore', () => {
       tags: ['test'],
       contentType: ContentType.BlogPost,
       primaryPlatform: Platform.Blog,
+      targetPlatforms: [Platform.Blog],
       lastUpdatedAt: '2026-01-01T12:00:00Z',
     });
   });

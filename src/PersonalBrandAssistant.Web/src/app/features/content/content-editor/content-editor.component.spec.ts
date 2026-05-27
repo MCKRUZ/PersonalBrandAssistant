@@ -18,16 +18,17 @@ function mockContent(overrides: Partial<ContentDetail> = {}): ContentDetail {
     status: ContentStatus.Draft,
     contentType: ContentType.BlogPost,
     primaryPlatform: Platform.Blog,
+    targetPlatforms: [Platform.Blog],
     voiceScore: 85,
     tags: ['angular'],
     createdAt: '2026-01-01T00:00:00Z',
     updatedAt: '2026-01-01T00:00:00Z',
     scheduledAt: null,
     publishedAt: null,
+    platformPublishes: [],
     viralityPrediction: null,
     sourceIdeaId: null,
     parentContentId: null,
-    platformPublishes: [],
     children: [],
     ...overrides,
   };
@@ -78,10 +79,12 @@ describe('ContentEditorComponent', () => {
       'create', 'get', 'update', 'delete', 'draft', 'crossPost',
       'approve', 'submitForReview', 'requestChanges', 'schedule',
       'unschedule', 'publish', 'unpublish', 'restore', 'voiceCheck',
+      'getPlatforms', 'getPublishStatus', 'retryPlatform',
     ]);
     contentService.create.and.returnValue(of('new-id-1'));
     contentService.approve.and.returnValue(of(void 0));
     contentService.draft.and.returnValue(of(void 0));
+    contentService.getPlatforms.and.returnValue(of([]));
 
     const mockSignalR = jasmine.createSpyObj('SignalRService',
       ['connect', 'disconnect', 'sendChatMessage'],

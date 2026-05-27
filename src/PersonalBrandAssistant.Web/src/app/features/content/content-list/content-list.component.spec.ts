@@ -22,12 +22,14 @@ describe('ContentListComponent', () => {
     contentType: ContentType.BlogPost,
     status: ContentStatus.Draft,
     primaryPlatform: Platform.Blog,
+    targetPlatforms: [Platform.Blog],
     voiceScore: 85,
     tags: ['angular'],
     createdAt: '2026-01-01T00:00:00Z',
     updatedAt: '2026-01-01T00:00:00Z',
     scheduledAt: null,
     publishedAt: null,
+    platformPublishes: [],
   };
 
   const emptyPage: PagedResult<Content> = {

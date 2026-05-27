@@ -8,7 +8,12 @@ import {
   ContentStatus,
   ContentType,
   Platform,
+  PublishStatus,
   VoiceCheckResult,
+} from '../models/content.model';
+import type {
+  PublishStatusResponse,
+  PlatformConnectionStatus,
 } from '../models/content.model';
 import { PagedResult } from '../../../models/pagination.model';
 
@@ -75,17 +80,18 @@ describe('ContentService', () => {
       contentType: ContentType.BlogPost,
       status: ContentStatus.Draft,
       primaryPlatform: Platform.Blog,
+      targetPlatforms: [Platform.Blog],
       voiceScore: null,
       tags: [],
       createdAt: '2026-01-01T00:00:00Z',
       updatedAt: '2026-01-01T00:00:00Z',
       scheduledAt: null,
       publishedAt: null,
+      platformPublishes: [],
       body: '',
       viralityPrediction: null,
       sourceIdeaId: null,
       parentContentId: null,
-      platformPublishes: [],
       children: [],
     };
 
@@ -216,13 +222,25 @@ describe('ContentService', () => {
     req.flush(null);
   });
 
-  it('publish() calls POST /api/content/{id}/publish', () => {
+  it('publish() calls POST /api/content/{id}/publish with empty body when no request given', () => {
     const id = '123e4567-e89b-12d3-a456-426614174000';
 
     service.publish(id).subscribe();
 
     const req = httpMock.expectOne(`/api/content/${id}/publish`);
     expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual({});
+    req.flush(null);
+  });
+
+  it('publish() sends targetPlatforms in request body', () => {
+    const id = '123e4567-e89b-12d3-a456-426614174000';
+
+    service.publish(id, { targetPlatforms: [Platform.Blog, Platform.LinkedIn] }).subscribe();
+
+    const req = httpMock.expectOne(`/api/content/${id}/publish`);
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual({ targetPlatforms: [Platform.Blog, Platform.LinkedIn] });
     req.flush(null);
   });
 
@@ -257,5 +275,69 @@ describe('ContentService', () => {
     const req = httpMock.expectOne(`/api/content/${id}/voice-check`);
     expect(req.request.method).toBe('GET');
     req.flush(mockResult);
+  });
+
+  it('getPublishStatus() calls GET /api/content/{id}/publish-status', () => {
+    const id = '123e4567-e89b-12d3-a456-426614174000';
+    const mockResponse: PublishStatusResponse = {
+      contentId: id,
+      primaryPlatform: Platform.Blog,
+      platformStatuses: [
+        {
+          id: 'pub-1',
+          platform: Platform.Blog,
+          publishStatus: PublishStatus.Published,
+          publishedUrl: 'https://matthewkruczek.ai/post-1',
+          publishedAt: '2026-05-27T12:00:00Z',
+          retryCount: 0,
+          nextRetryAt: null,
+        },
+      ],
+    };
+
+    service.getPublishStatus(id).subscribe((result) => {
+      expect(result).toEqual(mockResponse);
+    });
+
+    const req = httpMock.expectOne(`/api/content/${id}/publish-status`);
+    expect(req.request.method).toBe('GET');
+    req.flush(mockResponse);
+  });
+
+  it('retryPlatform() calls POST /api/content/{id}/retry/{platform}', () => {
+    const id = '123e4567-e89b-12d3-a456-426614174000';
+
+    service.retryPlatform(id, Platform.LinkedIn).subscribe();
+
+    const req = httpMock.expectOne(`/api/content/${id}/retry/LinkedIn`);
+    expect(req.request.method).toBe('POST');
+    req.flush(null);
+  });
+
+  it('getPlatforms() calls GET /api/platforms', () => {
+    const mockPlatforms: PlatformConnectionStatus[] = [
+      {
+        platform: Platform.Blog,
+        isConnected: true,
+        isExpiring: false,
+        expiresAt: null,
+        capabilities: {
+          maxCharacters: 0,
+          supportsMarkdown: true,
+          supportsHtml: true,
+          supportsImages: true,
+          supportsScheduling: true,
+          supportsThreads: false,
+        },
+      },
+    ];
+
+    service.getPlatforms().subscribe((result) => {
+      expect(result).toEqual(mockPlatforms);
+    });
+
+    const req = httpMock.expectOne('/api/platforms');
+    expect(req.request.method).toBe('GET');
+    req.flush(mockPlatforms);
   });
 });
