@@ -5,5 +5,7 @@ public record PreprocessedContent(
     string Body,
     string? CanonicalUrl,
     IReadOnlyList<string> Tags,
-    IReadOnlyList<ImageReference> Images
+    IReadOnlyList<ImageReference> Images,
+    string? ContentType = null,
+    DateTimeOffset? CreatedAt = null
 );
