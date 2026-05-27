@@ -7,6 +7,7 @@ using PBA.Infrastructure.Data;
 using PBA.Infrastructure.Connectors;
 using PBA.Infrastructure.Publishing;
 using PBA.Infrastructure.Seeding;
+using PBA.Infrastructure.Security;
 using PBA.Infrastructure.Services;
 
 namespace PBA.Infrastructure;
@@ -43,6 +44,12 @@ public static class DependencyInjection
 
         services.Configure<BlogConnectorOptions>(configuration.GetSection(BlogConnectorOptions.SectionName));
         services.AddKeyedScoped<IPlatformConnector, BlogConnector>(PBA.Domain.Enums.Platform.Blog);
+
+        services.Configure<EncryptionOptions>(configuration.GetSection(EncryptionOptions.SectionName));
+        services.Configure<LinkedInOptions>(configuration.GetSection(LinkedInOptions.SectionName));
+        services.Configure<TwitterOptions>(configuration.GetSection(TwitterOptions.SectionName));
+        services.AddSingleton<ITokenEncryptor, TokenEncryptor>();
+        services.AddScoped<IOAuthService, OAuthService>();
 
         services.AddScoped<IContentPublisher, ContentPublisher>();
         services.AddScoped<IContentScheduler, HangfireContentScheduler>();
