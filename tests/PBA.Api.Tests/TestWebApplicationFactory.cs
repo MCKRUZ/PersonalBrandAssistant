@@ -55,7 +55,10 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>
                 .ReturnsAsync(new PBA.Application.Common.Models.PlatformPublishResult(true, "https://blog.test/published-post", "published-post", null));
             services.AddKeyedSingleton<IPlatformConnector>(PBA.Domain.Enums.Platform.Blog, blogConnectorMock.Object);
 
-            services.AddSingleton(new Mock<IContentPublisher>().Object);
+            var transformerMock = new Mock<IContentTransformer>();
+            transformerMock.Setup(x => x.TransformAsync(It.IsAny<PBA.Domain.Entities.Content>(), It.IsAny<PBA.Domain.Enums.Platform>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync((PBA.Domain.Entities.Content c, PBA.Domain.Enums.Platform _, CancellationToken _) => c.Body);
+            services.AddSingleton<IContentTransformer>(transformerMock.Object);
         });
 
         builder.UseEnvironment("Testing");
