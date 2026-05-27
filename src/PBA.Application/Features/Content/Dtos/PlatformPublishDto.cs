@@ -9,4 +9,7 @@ public record PlatformPublishDto
     public PublishStatus PublishStatus { get; init; }
     public string? PublishedUrl { get; init; }
     public DateTimeOffset? PublishedAt { get; init; }
+    public string? ErrorMessage { get; init; }
+    public int RetryCount { get; init; }
+    public DateTimeOffset? NextRetryAt { get; init; }
 }

@@ -2,8 +2,7 @@ using PBA.Domain.Enums;
 
 namespace PBA.Application.Features.Content.Dtos;
 
-public record ScheduleContentRequest
+public record PublishContentRequest
 {
-    public DateTimeOffset ScheduledAt { get; init; }
     public IReadOnlyList<Platform>? TargetPlatforms { get; init; }
 }

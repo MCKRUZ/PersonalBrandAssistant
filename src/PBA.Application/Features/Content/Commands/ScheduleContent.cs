@@ -8,7 +8,7 @@ namespace PBA.Application.Features.Content.Commands;
 
 public static class ScheduleContent
 {
-    public record Command(Guid ContentId, DateTimeOffset ScheduledAt) : IRequest<Result>;
+    public record Command(Guid ContentId, DateTimeOffset ScheduledAt, IReadOnlyList<Platform>? TargetPlatforms = null) : IRequest<Result>;
 
     internal sealed class Handler(IAppDbContext db, IContentScheduler scheduler) : IRequestHandler<Command, Result>
     {
@@ -19,6 +19,9 @@ public static class ScheduleContent
                 return Result.NotFound($"Content {request.ContentId} not found");
 
             content.ScheduledAt = request.ScheduledAt;
+
+            if (request.TargetPlatforms is { Count: > 0 })
+                content.TargetPlatforms = request.TargetPlatforms.ToList();
 
             var machine = ContentStateMachine.Create(content);
             try

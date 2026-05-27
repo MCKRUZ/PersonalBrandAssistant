@@ -110,7 +110,7 @@ public static class ContentEndpoints
 
         group.MapPut("/{id:guid}/schedule", async (Guid id, ScheduleContentRequest body, ISender sender, CancellationToken ct) =>
         {
-            var command = new ScheduleContent.Command(id, body.ScheduledAt);
+            var command = new ScheduleContent.Command(id, body.ScheduledAt, body.TargetPlatforms);
             var result = await sender.Send(command, ct);
             return result.ToApiResult();
         });
@@ -121,9 +121,24 @@ public static class ContentEndpoints
             return result.ToApiResult();
         });
 
-        group.MapPost("/{id:guid}/publish", async (Guid id, ISender sender, CancellationToken ct) =>
+        group.MapPost("/{id:guid}/publish", async (Guid id, PublishContentRequest? body, ISender sender, CancellationToken ct) =>
         {
-            var result = await sender.Send(new PublishContent.Command(id), ct);
+            var result = await sender.Send(new PublishContent.Command(id, body?.TargetPlatforms), ct);
+            return result.ToApiResult();
+        });
+
+        group.MapGet("/{id:guid}/publish-status", async (Guid id, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new GetPublishStatus.Query(id), ct);
+            return result.ToApiResult();
+        });
+
+        group.MapPost("/{id:guid}/retry/{platform}", async (Guid id, string platform, ISender sender, CancellationToken ct) =>
+        {
+            if (!Enum.TryParse<Platform>(platform, ignoreCase: true, out var targetPlatform))
+                return Results.BadRequest("Invalid platform");
+
+            var result = await sender.Send(new RetryPlatformPublish.Command(id, targetPlatform), ct);
             return result.ToApiResult();
         });
 

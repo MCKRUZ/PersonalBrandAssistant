@@ -46,6 +46,8 @@ app.MapGet("/api/health", () => Results.Ok(new { status = "healthy", timestamp =
 app.MapIdeaEndpoints();
 app.MapIdeaSourceEndpoints();
 app.MapContentEndpoints();
+app.MapOAuthEndpoints();
+app.MapPlatformEndpoints();
 app.MapFeedEndpoints();
 
 app.MapHub<ContentHub>("/hubs/content");

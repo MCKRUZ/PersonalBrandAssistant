@@ -9,4 +9,5 @@ public record CreateContentRequest
     public Platform PrimaryPlatform { get; init; }
     public Guid? SourceIdeaId { get; init; }
     public IReadOnlyList<string> Tags { get; init; } = [];
+    public IReadOnlyList<Platform>? TargetPlatforms { get; init; }
 }

@@ -10,4 +10,5 @@ public record UpdateContentRequest
     public ContentType? ContentType { get; init; }
     public Platform? PrimaryPlatform { get; init; }
     public DateTimeOffset LastUpdatedAt { get; init; }
+    public IReadOnlyList<Platform>? TargetPlatforms { get; init; }
 }

@@ -329,4 +329,50 @@ public class ContentEndpointsTests : IClassFixture<TestWebApplicationFactory>
         var detail = await GetContent(id);
         Assert.Equal(ContentStatus.Published, detail.Status);
     }
+
+    [Fact]
+    public async Task PostPublish_WithTargetPlatforms_Returns200()
+    {
+        var id = await CreateTestContent();
+        await _client.PostAsJsonAsync($"/api/content/{id}/draft", new DraftContentRequest { Action = "draft" });
+        await _client.PutAsync($"/api/content/{id}/approve", null);
+
+        var body = new PublishContentRequest { TargetPlatforms = [Platform.Blog] };
+        var response = await _client.PostAsJsonAsync($"/api/content/{id}/publish", body);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetPublishStatus_Returns200WithPlatformList()
+    {
+        var id = await CreateTestContent();
+        await _client.PostAsJsonAsync($"/api/content/{id}/draft", new DraftContentRequest { Action = "draft" });
+        await _client.PutAsync($"/api/content/{id}/approve", null);
+        await _client.PostAsync($"/api/content/{id}/publish", null);
+
+        var response = await _client.GetAsync($"/api/content/{id}/publish-status");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.Contains("platforms", body, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task GetPublishStatus_Returns404ForNonexistent()
+    {
+        var response = await _client.GetAsync($"/api/content/{Guid.NewGuid()}/publish-status");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task PostRetry_InvalidPlatform_Returns400()
+    {
+        var id = await CreateTestContent();
+
+        var response = await _client.PostAsync($"/api/content/{id}/retry/InvalidPlatform", null);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
 }
