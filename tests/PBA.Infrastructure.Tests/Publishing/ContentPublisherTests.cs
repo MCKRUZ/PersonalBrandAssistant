@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Moq;
 using PBA.Application.Common.Interfaces;
+using PBA.Application.Common.Models;
 using PBA.Domain.Entities;
 using PBA.Domain.Enums;
 using PBA.Infrastructure.Data;
@@ -13,7 +14,7 @@ namespace PBA.Infrastructure.Tests.Publishing;
 public class ContentPublisherTests : IDisposable
 {
     private readonly ApplicationDbContext _dbContext;
-    private readonly Mock<IBlogConnector> _blogConnector = new();
+    private readonly Mock<IPlatformConnector> _blogConnector = new();
     private readonly Mock<ILogger<ContentPublisher>> _logger = new();
 
     public ContentPublisherTests()
@@ -43,8 +44,8 @@ public class ContentPublisherTests : IDisposable
         var content = CreateScheduledContent();
         _dbContext.Contents.Add(content);
         await _dbContext.SaveChangesAsync();
-        _blogConnector.Setup(b => b.PublishAsync(It.IsAny<Content>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync("https://matthewkruczek.ai/posts/test-post");
+        _blogConnector.Setup(b => b.PublishAsync(It.IsAny<PlatformPublishRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new PlatformPublishResult(true, "https://matthewkruczek.ai/posts/test-post", "test-post", null));
 
         var publisher = CreatePublisher();
         await publisher.PublishAsync(content.Id);
@@ -67,7 +68,7 @@ public class ContentPublisherTests : IDisposable
 
         var updated = await _dbContext.Contents.FindAsync(content.Id);
         Assert.Equal(ContentStatus.Approved, updated!.Status);
-        _blogConnector.Verify(b => b.PublishAsync(It.IsAny<Content>(), It.IsAny<CancellationToken>()), Times.Never);
+        _blogConnector.Verify(b => b.PublishAsync(It.IsAny<PlatformPublishRequest>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -76,13 +77,13 @@ public class ContentPublisherTests : IDisposable
         var content = CreateScheduledContent(Platform.Blog);
         _dbContext.Contents.Add(content);
         await _dbContext.SaveChangesAsync();
-        _blogConnector.Setup(b => b.PublishAsync(It.IsAny<Content>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync("https://matthewkruczek.ai/posts/test-post");
+        _blogConnector.Setup(b => b.PublishAsync(It.IsAny<PlatformPublishRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new PlatformPublishResult(true, "https://matthewkruczek.ai/posts/test-post", "test-post", null));
 
         var publisher = CreatePublisher();
         await publisher.PublishAsync(content.Id);
 
-        _blogConnector.Verify(b => b.PublishAsync(It.IsAny<Content>(), It.IsAny<CancellationToken>()), Times.Once);
+        _blogConnector.Verify(b => b.PublishAsync(It.IsAny<PlatformPublishRequest>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -95,7 +96,7 @@ public class ContentPublisherTests : IDisposable
         var publisher = CreatePublisher();
         await publisher.PublishAsync(content.Id);
 
-        _blogConnector.Verify(b => b.PublishAsync(It.IsAny<Content>(), It.IsAny<CancellationToken>()), Times.Never);
+        _blogConnector.Verify(b => b.PublishAsync(It.IsAny<PlatformPublishRequest>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -104,8 +105,8 @@ public class ContentPublisherTests : IDisposable
         var content = CreateScheduledContent();
         _dbContext.Contents.Add(content);
         await _dbContext.SaveChangesAsync();
-        _blogConnector.Setup(b => b.PublishAsync(It.IsAny<Content>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync("https://matthewkruczek.ai/posts/test-post");
+        _blogConnector.Setup(b => b.PublishAsync(It.IsAny<PlatformPublishRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new PlatformPublishResult(true, "https://matthewkruczek.ai/posts/test-post", "test-post", null));
 
         var publisher = CreatePublisher();
         await publisher.PublishAsync(content.Id);
@@ -114,6 +115,44 @@ public class ContentPublisherTests : IDisposable
         Assert.NotNull(record);
         Assert.Equal(PublishStatus.Published, record.Status);
         Assert.Equal("https://matthewkruczek.ai/posts/test-post", record.PublishedUrl);
+    }
+
+    [Fact]
+    public async Task PublishAsync_PersistsPlatformPostId()
+    {
+        var content = CreateScheduledContent();
+        _dbContext.Contents.Add(content);
+        await _dbContext.SaveChangesAsync();
+        _blogConnector.Setup(b => b.PublishAsync(It.IsAny<PlatformPublishRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new PlatformPublishResult(true, "https://matthewkruczek.ai/posts/test-post", "test-post", null));
+
+        var publisher = CreatePublisher();
+        await publisher.PublishAsync(content.Id);
+
+        var record = await _dbContext.ContentPlatformPublishes.FirstOrDefaultAsync(p => p.ContentId == content.Id);
+        Assert.NotNull(record);
+        Assert.Equal("test-post", record.PlatformPostId);
+    }
+
+    [Fact]
+    public async Task PublishAsync_RecordsFailure_WhenConnectorFails()
+    {
+        var content = CreateScheduledContent();
+        _dbContext.Contents.Add(content);
+        await _dbContext.SaveChangesAsync();
+        _blogConnector.Setup(b => b.PublishAsync(It.IsAny<PlatformPublishRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new PlatformPublishResult(false, null, null, "git push failed"));
+
+        var publisher = CreatePublisher();
+        await publisher.PublishAsync(content.Id);
+
+        var updated = await _dbContext.Contents.FindAsync(content.Id);
+        Assert.Equal(ContentStatus.Scheduled, updated!.Status);
+
+        var record = await _dbContext.ContentPlatformPublishes.FirstOrDefaultAsync(p => p.ContentId == content.Id);
+        Assert.NotNull(record);
+        Assert.Equal(PublishStatus.Failed, record.Status);
+        Assert.Equal("git push failed", record.ErrorMessage);
     }
 
     public void Dispose() => _dbContext.Dispose();

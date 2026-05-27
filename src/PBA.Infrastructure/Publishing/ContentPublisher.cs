@@ -1,6 +1,7 @@
-using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using PBA.Application.Common.Interfaces;
+using PBA.Application.Common.Models;
 using PBA.Application.Features.ContentStudio;
 using PBA.Domain.Entities;
 using PBA.Domain.Enums;
@@ -9,7 +10,7 @@ namespace PBA.Infrastructure.Publishing;
 
 public sealed class ContentPublisher(
     IAppDbContext db,
-    IBlogConnector blogConnector,
+    [FromKeyedServices(Platform.Blog)] IPlatformConnector blogConnector,
     ILogger<ContentPublisher> logger) : IContentPublisher
 {
     public async Task PublishAsync(Guid contentId)
@@ -27,9 +28,34 @@ public sealed class ContentPublisher(
             return;
         }
 
-        string? publishedUrl = null;
+        PlatformPublishResult? result = null;
         if (content.PrimaryPlatform == Platform.Blog)
-            publishedUrl = await blogConnector.PublishAsync(content, CancellationToken.None);
+        {
+            var request = new PlatformPublishRequest(
+                Content: content,
+                TransformedContent: content.Body,
+                Tags: content.Tags.AsReadOnly(),
+                CanonicalUrl: null,
+                Mode: PublishMode.Publish,
+                ScheduledAt: content.ScheduledAt);
+            result = await blogConnector.PublishAsync(request, CancellationToken.None);
+
+            if (!result.Success)
+            {
+                db.ContentPlatformPublishes.Add(new ContentPlatformPublish
+                {
+                    ContentId = contentId,
+                    Platform = content.PrimaryPlatform,
+                    Status = PublishStatus.Failed,
+                    ErrorMessage = result.ErrorMessage,
+                    PublishedAt = DateTimeOffset.UtcNow
+                });
+                await db.SaveChangesAsync();
+                logger.LogWarning("Failed to publish content {ContentId} to {Platform}: {Error}",
+                    contentId, content.PrimaryPlatform, result.ErrorMessage);
+                return;
+            }
+        }
 
         var machine = ContentStateMachine.Create(content);
         await machine.FireAsync(ContentTrigger.Publish);
@@ -39,7 +65,8 @@ public sealed class ContentPublisher(
             ContentId = contentId,
             Platform = content.PrimaryPlatform,
             Status = PublishStatus.Published,
-            PublishedUrl = publishedUrl,
+            PublishedUrl = result?.PublishedUrl,
+            PlatformPostId = result?.PlatformPostId,
             PublishedAt = DateTimeOffset.UtcNow
         });
 

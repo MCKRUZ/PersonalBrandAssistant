@@ -41,7 +41,7 @@ Follow global rules in `~/.claude/rules/coding-style.md`:
 ## Nexus Intelligence
 
 *Auto-updated by Nexus — do not edit this section manually.*
-*Last sync: 2026-05-26*
+*Last sync: 2026-05-27*
 
 ### Portfolio
 | Project | Description | Tech |
@@ -55,6 +55,15 @@ Follow global rules in `~/.claude/rules/coding-style.md`:
 | _+34 inactive_ | — | — |
 
 ### Project Context
+#### Deployment: Local Docker on Mac Mini
+## PBA Deployment
+
+- **Host:** Mac Mini (192.168.50.103)
+- **Runtime:** Docker Compose
+- **Branch deployed:** v2-rebuild
+- **Platform:** Apple Silico…
+*Tags: deployment, docker, mac-mini, infrastructure, tailscale*
+
 #### Deployment: Local Docker on Furious
 ## PBA Deployment
 

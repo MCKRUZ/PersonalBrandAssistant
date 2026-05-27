@@ -49,10 +49,11 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>
                 .ReturnsAsync("""{"score": 85, "feedback": "Good brand voice alignment"}""");
             services.AddSingleton(sidecarMock.Object);
 
-            var blogConnectorMock = new Mock<IBlogConnector>();
-            blogConnectorMock.Setup(x => x.PublishAsync(It.IsAny<PBA.Domain.Entities.Content>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync("https://blog.test/published-post");
-            services.AddSingleton(blogConnectorMock.Object);
+            services.RemoveAll<IPlatformConnector>();
+            var blogConnectorMock = new Mock<IPlatformConnector>();
+            blogConnectorMock.Setup(x => x.PublishAsync(It.IsAny<PBA.Application.Common.Models.PlatformPublishRequest>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new PBA.Application.Common.Models.PlatformPublishResult(true, "https://blog.test/published-post", "published-post", null));
+            services.AddKeyedSingleton<IPlatformConnector>(PBA.Domain.Enums.Platform.Blog, blogConnectorMock.Object);
 
             services.AddSingleton(new Mock<IContentPublisher>().Object);
         });

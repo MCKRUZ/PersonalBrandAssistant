@@ -42,7 +42,7 @@ public static class DependencyInjection
         services.AddHostedService<AiConnectionsService>();
 
         services.Configure<BlogConnectorOptions>(configuration.GetSection(BlogConnectorOptions.SectionName));
-        services.AddScoped<IBlogConnector, BlogConnector>();
+        services.AddKeyedScoped<IPlatformConnector, BlogConnector>(PBA.Domain.Enums.Platform.Blog);
 
         services.AddScoped<IContentPublisher, ContentPublisher>();
         services.AddScoped<IContentScheduler, HangfireContentScheduler>();

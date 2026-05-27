@@ -1,5 +1,7 @@
 using MediatR;
+using Microsoft.Extensions.DependencyInjection;
 using PBA.Application.Common.Interfaces;
+using PBA.Application.Common.Models;
 using PBA.Application.Features.ContentStudio;
 using PBA.Domain.Common;
 using PBA.Domain.Entities;
@@ -13,7 +15,7 @@ public static class PublishContent
 
     internal sealed class Handler(
         IAppDbContext db,
-        IBlogConnector blogConnector) : IRequestHandler<Command, Result>
+        [FromKeyedServices(Platform.Blog)] IPlatformConnector blogConnector) : IRequestHandler<Command, Result>
     {
         public async Task<Result> Handle(Command request, CancellationToken cancellationToken)
         {
@@ -31,17 +33,20 @@ public static class PublishContent
                 return Result.Fail("Cannot publish content in its current status");
             }
 
-            string? publishedUrl = null;
+            PlatformPublishResult? result = null;
             if (content.PrimaryPlatform == Platform.Blog)
             {
-                try
-                {
-                    publishedUrl = await blogConnector.PublishAsync(content, cancellationToken);
-                }
-                catch (Exception)
-                {
-                    return Result.Fail("Failed to publish to blog platform");
-                }
+                var publishRequest = new PlatformPublishRequest(
+                    Content: content,
+                    TransformedContent: content.Body,
+                    Tags: content.Tags.AsReadOnly(),
+                    CanonicalUrl: null,
+                    Mode: PublishMode.Publish,
+                    ScheduledAt: null);
+
+                result = await blogConnector.PublishAsync(publishRequest, cancellationToken);
+                if (!result.Success)
+                    return Result.Fail(result.ErrorMessage ?? "Failed to publish to blog platform");
             }
 
             db.ContentPlatformPublishes.Add(new ContentPlatformPublish
@@ -49,7 +54,8 @@ public static class PublishContent
                 ContentId = request.ContentId,
                 Platform = content.PrimaryPlatform,
                 Status = PublishStatus.Published,
-                PublishedUrl = publishedUrl,
+                PublishedUrl = result?.PublishedUrl,
+                PlatformPostId = result?.PlatformPostId,
                 PublishedAt = DateTimeOffset.UtcNow
             });
 
