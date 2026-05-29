@@ -62,6 +62,12 @@ if (app.Environment.IsDevelopment())
         var count = await seedService.SeedAsync(ct);
         return Results.Ok(new { seeded = count });
     });
+
+    app.MapPost("/api/idea-sources/seed", async (IIdeaSourceSeedService seedService, CancellationToken ct) =>
+    {
+        var count = await seedService.SeedAsync(ct);
+        return Results.Ok(new { seeded = count });
+    });
 }
 
 app.Run();

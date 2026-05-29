@@ -55,6 +55,7 @@ public static class DependencyInjection
         services.AddPublishingDependencies(configuration);
 
         services.AddScoped<IFeedSeedService, FeedSeedService>();
+        services.AddScoped<IIdeaSourceSeedService, IdeaSourceSeedService>();
 
         return services;
     }
