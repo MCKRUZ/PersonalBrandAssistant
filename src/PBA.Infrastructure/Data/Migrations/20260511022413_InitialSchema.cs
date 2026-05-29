@@ -230,14 +230,14 @@ namespace PBA.Infrastructure.Data.Migrations
                 unique: true);
 
             migrationBuilder.Sql(
-                "CREATE INDEX \"IX_Ideas_Tags\" ON \"Ideas\" USING gin (\"Tags\")");
+                "CREATE INDEX \"IX_Ideas_Tags\" ON \"Ideas\" USING gin (\"Tags\");");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.Sql(
-                "DROP INDEX IF EXISTS \"IX_Ideas_Tags\"");
+                "DROP INDEX IF EXISTS \"IX_Ideas_Tags\";");
 
             migrationBuilder.DropTable(
                 name: "BrandProfiles");
