@@ -13,7 +13,24 @@ any platform that stores OAuth tokens/credentials (everything except Blog).
 
 ---
 
-## Blog (matthewkruczek.ai) — NOT yet wired (prerequisites missing)
+## Blog (matthewkruczek.ai) — DECISION: publish via skill, NOT this connector
+
+**Decision (2026-05-29):** Do not wire PBA's in-container BlogConnector. Continue
+publishing blog posts through the `matt-kruczek-blog-writer` skill from the host.
+
+**Why:** Live posts (e.g. `blog/agent-first-enterprise.html`) include Google Analytics,
+Open Graph + Twitter Card metadata, Schema.org JSON-LD, canonical URLs, and a hero image
+(`/assets/blog-images/{slug}.png`). PBA's `BlogFormatter` only does placeholder
+substitution (`{{title}}/{{content}}/{{date}}/{{author}}/{{tags}}/{{category}}`) — it
+would publish markedly lower-quality, SEO-poor posts and duplicate the skill's job, while
+parking a website push token inside the api container.
+
+**Connector bug noted (if ever revisited):** `BlogConnector` writes `posts/{slug}.html`
+and returns a `/posts/{slug}` URL, but the live site uses `blog/{slug}.html` served at
+`/blog/{slug}`. The hardcoded `posts` path would need fixing (ideally a configurable
+subdirectory) before the connector could target the real site.
+
+### Original requirements (kept for reference)
 
 The `BlogConnector` publishes by writing `{RepoPath}/posts/{slug}.html`, then running
 `git add` / `git commit` / `git push {RemoteName} {Branch}` — **inside the api container**.
