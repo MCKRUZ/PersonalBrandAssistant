@@ -33,6 +33,11 @@ services:
       PlatformIntegrations__Reddit__UserAgent: ${REDDIT_USER_AGENT:-pba/1.0}
       PlatformIntegrations__LinkedIn__ClientId: ${LINKEDIN_CLIENT_ID:-}
       PlatformIntegrations__LinkedIn__ClientSecret: ${LINKEDIN_CLIENT_SECRET:-}
+      # Publishing connector (the active multi-platform publishing path — binds LinkedInOptions "Publishing:LinkedIn")
+      Publishing__LinkedIn__Enabled: "true"
+      Publishing__LinkedIn__ClientId: ${LINKEDIN_CLIENT_ID:-}
+      Publishing__LinkedIn__ClientSecret: ${LINKEDIN_CLIENT_SECRET:-}
+      Publishing__LinkedIn__RedirectUri: ${LINKEDIN_REDIRECT_URI:-http://localhost:5001/api/auth/linkedin/callback}
       PlatformIntegrations__Twitter__CallbackUrl: http://localhost:4201/platforms/twitter/callback
       PlatformIntegrations__LinkedIn__CallbackUrl: http://localhost:4201/platforms/linkedin/callback
       PlatformIntegrations__Instagram__CallbackUrl: http://localhost:4201/platforms/instagram/callback
