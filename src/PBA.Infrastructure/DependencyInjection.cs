@@ -74,6 +74,7 @@ public static class DependencyInjection
         services.Configure<LinkedInOptions>(configuration.GetSection(LinkedInOptions.SectionName));
         services.Configure<TwitterOptions>(configuration.GetSection(TwitterOptions.SectionName));
         services.Configure<TransformerOptions>(configuration.GetSection(TransformerOptions.SectionName));
+        services.Configure<ComfyUiOptions>(configuration.GetSection(ComfyUiOptions.SectionName));
 
         // Security
         services.AddSingleton<ITokenEncryptor, TokenEncryptor>();
@@ -128,6 +129,9 @@ public static class DependencyInjection
             client.DefaultRequestHeaders.Accept.Add(
                 new MediaTypeWithQualityHeaderValue("application/json"));
         });
+
+        // Hero image generation via self-hosted ComfyUI (BaseAddress is per-request from options)
+        services.AddHttpClient<IHeroImageGenerator, ComfyUiHeroImageGenerator>();
 
         // Retry handler
         services.AddScoped<IPublishRetryHandler, PublishRetryHandler>();

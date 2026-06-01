@@ -36,6 +36,12 @@ services:
       # Drafting engine: OpenRouter (OpenAI-compatible). Model switchable via OPENROUTER_MODEL.
       OpenRouter__ApiKey: ${OPENROUTER_API_KEY}
       OpenRouter__Model: ${OPENROUTER_MODEL:-google/gemini-2.5-pro}
+      # Hero image generation via self-hosted ComfyUI (disabled until BaseUrl + workflow JSON supplied)
+      ComfyUi__Enabled: ${COMFYUI_ENABLED:-false}
+      ComfyUi__BaseUrl: ${COMFYUI_BASE_URL:-http://localhost:8188}
+      ComfyUi__WorkflowPath: ${COMFYUI_WORKFLOW_PATH:-/app/secrets/comfyui-workflow.json}
+      ComfyUi__PromptNodeId: ${COMFYUI_PROMPT_NODE_ID:-}
+      ComfyUi__OutputDirectory: ${COMFYUI_OUTPUT_DIR:-/app/assets/blog-images}
     # dotnet watch disabled — doesn't work with Docker volume mounts on Windows
     # For dev: use `docker compose up -d --build api` after code changes
 
