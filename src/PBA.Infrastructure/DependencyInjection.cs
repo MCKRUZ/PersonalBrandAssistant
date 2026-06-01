@@ -132,6 +132,9 @@ public static class DependencyInjection
         // Retry handler
         services.AddScoped<IPublishRetryHandler, PublishRetryHandler>();
 
+        // Pure static-site index weaver (no IO; safe as a singleton)
+        services.AddSingleton<IBlogIndexUpdater, BlogIndexUpdater>();
+
         return services;
     }
 }
