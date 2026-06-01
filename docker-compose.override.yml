@@ -47,6 +47,8 @@ services:
       Encryption__Key: ${Encryption__Key}
       # Auth for the bundled claude CLI that SidecarClient invokes for AI drafting.
       CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_CODE_OAUTH_TOKEN}
+      # claude CLI is agentic and slow for long-form (2-4 min observed); raise the cap.
+      Sidecar__TimeoutMs: "300000"
     # dotnet watch disabled — doesn't work with Docker volume mounts on Windows
     # For dev: use `docker compose up -d --build api` after code changes
 
