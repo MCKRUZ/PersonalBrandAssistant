@@ -26,7 +26,7 @@ import { formatContentType, voiceScoreClass, platformIconClass, truncateText } f
         <div class="card-meta">
           <span class="updated-at">{{ content().updatedAt | date: 'shortDate' }}</span>
         </div>
-        @if (content().platformPublishes?.length > 0) {
+        @if ((content().platformPublishes?.length ?? 0) > 0) {
           <div class="publish-badges" data-testid="publish-badges">
             @for (pub of content().platformPublishes; track pub.platform) {
               <span class="pub-badge" [attr.data-status]="pub.publishStatus"
