@@ -1,5 +1,5 @@
 import { Component, DestroyRef, inject, OnInit } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { PaginatorModule } from 'primeng/paginator';
@@ -13,6 +13,8 @@ import { IdeaListComponent } from './components/idea-list/idea-list.component';
 import { SaveIdeaDialogComponent } from './components/save-idea-dialog/save-idea-dialog.component';
 import { SmartSuggestionsComponent } from './components/smart-suggestions/smart-suggestions.component';
 import { Idea } from '../../models/idea.model';
+import { IdeaService } from '../../core/services/idea.service';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 @Component({
   selector: 'app-ideas',
@@ -182,6 +184,8 @@ export class IdeasComponent implements OnInit {
   readonly store = inject(IdeaStore);
   private readonly sourceStore = inject(IdeaSourceStore);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly router = inject(Router);
+  private readonly ideaService = inject(IdeaService);
 
   searchText = '';
   saveDialogVisible = false;
@@ -213,7 +217,13 @@ export class IdeasComponent implements OnInit {
   }
 
   onCreateContent(id: string): void {
-    // Will be wired to content creation flow in section 16
+    this.ideaService
+      .createContent(id, 'Blog', 'Blog')
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (contentId) => this.router.navigate(['/content', contentId]),
+        error: (err: Error) => this.store.setError(err.message),
+      });
   }
 
   onPageChange(event: { first?: number; rows?: number }): void {

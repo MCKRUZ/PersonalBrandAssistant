@@ -84,7 +84,26 @@ public static class IdeaEndpoints
             var result = await sender.Send(new DismissIdea.Command(id), ct);
             return result.ToApiResult();
         });
+
+        group.MapPost("/{id:guid}/create-content", async (
+            Guid id, CreateContentFromIdeaRequest? body, ISender sender, CancellationToken ct) =>
+        {
+            var command = new CreateContentFromIdea.Command(
+                id,
+                body?.ContentType ?? ContentType.Blog,
+                body?.PrimaryPlatform ?? Platform.Blog);
+            var result = await sender.Send(command, ct);
+            return result.IsSuccess
+                ? Results.Created($"/api/content/{result.Value}", result.Value)
+                : result.ToApiResult();
+        });
     }
+}
+
+public record CreateContentFromIdeaRequest
+{
+    public ContentType ContentType { get; init; } = ContentType.Blog;
+    public Platform PrimaryPlatform { get; init; } = Platform.Blog;
 }
 
 public record ListIdeasQueryParams

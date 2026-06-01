@@ -108,6 +108,9 @@ export const IdeaStore = signalStore(
           error: (err: Error) => patchState(store, { error: err.message }),
         });
       },
+      setError(message: string): void {
+        patchState(store, { error: message });
+      },
     };
   })
 );
