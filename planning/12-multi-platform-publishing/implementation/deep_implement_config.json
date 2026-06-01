@@ -1,0 +1,97 @@
+{
+  "plugin_root": "C:\\Users\\kruz7\\.claude\\plugins\\cache\\piercelamb-plugins\\deep-implement\\0.2.0",
+  "sections_dir": "C:\\Users\\kruz7\\OneDrive\\Documents\\Code Repos\\MCKRUZ\\personal-brand-assistant\\planning\\12-multi-platform-publishing\\sections",
+  "target_dir": "C:\\Users\\kruz7\\OneDrive\\Documents\\Code Repos\\MCKRUZ\\personal-brand-assistant",
+  "state_dir": "C:\\Users\\kruz7\\OneDrive\\Documents\\Code Repos\\MCKRUZ\\personal-brand-assistant\\planning\\12-multi-platform-publishing\\implementation",
+  "git_root": "C:\\Users\\kruz7\\OneDrive\\Documents\\Code Repos\\MCKRUZ\\personal-brand-assistant",
+  "commit_style": "conventional",
+  "test_command": "uv run pytest",
+  "sections": [
+    "section-01-interfaces-and-types",
+    "section-02-domain-model-changes",
+    "section-03-content-transformation",
+    "section-04-blog-connector-migration",
+    "section-05-publisher-refactor",
+    "section-06-encryption-and-oauth",
+    "section-07-medium-connector",
+    "section-08-linkedin-connector",
+    "section-09-twitter-connector",
+    "section-10-substack-connector",
+    "section-11-retry-handler",
+    "section-12-api-endpoints",
+    "section-13-frontend-connections",
+    "section-14-frontend-editor",
+    "section-15-di-registration"
+  ],
+  "sections_state": {
+    "section-01-interfaces-and-types": {
+      "status": "complete",
+      "commit_hash": "203d39e"
+    },
+    "section-02-domain-model-changes": {
+      "status": "complete",
+      "commit_hash": "1597523"
+    },
+    "section-03-content-transformation": {
+      "status": "complete",
+      "commit_hash": "59b61c6"
+    },
+    "section-04-blog-connector-migration": {
+      "status": "complete",
+      "commit_hash": "41b9d86"
+    },
+    "section-05-publisher-refactor": {
+      "status": "complete",
+      "commit_hash": "e203cbe"
+    },
+    "section-06-encryption-and-oauth": {
+      "status": "complete",
+      "commit_hash": "0c54e88"
+    },
+    "section-07-medium-connector": {
+      "status": "complete",
+      "commit_hash": "bf190a4"
+    },
+    "section-08-linkedin-connector": {
+      "status": "complete",
+      "commit_hash": "c95d0b6"
+    },
+    "section-09-twitter-connector": {
+      "status": "complete",
+      "commit_hash": "0aae626"
+    },
+    "section-10-substack-connector": {
+      "status": "complete",
+      "commit_hash": "f95f7d8"
+    },
+    "section-11-retry-handler": {
+      "status": "complete",
+      "commit_hash": "fd8eb56"
+    },
+    "section-12-api-endpoints": {
+      "status": "complete",
+      "commit_hash": "c8773cd"
+    },
+    "section-13-frontend-connections": {
+      "status": "complete",
+      "commit_hash": "e05c355"
+    },
+    "section-14-frontend-editor": {
+      "status": "complete",
+      "commit_hash": "df0f696"
+    },
+    "section-15-di-registration": {
+      "status": "complete",
+      "commit_hash": "e0c5f48"
+    }
+  },
+  "pre_commit": {
+    "present": false,
+    "type": "none",
+    "config_file": null,
+    "native_hook": null,
+    "may_modify_files": false,
+    "detected_formatters": []
+  },
+  "created_at": "2026-05-27T01:42:59.343796+00:00"
+}
