@@ -2,6 +2,12 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0-preview AS base
 WORKDIR /app
 EXPOSE 8080
 
+# git + openssh-client: BlogConnector shells out to `git push` to publish the blog
+# to the matthewkruczek-ai repo (Netlify auto-deploys).
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends git openssh-client \
+ && apt-get clean && rm -rf /var/lib/apt/lists/*
+
 FROM mcr.microsoft.com/dotnet/sdk:10.0-preview AS build
 WORKDIR /src
 

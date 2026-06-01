@@ -9,8 +9,12 @@ services:
       dockerfile: src/PBA.Api/Dockerfile
     volumes:
       - ./secrets:/app/secrets:ro
+      # matthewkruczek-ai checkout for blog publishing (git push happens in-container).
+      - ${BLOG_REPO_PATH:-./blog-repo}:/app/blog-repo:rw
     environment:
       ASPNETCORE_ENVIRONMENT: Development
+      BlogConnector__RepoPath: /app/blog-repo
+      BlogConnector__Author: Matthew Kruczek
       ApiKey: pba-dev-write-key
       ApiKeys__ReadonlyKey: pba-dev-readonly-key
       ApiKeys__WriteKey: pba-dev-write-key
