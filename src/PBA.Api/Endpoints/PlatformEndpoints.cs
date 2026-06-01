@@ -30,7 +30,8 @@ public static class PlatformEndpoints
                 .Select(g => new { Platform = g.Key, LastPublish = g.Max(p => p.PublishedAt) })
                 .ToDictionaryAsync(x => x.Platform, x => x.LastPublish, ct);
 
-            var result = SupportedPlatforms.Select(platform =>
+            var result = new List<PlatformStatusDto>();
+            foreach (var platform in SupportedPlatforms)
             {
                 var cred = credentials.FirstOrDefault(c => c.Platform == platform);
                 var connector = sp.GetKeyedService<IPlatformConnector>(platform);
@@ -43,17 +44,23 @@ public static class PlatformEndpoints
                         ? "Expired"
                         : "Connected";
                 }
+                else if (platform == Platform.Blog && connector is not null &&
+                         await connector.ValidateCredentialsAsync(ct))
+                {
+                    // Blog has no OAuth credential row; readiness is the website repo being present.
+                    status = "Connected";
+                }
 
-                return new PlatformStatusDto
+                result.Add(new PlatformStatusDto
                 {
                     Platform = platform,
-                    IsConnected = cred is not null && status == "Connected",
+                    IsConnected = status == "Connected",
                     Status = status,
                     ExpiresAt = cred?.AccessTokenExpiresAt,
                     LastPublishDate = lastPublishDates.GetValueOrDefault(platform),
                     Capabilities = connector?.GetCapabilities()
-                };
-            }).ToList();
+                });
+            }
 
             return Results.Ok(result);
         });
