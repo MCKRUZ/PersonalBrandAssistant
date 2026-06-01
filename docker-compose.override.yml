@@ -3,17 +3,6 @@ services:
     ports:
       - "5433:5432"
 
-  sidecar:
-    ports:
-      - "3001:3001"
-    # Auth via Claude OAuth token (from `claude setup-token`), not mounted host creds.
-    # Value lives in .env on the deploy host.
-    environment:
-      CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_CODE_OAUTH_TOKEN}
-    networks:
-      - default
-      - internal
-
   api:
     build:
       context: .
@@ -22,7 +11,6 @@ services:
       - ./secrets:/app/secrets:ro
     environment:
       ASPNETCORE_ENVIRONMENT: Development
-      Sidecar__WebSocketUrl: ws://sidecar:3001/ws
       ApiKey: pba-dev-write-key
       ApiKeys__ReadonlyKey: pba-dev-readonly-key
       ApiKeys__WriteKey: pba-dev-write-key
@@ -45,10 +33,6 @@ services:
       GoogleAnalytics__CredentialsPath: /app/secrets/google-analytics-sa.json
       DOTNET_USE_POLLING_FILE_WATCHER: "true"
       Encryption__Key: ${Encryption__Key}
-      # Auth for the bundled claude CLI that SidecarClient invokes for AI drafting.
-      CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_CODE_OAUTH_TOKEN}
-      # claude CLI is agentic and slow for long-form (2-4 min observed); raise the cap.
-      Sidecar__TimeoutMs: "300000"
       # Drafting engine: OpenRouter (OpenAI-compatible). Model switchable via OPENROUTER_MODEL.
       OpenRouter__ApiKey: ${OPENROUTER_API_KEY}
       OpenRouter__Model: ${OPENROUTER_MODEL:-google/gemini-2.5-pro}

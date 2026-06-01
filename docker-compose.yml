@@ -17,23 +17,6 @@ services:
       - default
     restart: unless-stopped
 
-  sidecar:
-    build:
-      context: ../claude-code-sidecar
-    container_name: pba-sidecar
-    environment:
-      PORT: "3001"
-      SIDECAR_CONFIG_DIR: /config
-      SIDECAR_DATA_DIR: /tmp/sidecar-data
-    volumes:
-      - ./prompts/sidecar.config.json:/config/sidecar.config.json:ro
-      - ./CLAUDE.md:/workspace/CLAUDE.md:ro
-      - ./.claude:/workspace/.claude:ro
-      - ./prompts:/workspace/prompts:ro
-    networks:
-      - internal
-    restart: unless-stopped
-
   api:
     build:
       context: .
@@ -48,7 +31,6 @@ services:
       ConnectionStrings__DefaultConnection: "Host=db;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}"
       ApiKey: ${API_KEY}
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
-      Sidecar__WebSocketUrl: ws://sidecar:3001/ws
       TrendMonitoring__TrendRadarApiUrl: http://trendradar:8000/api
     volumes:
       - logs:/app/logs
