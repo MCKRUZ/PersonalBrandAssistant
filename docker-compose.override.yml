@@ -6,10 +6,10 @@ services:
   sidecar:
     ports:
       - "3001:3001"
-    volumes:
-      - ~/.claude/.credentials.json:/root/.claude/.credentials.json:ro
-      - ~/.claude/CLAUDE.md:/root/.claude/CLAUDE.md:ro
-      - ~/.claude/rules:/root/.claude/rules:ro
+    # Auth via Claude OAuth token (from `claude setup-token`), not mounted host creds.
+    # Value lives in .env on the deploy host.
+    environment:
+      CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_CODE_OAUTH_TOKEN}
     networks:
       - default
       - internal
