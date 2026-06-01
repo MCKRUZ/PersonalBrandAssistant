@@ -43,7 +43,10 @@ public static class DependencyInjection
 
         services.Configure<SidecarOptions>(configuration.GetSection(SidecarOptions.SectionName));
         services.AddSingleton<IProcessRunner, ProcessRunner>();
-        services.AddSingleton<ISidecarClient, SidecarClient>();
+        // Drafting routes through OpenRouter (fast, length-controllable) instead of the
+        // agentic claude CLI. ProcessRunner/SidecarClient stay registered as a fallback.
+        services.Configure<OpenRouterOptions>(configuration.GetSection(OpenRouterOptions.SectionName));
+        services.AddHttpClient<ISidecarClient, OpenRouterClient>();
         services.AddHostedService<AiConnectionsService>();
 
         services.Configure<BlogConnectorOptions>(configuration.GetSection(BlogConnectorOptions.SectionName));

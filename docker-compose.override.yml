@@ -49,6 +49,9 @@ services:
       CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_CODE_OAUTH_TOKEN}
       # claude CLI is agentic and slow for long-form (2-4 min observed); raise the cap.
       Sidecar__TimeoutMs: "300000"
+      # Drafting engine: OpenRouter (OpenAI-compatible). Model switchable via OPENROUTER_MODEL.
+      OpenRouter__ApiKey: ${OPENROUTER_API_KEY}
+      OpenRouter__Model: ${OPENROUTER_MODEL:-google/gemini-2.5-pro}
     # dotnet watch disabled — doesn't work with Docker volume mounts on Windows
     # For dev: use `docker compose up -d --build api` after code changes
 
