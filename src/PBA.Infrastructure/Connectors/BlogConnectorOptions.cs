@@ -5,7 +5,9 @@ public sealed class BlogConnectorOptions
     public const string SectionName = "BlogConnector";
 
     public required string RepoPath { get; init; }
-    public required string TemplatePath { get; init; }
+
+    public string TemplatePath { get; init; } = Path.Combine(
+        AppContext.BaseDirectory, "Transformers", "templates", "blog-post.template.html");
     public string Author { get; init; } = "Matt Kruczek";
     public string RemoteName { get; init; } = "origin";
     public string Branch { get; init; } = "main";
