@@ -27,11 +27,13 @@ public class RssFeedReader : IRssFeedReader
 
         foreach (var item in feed.Items)
         {
-            var published = item.PublishDate != default
+            // Normalize to UTC: feed pubDates can carry a non-UTC offset (e.g. -04:00),
+            // which Npgsql rejects for 'timestamp with time zone' and fails the whole save.
+            var published = (item.PublishDate != default
                 ? item.PublishDate
                 : item.LastUpdatedTime != default
                     ? item.LastUpdatedTime
-                    : DateTimeOffset.UtcNow;
+                    : DateTimeOffset.UtcNow).ToUniversalTime();
 
             if (since.HasValue && published <= since.Value)
                 continue;
