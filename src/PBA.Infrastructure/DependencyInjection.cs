@@ -37,7 +37,14 @@ public static class DependencyInjection
         services.AddHttpClient();
 
         services.Configure<RssPollingOptions>(configuration.GetSection(RssPollingOptions.SectionName));
-        services.AddHttpClient<RssFeedReader>();
+        services.AddHttpClient<RssFeedReader>(client =>
+        {
+            // Many feeds (blogs.windows.com, news.microsoft.com, Ars, etc.) 403 a default/bot
+            // User-Agent. Present a browser-like UA so RSS fetches aren't blocked.
+            client.DefaultRequestHeaders.UserAgent.ParseAdd(
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
+                "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36");
+        });
         services.AddScoped<IRssFeedReader, RssFeedReader>();
         services.AddHostedService<RssPollingService>();
 
