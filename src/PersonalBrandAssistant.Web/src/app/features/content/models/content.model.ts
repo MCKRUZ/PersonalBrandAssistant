@@ -9,7 +9,8 @@ export enum ContentStatus {
 }
 
 export enum ContentType {
-  BlogPost = 'BlogPost',
+  // Value must match the backend ContentType enum ("Blog"), not "BlogPost".
+  BlogPost = 'Blog',
   LinkedInPost = 'LinkedInPost',
   Tweet = 'Tweet',
   ThreadedTweet = 'ThreadedTweet',
