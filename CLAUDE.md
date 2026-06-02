@@ -41,7 +41,7 @@ Follow global rules in `~/.claude/rules/coding-style.md`:
 ## Nexus Intelligence
 
 *Auto-updated by Nexus — do not edit this section manually.*
-*Last sync: 2026-06-01*
+*Last sync: 2026-06-02*
 
 ### Portfolio
 | Project | Description | Tech |
