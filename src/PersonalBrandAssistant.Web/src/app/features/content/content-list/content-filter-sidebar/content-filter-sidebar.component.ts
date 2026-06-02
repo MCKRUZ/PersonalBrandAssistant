@@ -90,8 +90,8 @@ import { ContentStatus, ContentType, Platform } from '../../models/content.model
     `
       .filter-sidebar {
         padding: 16px;
-        background: #0d1117;
-        border-right: 1px solid #21262d;
+        background: var(--surface-base);
+        border-right: 1px solid var(--surface-elevated);
         height: 100%;
         overflow-y: auto;
       }
@@ -104,7 +104,7 @@ import { ContentStatus, ContentType, Platform } from '../../models/content.model
       .filter-header h3 {
         font-size: 14px;
         font-weight: 600;
-        color: #f0f6fc;
+        color: var(--text-primary);
         margin: 0;
       }
       .filter-section {
@@ -113,7 +113,7 @@ import { ContentStatus, ContentType, Platform } from '../../models/content.model
       .filter-section h4 {
         font-size: 12px;
         font-weight: 600;
-        color: #8b949e;
+        color: var(--text-secondary);
         text-transform: uppercase;
         margin: 0 0 8px;
       }

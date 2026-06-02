@@ -21,7 +21,7 @@ import { SidebarComponent } from '../sidebar/sidebar.component';
     .layout-content {
       flex: 1;
       overflow-y: auto;
-      background: #0d1117;
+      background: var(--surface-base);
     }
     @media (max-width: 768px) {
       :host {

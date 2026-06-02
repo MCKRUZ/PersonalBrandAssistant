@@ -115,7 +115,7 @@ import { ContentListTableComponent } from './content-list-table/content-list-tab
         font-size: 24px;
         font-weight: 600;
         margin: 0;
-        color: #f0f6fc;
+        color: var(--text-primary);
       }
       .header-controls {
         display: flex;
@@ -133,7 +133,7 @@ import { ContentListTableComponent } from './content-list-table/content-list-tab
         left: 10px;
         top: 50%;
         transform: translateY(-50%);
-        color: #8b949e;
+        color: var(--text-secondary);
         font-size: 14px;
       }
       .search-wrapper input {
@@ -143,7 +143,7 @@ import { ContentListTableComponent } from './content-list-table/content-list-tab
       .loading-state {
         text-align: center;
         padding: 48px;
-        color: #8b949e;
+        color: var(--text-secondary);
       }
     `,
   ],

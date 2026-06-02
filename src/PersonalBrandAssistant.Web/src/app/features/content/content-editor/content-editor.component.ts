@@ -219,8 +219,8 @@ import { PublishModalComponent } from './publish-modal/publish-modal.component';
       display: flex;
       align-items: center;
       justify-content: center;
-      background: #0d111780;
-      color: #8b949e;
+      background: rgba(8, 8, 10, 0.5);
+      color: var(--text-secondary);
       z-index: 50;
     }
     .editor-top-bar {
@@ -228,7 +228,7 @@ import { PublishModalComponent } from './publish-modal/publish-modal.component';
       align-items: center;
       gap: 12px;
       padding: 8px 16px;
-      border-bottom: 1px solid #21262d;
+      border-bottom: 1px solid var(--surface-elevated);
       flex-shrink: 0;
     }
     .tags-input {
@@ -241,7 +241,7 @@ import { PublishModalComponent } from './publish-modal/publish-modal.component';
     .tag-add-input {
       border: none;
       background: transparent;
-      color: #f0f6fc;
+      color: var(--text-primary);
       font-size: 13px;
       min-width: 80px;
       flex: 1;
@@ -249,7 +249,7 @@ import { PublishModalComponent } from './publish-modal/publish-modal.component';
     }
     .save-indicator {
       font-size: 12px;
-      color: #8b949e;
+      color: var(--text-secondary);
       white-space: nowrap;
     }
     :host ::ng-deep .p-splitter {
@@ -261,19 +261,19 @@ import { PublishModalComponent } from './publish-modal/publish-modal.component';
       padding: 16px;
       overflow-y: auto;
       height: 100%;
-      color: #c9d1d9;
+      color: var(--text-primary);
     }
     .editor-action-bar {
       display: flex;
       align-items: center;
       gap: 8px;
       padding: 8px 16px;
-      border-top: 1px solid #21262d;
+      border-top: 1px solid var(--surface-elevated);
       flex-shrink: 0;
     }
     .scheduled-time {
       font-size: 12px;
-      color: #8b949e;
+      color: var(--text-secondary);
     }
     :host ::ng-deep .chat-toggle-btn {
       position: fixed;
@@ -328,10 +328,10 @@ export class ContentEditorComponent implements OnInit {
 
   readonly voiceColor = computed(() => {
     const score = this.store.content()?.voiceScore;
-    if (score === null || score === undefined) return '#8b949e';
-    if (score > 80) return '#3fb950';
-    if (score >= 60) return '#d29922';
-    return '#f85149';
+    if (score === null || score === undefined) return 'var(--text-secondary)';
+    if (score > 80) return 'var(--status-approved)';
+    if (score >= 60) return 'var(--voice-mid)';
+    return 'var(--voice-low)';
   });
 
   ngOnInit(): void {

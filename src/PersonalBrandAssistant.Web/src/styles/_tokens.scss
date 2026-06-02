@@ -1,0 +1,64 @@
+// Design system as CSS custom properties.
+// Every redesigned Content Studio component is authored against these var(--…) tokens.
+// Values mirror the SCSS $variables in _variables.scss (kept in sync); this file is what
+// exposes them to component styles at runtime.
+
+:root {
+  // brand
+  --brand-primary: #c87156;
+  --brand-primary-hover: #d4836a;
+  --brand-primary-active: #b5624a;
+
+  // surfaces
+  --surface-base: #0e0e10;
+  --surface-card: #141418;
+  --surface-elevated: #1a1a20;
+  --surface-hover: #22222a;
+  --surface-border: #2c2c36;
+  --surface-disabled: #3a3a46;
+  --surface-sidebar: #0b0b0d;
+  --surface-inset: #0c0c0e;
+  --surface-publish-canvas: #08080a;
+
+  // text
+  --text-primary: #f0f0f5;
+  --text-secondary: #8a8a96;
+  --text-muted: #5a5a66;
+
+  // accent
+  --accent-soft: rgba(200, 113, 86, 0.13); // brand @ ~13%
+
+  // status (Idea, Draft, Review, Approved, Scheduled, Published, Archived)
+  --status-idea: #8a7df0;
+  --status-draft: #8a8a96;
+  --status-review: #c87156;
+  --status-approved: #4ade80;
+  --status-scheduled: #60a5fa;
+  --status-published: #34d399;
+  --status-archived: #5a5a66;
+
+  // voice bands
+  --voice-high: #4ade80;
+  --voice-mid: #fbbf24;
+  --voice-low: #f87171;
+
+  // delivery badge pairs
+  --delivery-auto-bg: #1f3a2b;
+  --delivery-auto-fg: #4ade80;
+  --delivery-manual-bg: #3a2f1c;
+  --delivery-manual-fg: #fbbf24;
+  --delivery-warn-bg: #3a2420;
+  --delivery-warn-fg: #f0935f;
+
+  // radius scale
+  --r: 12px;
+  --r-inner: 10px;
+  --r-control: 8px;
+  --r-pill: 99px;
+  --r-modal: 16px;
+
+  // fonts
+  --font-body: 'DM Sans', sans-serif;
+  --font-display: 'DM Serif Display', Georgia, serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}

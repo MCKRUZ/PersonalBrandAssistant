@@ -328,3 +328,35 @@ sections 04/05. The goal of this step is solely "no GitHub-dark hex survives the
 - **Section 04** consumes `@angular/cdk` (kanban) and **deletes** `markdown-editor/` +
   `content-filter-sidebar/` (and may remove orphaned `@codemirror/*` deps then — not here).
 - **Section 05** consumes TipTap deps + `marked.lexer`/`walkTokens` and the radius/modal tokens.
+
+---
+
+## IMPLEMENTATION NOTES (actual — as built)
+
+Built and committed. Deviations from the plan above:
+
+- **Deps installed:** `@angular/cdk@^19.2.19`, `@tiptap/core@^3.24`, `@tiptap/pm@^3.24`,
+  `@tiptap/starter-kit@^3.24`, `tiptap-markdown@^0.9`. `marked@^17.0.4` was ALREADY a direct
+  dependency (exposes `lexer`/`walkTokens`) — no marked change needed.
+  - **Known risk (section-05 gate):** `tiptap-markdown@0.9` historically targets TipTap v2; v3.24
+    was installed. npm resolved peers cleanly and nothing imports TipTap yet. Section 05 must verify
+    a v3-compatible markdown round-trip or use the documented `<textarea>` fallback.
+- **App shell is FLEX, not grid.** `_layout.scss` `.app-shell` grid is orphaned/unused; the real
+  shell is `layout.component.ts` (`:host{display:flex}` + sidebar fixed-width + flex content). The
+  212px width is set on the sidebar component's `:host`. The `_layout.scss` grid edit (212px 1fr) is
+  dead but harmless — candidate for a later cleanup. Also recolored `layout.component.ts`'s
+  `#0d1117` → `var(--surface-base)` (was an extra GitHub-dark hex in shell, not in the original list).
+- **Content recolor delegated** to a subagent (mechanical hex→token swap, alpha-forms-first). All 10
+  files done; grep gate returns zero GitHub-dark hexes across `app/features/content`, `app/shell/sidebar`,
+  `app/shell/layout`.
+- **Recolor nits (auto-resolved later):** in `content-card` + `content-list-table`, source greens
+  `#3fb950` (Approved) and `#2ea043` (Published) both collapsed to `var(--status-approved)` —
+  Published/Approved look identical until section 04 rewrites those files with the proper `STATUS_META`
+  map. Off-palette literals (`#bc8cff`, `#39d2c0`) left as-is (not GitHub-dark).
+- **Build status:** `ng build --configuration development` succeeds. The PRODUCTION build fails ONLY on
+  Angular's Google-Fonts inlining over the network (`unable to verify the first certificate`) — an
+  offline/SSL-interception environment issue, not a code defect. Pre-existing template-lint warnings
+  (NG8107 optional-chain, unused RouterLink) are unrelated to this section.
+- **Code review:** CLEAN (no critical/should-fix). See
+  `implementation/code_review/section-01-review.md`.
+

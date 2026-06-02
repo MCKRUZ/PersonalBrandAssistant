@@ -33,7 +33,7 @@ import { Content } from '../../models/content.model';
         grid-column: 1 / -1;
         text-align: center;
         padding: 48px 16px;
-        color: #8b949e;
+        color: var(--text-secondary);
       }
       .empty-state i {
         font-size: 32px;

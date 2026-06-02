@@ -1,3 +1,8 @@
+// Design system: :root CSS custom properties + global utility classes.
+@use 'styles/tokens';
+@use 'styles/status-badges';
+@use 'styles/animations';
+
 * {
   margin: 0;
   padding: 0;
@@ -5,9 +10,9 @@
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-  background: #0f1117;
-  color: #e1e4e8;
+  font-family: var(--font-body);
+  background: var(--surface-base);
+  color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
 }
 
@@ -16,14 +21,25 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: #161b22;
+  background: var(--surface-base);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #30363d;
+  background: var(--surface-border);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #484f58;
+  background: var(--surface-disabled);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }

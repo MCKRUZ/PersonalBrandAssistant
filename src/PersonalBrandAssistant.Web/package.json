@@ -14,6 +14,7 @@
   "dependencies": {
     "@acrodata/code-editor": "^0.6.1",
     "@angular/animations": "^19.2.20",
+    "@angular/cdk": "^19.2.19",
     "@angular/common": "^19.2.0",
     "@angular/compiler": "^19.2.0",
     "@angular/core": "^19.2.0",
@@ -27,6 +28,9 @@
     "@ngrx/operators": "^21.0.1",
     "@ngrx/signals": "^21.1.0",
     "@primeng/themes": "^20.4.0",
+    "@tiptap/core": "^3.24.0",
+    "@tiptap/pm": "^3.24.0",
+    "@tiptap/starter-kit": "^3.24.0",
     "chart.js": "^4.5.1",
     "marked": "^17.0.4",
     "ngx-markdown": "^21.3.0",
@@ -36,6 +40,7 @@
     "prismjs": "^1.30.0",
     "quill": "^2.0.3",
     "rxjs": "~7.8.0",
+    "tiptap-markdown": "^0.9.0",
     "tslib": "^2.3.0",
     "zone.js": "~0.15.0"
   },

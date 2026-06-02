@@ -84,14 +84,14 @@ import { formatContentType, voiceScoreClass, platformIconClass, truncateText } f
   styles: [
     `
       .content-card {
-        background: #161b22;
+        background: var(--surface-card);
         border: 1px solid transparent;
         border-radius: 8px;
         overflow: hidden;
         transition: border-color 0.2s;
       }
       .content-card:hover {
-        border-color: #30363d;
+        border-color: var(--surface-border);
       }
       .card-body {
         padding: 12px;
@@ -101,7 +101,7 @@ import { formatContentType, voiceScoreClass, platformIconClass, truncateText } f
         align-items: center;
         gap: 8px;
         font-size: 12px;
-        color: #8b949e;
+        color: var(--text-secondary);
         margin-bottom: 8px;
       }
       .status-badge {
@@ -111,19 +111,19 @@ import { formatContentType, voiceScoreClass, platformIconClass, truncateText } f
         border-radius: 12px;
         text-transform: uppercase;
       }
-      .status-badge[data-status='Idea'] { background: #1f6feb33; color: #58a6ff; }
-      .status-badge[data-status='Draft'] { background: #d2992233; color: #d29922; }
+      .status-badge[data-status='Idea'] { background: var(--accent-soft); color: var(--brand-primary); }
+      .status-badge[data-status='Draft'] { background: rgba(210, 153, 34, 0.2); color: var(--voice-mid); }
       .status-badge[data-status='Review'] { background: #bc8cff33; color: #bc8cff; }
-      .status-badge[data-status='Approved'] { background: #3fb95033; color: #3fb950; }
+      .status-badge[data-status='Approved'] { background: rgba(63, 185, 80, 0.2); color: var(--status-approved); }
       .status-badge[data-status='Scheduled'] { background: #39d2c033; color: #39d2c0; }
-      .status-badge[data-status='Published'] { background: #2ea04333; color: #2ea043; }
-      .status-badge[data-status='Archived'] { background: #8b949e33; color: #8b949e; }
+      .status-badge[data-status='Published'] { background: rgba(46, 160, 67, 0.2); color: var(--status-approved); }
+      .status-badge[data-status='Archived'] { background: rgba(138, 138, 150, 0.2); color: var(--text-secondary); }
       .platform-icon {
         font-size: 14px;
       }
       .content-type {
         font-size: 11px;
-        color: #8b949e;
+        color: var(--text-secondary);
       }
       .voice-dot {
         width: 8px;
@@ -131,20 +131,20 @@ import { formatContentType, voiceScoreClass, platformIconClass, truncateText } f
         border-radius: 50%;
         margin-left: auto;
       }
-      .voice-green { background: #3fb950; }
-      .voice-amber { background: #d29922; }
-      .voice-red { background: #f85149; }
-      .voice-none { background: #8b949e; }
+      .voice-green { background: var(--status-approved); }
+      .voice-amber { background: var(--voice-mid); }
+      .voice-red { background: var(--voice-low); }
+      .voice-none { background: var(--text-secondary); }
       .card-title {
         font-size: 15px;
         font-weight: 600;
-        color: #f0f6fc;
+        color: var(--text-primary);
         margin: 0 0 8px;
         line-height: 1.3;
       }
       .card-meta {
         font-size: 12px;
-        color: #8b949e;
+        color: var(--text-secondary);
         margin-bottom: 8px;
       }
       .card-tags {
@@ -155,7 +155,7 @@ import { formatContentType, voiceScoreClass, platformIconClass, truncateText } f
       }
       .more-tags {
         font-size: 11px;
-        color: #8b949e;
+        color: var(--text-secondary);
         align-self: center;
       }
       .publish-badges {
@@ -172,10 +172,10 @@ import { formatContentType, voiceScoreClass, platformIconClass, truncateText } f
         border-radius: 4px;
         font-size: 12px;
       }
-      .pub-badge[data-status='Published'] { background: #2ea04333; color: #2ea043; }
-      .pub-badge[data-status='Failed'] { background: #f8514933; color: #f85149; }
+      .pub-badge[data-status='Published'] { background: rgba(46, 160, 67, 0.2); color: var(--status-approved); }
+      .pub-badge[data-status='Failed'] { background: rgba(248, 81, 73, 0.2); color: var(--voice-low); }
       .pub-badge[data-status='Pending'],
-      .pub-badge[data-status='Formatting'] { background: #d2992233; color: #d29922; }
+      .pub-badge[data-status='Formatting'] { background: rgba(210, 153, 34, 0.2); color: var(--voice-mid); }
       .retry-btn {
         background: none; border: none; color: inherit; cursor: pointer;
         padding: 0; font-size: 11px; line-height: 1;
@@ -183,7 +183,7 @@ import { formatContentType, voiceScoreClass, platformIconClass, truncateText } f
       .card-actions {
         display: flex;
         gap: 4px;
-        border-top: 1px solid #21262d;
+        border-top: 1px solid var(--surface-elevated);
         padding-top: 8px;
       }
     `,

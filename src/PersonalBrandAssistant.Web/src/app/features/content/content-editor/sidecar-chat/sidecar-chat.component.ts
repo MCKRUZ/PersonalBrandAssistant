@@ -144,12 +144,12 @@ import { SignalRService } from '../../services/signalr.service';
       line-height: 1.5;
     }
     .user-bubble {
-      background: #1f6feb;
+      background: var(--brand-primary);
       color: #fff;
       border-bottom-right-radius: 4px;
     }
     .assistant-bubble {
-      background: #161b22;
+      background: var(--surface-card);
       color: #e6edf3;
       border-bottom-left-radius: 4px;
     }
@@ -161,7 +161,7 @@ import { SignalRService } from '../../services/signalr.service';
     .action-btn {
       background: none;
       border: none;
-      color: #8b949e;
+      color: var(--text-secondary);
       font-size: 12px;
       cursor: pointer;
       padding: 2px 6px;
@@ -170,11 +170,11 @@ import { SignalRService } from '../../services/signalr.service';
       align-items: center;
       gap: 4px;
     }
-    .action-btn:hover { color: #f0f6fc; background: #21262d; }
+    .action-btn:hover { color: var(--text-primary); background: var(--surface-elevated); }
     .skeleton-shimmer { padding: 8px 12px; }
     .skeleton-line {
       height: 14px;
-      background: linear-gradient(90deg, #21262d 25%, #30363d 50%, #21262d 75%);
+      background: linear-gradient(90deg, var(--surface-elevated) 25%, var(--surface-border) 50%, var(--surface-elevated) 75%);
       background-size: 200% 100%;
       animation: shimmer 1.5s infinite;
       border-radius: 4px;
@@ -188,8 +188,8 @@ import { SignalRService } from '../../services/signalr.service';
     }
     .stop-btn {
       background: none;
-      border: 1px solid #f8514980;
-      color: #f85149;
+      border: 1px solid rgba(248, 81, 73, 0.5);
+      color: var(--voice-low);
       font-size: 12px;
       cursor: pointer;
       padding: 4px 8px;
@@ -199,37 +199,37 @@ import { SignalRService } from '../../services/signalr.service';
       align-items: center;
       gap: 4px;
     }
-    .stop-btn:hover { background: #f8514920; }
+    .stop-btn:hover { background: rgba(248, 81, 73, 0.125); }
     .quick-actions {
       display: flex;
       gap: 6px;
       padding: 8px;
       flex-wrap: wrap;
-      border-top: 1px solid #21262d;
+      border-top: 1px solid var(--surface-elevated);
     }
     .quick-chip {
       background: transparent;
-      border: 1px solid #30363d;
-      color: #58a6ff;
+      border: 1px solid var(--surface-border);
+      color: var(--brand-primary);
       font-size: 12px;
       padding: 4px 10px;
       border-radius: 16px;
       cursor: pointer;
     }
-    .quick-chip:hover:not(:disabled) { background: #1f6feb20; border-color: #58a6ff; }
+    .quick-chip:hover:not(:disabled) { background: var(--accent-soft); border-color: var(--brand-primary); }
     .quick-chip:disabled { opacity: 0.5; cursor: not-allowed; }
     .input-area {
       display: flex;
       align-items: flex-end;
       gap: 8px;
       padding: 8px;
-      border-top: 1px solid #21262d;
+      border-top: 1px solid var(--surface-elevated);
     }
     .chat-textarea {
       flex: 1;
-      background: #161b22 !important;
-      border-color: #30363d !important;
-      color: #f0f6fc !important;
+      background: var(--surface-card) !important;
+      border-color: var(--surface-border) !important;
+      color: var(--text-primary) !important;
       font-size: 14px;
       resize: none;
     }

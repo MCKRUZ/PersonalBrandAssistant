@@ -6,14 +6,14 @@ import { EditorView } from '@codemirror/view';
 import { Extension } from '@codemirror/state';
 
 const darkTheme = EditorView.theme({
-  '&': { backgroundColor: '#0d1117', color: '#f0f6fc', height: '100%' },
-  '.cm-content': { caretColor: '#58a6ff' },
+  '&': { backgroundColor: 'var(--surface-base)', color: 'var(--text-primary)', height: '100%' },
+  '.cm-content': { caretColor: 'var(--brand-primary)' },
   '&.cm-focused .cm-selectionBackground, .cm-selectionBackground': {
-    backgroundColor: '#1f6feb44 !important',
+    backgroundColor: 'var(--accent-soft) !important',
   },
-  '.cm-gutters': { backgroundColor: '#161b22', color: '#8b949e', border: 'none' },
-  '.cm-activeLineGutter': { backgroundColor: '#161b2280' },
-  '.cm-activeLine': { backgroundColor: '#161b2240' },
+  '.cm-gutters': { backgroundColor: 'var(--surface-card)', color: 'var(--text-secondary)', border: 'none' },
+  '.cm-activeLineGutter': { backgroundColor: 'rgba(20, 20, 24, 0.5)' },
+  '.cm-activeLine': { backgroundColor: 'rgba(20, 20, 24, 0.25)' },
 });
 
 @Component({

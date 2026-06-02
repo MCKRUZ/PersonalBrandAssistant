@@ -18,6 +18,7 @@
   }
 }
 
+.status-idea::before { background: $status-idea; }
 .status-draft::before { background: $status-draft; }
 .status-review::before { background: $status-review; }
 .status-approved::before { background: $status-approved; }
@@ -25,4 +26,19 @@
 .status-publishing::before { background: $status-scheduled; }
 .status-published::before { background: $status-published; }
 .status-failed::before { background: $status-failed; }
-.status-archived::before { background: $status-draft; }
+.status-archived::before { background: $status-archived; }
+
+// Delivery badges (publish overlay — section 03/05)
+.delivery-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: $font-mono;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: $radius-pill;
+
+  &--auto { background: $delivery-auto-bg; color: $delivery-auto-fg; }
+  &--manual { background: $delivery-manual-bg; color: $delivery-manual-fg; }
+  &--warn { background: $delivery-warn-bg; color: $delivery-warn-fg; }
+}
