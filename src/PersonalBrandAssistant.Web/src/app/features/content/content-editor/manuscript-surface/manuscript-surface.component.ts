@@ -57,11 +57,17 @@ const STUDIO_AUTHOR = 'You';
       <!-- body -->
       @if (isIdea()) {
         <div class="idea-panel" data-testid="idea-panel">
-          <p class="idea-text">This is still just an idea.</p>
-          <button class="start-draft" type="button" data-testid="start-draft-btn"
-            (click)="startDraft.emit()">
-            Start draft
-          </button>
+          @if (drafting()) {
+            <span class="drafting-spinner" data-testid="drafting-spinner"></span>
+            <p class="idea-text">Drafting your post&hellip;</p>
+            <p class="idea-sub">The assistant is writing a first draft. This can take up to a minute.</p>
+          } @else {
+            <p class="idea-text">This is still just an idea.</p>
+            <button class="start-draft" type="button" data-testid="start-draft-btn"
+              (click)="startDraft.emit()">
+              Start draft
+            </button>
+          }
         </div>
       } @else {
         <app-prose-editor
@@ -174,11 +180,20 @@ const STUDIO_AUTHOR = 'You';
       cursor: pointer;
     }
     .start-draft:hover { filter: brightness(1.05); }
+    .idea-sub { color: var(--text-muted); font-size: 13px; margin-top: 8px; }
+    .drafting-spinner {
+      width: 22px; height: 22px; border-radius: 50%;
+      border: 2px solid var(--surface-border); border-top-color: var(--brand-primary);
+      animation: ms-spin 0.7s linear infinite; margin: 0 auto 14px;
+    }
+    @keyframes ms-spin { to { transform: rotate(360deg); } }
   `],
 })
 export class ManuscriptSurfaceComponent {
   readonly content = input.required<ContentDetail>();
   readonly canEdit = input.required<boolean>();
+  /** True while a draft is being generated (Start draft -> AI generation in flight). */
+  readonly drafting = input(false);
 
   readonly titleChange = output<string>();
   readonly bodyChange = output<string>();

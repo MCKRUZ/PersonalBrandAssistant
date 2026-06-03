@@ -58,6 +58,7 @@ import { PublishModalComponent } from './publish-modal/publish-modal.component';
             <app-manuscript-surface
               [content]="store.content()!"
               [canEdit]="canEdit()"
+              [drafting]="isDrafting()"
               (titleChange)="onTitleChange($event)"
               (bodyChange)="onBodyChange($event)"
               (tagsChange)="onTagsChange($event)"
@@ -217,6 +218,7 @@ export class ContentEditorComponent implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
 
   readonly panelOpen = signal(true);
+  readonly isDrafting = signal(false);
   readonly publishModalVisible = signal(false);
   readonly publishMode = signal<'publish' | 'schedule'>('publish');
   readonly connectedPlatforms = signal<PlatformConnectionStatus[]>([]);
@@ -283,9 +285,12 @@ export class ContentEditorComponent implements OnInit {
   onStartDraft(): void {
     const id = this.store.content()?.id;
     if (!id) return;
+    // The /draft call runs a synchronous AI generation (~up to a minute); show a pending state
+    // so the user gets feedback instead of the editor sitting in the Idea panel.
+    this.isDrafting.set(true);
     this.contentService.draft(id, { action: 'draft' }).subscribe({
-      next: () => this.store.loadContent(id),
-      error: () => this.store.loadContent(id),
+      next: () => { this.store.loadContent(id); this.isDrafting.set(false); },
+      error: () => { this.store.loadContent(id); this.isDrafting.set(false); },
     });
   }
 

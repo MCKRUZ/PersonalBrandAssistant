@@ -82,6 +82,15 @@ describe('ManuscriptSurfaceComponent', () => {
     expect(fired).toBeTrue();
   });
 
+  it('shows a Drafting spinner (and hides Start draft) while drafting an Idea', () => {
+    setup(mockContent({ status: ContentStatus.Idea }));
+    fixture.componentRef.setInput('drafting', true);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[data-testid="drafting-spinner"]')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('[data-testid="start-draft-btn"]')).toBeFalsy();
+    expect(fixture.nativeElement.textContent.toLowerCase()).toContain('drafting your post');
+  });
+
   it('the derived subtitle is display-only and never emitted as a field change', () => {
     setup(mockContent());
     const titleSpy = jasmine.createSpy('titleChange');
