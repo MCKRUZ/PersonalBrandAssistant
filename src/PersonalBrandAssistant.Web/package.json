@@ -12,7 +12,6 @@
   },
   "private": true,
   "dependencies": {
-    "@acrodata/code-editor": "^0.6.1",
     "@angular/animations": "^19.2.20",
     "@angular/cdk": "^19.2.19",
     "@angular/common": "^19.2.0",
@@ -22,7 +21,6 @@
     "@angular/platform-browser": "^19.2.0",
     "@angular/platform-browser-dynamic": "^19.2.0",
     "@angular/router": "^19.2.0",
-    "@codemirror/lang-markdown": "^6.5.0",
     "@microsoft/signalr": "^10.0.0",
     "@ngrx-traits/signals": "^21.1.1",
     "@ngrx/operators": "^21.0.1",

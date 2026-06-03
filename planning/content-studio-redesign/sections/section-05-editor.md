@@ -385,3 +385,35 @@ Then check whether `@acrodata/code-editor` / `@codemirror/*` have **any other us
 - `markdown-editor/` deleted; orphaned codemirror deps removed only after confirming no other importer.
 - No GitHub-dark hexes remain in any editor file; all colors are `var(--…)`.
 - `ng test` (the PROJECT_CONFIG command) is green; `ng build` is clean.
+
+---
+
+## IMPLEMENTATION NOTES (actual — as built)
+
+Implemented by a subagent from this section file, then code-reviewed (CLEAN). Suite: 513 pass / 0 fail.
+
+- **prose-editor: TipTap path (NOT the textarea fallback).** `tiptap-markdown@0.9` declares peer
+  `@tiptap/core ^3.0.1` and integrates cleanly with the installed v3.24; the round-trip gate spec
+  (written first) passes for the full supported mark set (h1–h3, bold, italic, links, bullet/ordered
+  lists, inline code) — no marks excluded. Caret guard: `setContent` only when value differs from last
+  serialized AND not focused, external apply with `{emitUpdate:false}`; debounced 300ms; serialize via
+  `editor.storage.markdown.getMarkdown()`.
+- **New components:** `prose-editor`, `manuscript-surface` (editable title + DISPLAY-ONLY derived
+  subtitle + idea-state panel), `stage-tracker` (Idea0…Published5, Archived terminal), `editor-top-bar`
+  (back/tracker/meta/Saved/voice-ring 32/Assistant toggle), `voice-meter` (band color + fill +
+  `voiceCheck` re-check; defensive 0–1 vs 0–100 normalization).
+- **content-editor relayout:** removed `p-splitter`/`markdown-editor`/`<markdown>`/knob/selectors/
+  toolbar/floating-chat; top-bar → body(manuscript + 340px panel: voice-meter + inline sidecar) →
+  action-bar; `panelOpen` signal; **new-content query-param seeding** (topic/type/sourceIdeaId into
+  `create()`); kept all status handlers, `scheduleAutoSave`, `canEdit`, and the section-03
+  publish-modal-stays-open behavior; restyled primary/ghost action buttons.
+- **sidecar-chat:** dropped `p-drawer` → inline; restyled bubbles (assistant `--surface-elevated`,
+  user brand bg + `#1a0f0a`); 3-dot blink thinking replacing the skeleton shimmer. **SignalR transport
+  UNCHANGED** (`signalr.service.ts` git-diff empty).
+- **Deleted** `markdown-editor/`; removed `@acrodata/code-editor` + `@codemirror/lang-markdown` from
+  package.json; **lockfile pruned** via `npm install`.
+- **Review nits applied:** lockfile prune + a spec pinning "publish modal stays open after confirm".
+- `platform-targets` left as-is (already token-only, correct logic); `editor-toolbar` left on disk
+  (no importer) — candidate for later cleanup.
+- Review: `implementation/code_review/section-05-review.md`.
+
