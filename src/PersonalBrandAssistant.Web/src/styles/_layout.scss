@@ -2,7 +2,7 @@
 
 .app-shell {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: $sidebar-width 1fr auto;
   grid-template-rows: $header-height 1fr;
   height: 100vh;
   overflow: hidden;

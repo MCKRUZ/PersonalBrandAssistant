@@ -10,6 +10,12 @@ $surface-elevated: #1a1a20;
 $surface-hover: #22222a;
 $surface-border: #2c2c36;
 $surface-disabled: #3a3a46;
+$surface-sidebar: #0b0b0d;
+$surface-inset: #0c0c0e;
+$surface-publish-canvas: #08080a;
+
+// Accent
+$accent-soft: rgba(200, 113, 86, 0.13);
 
 // Text
 $text-primary: #f0f0f5;
@@ -17,17 +23,34 @@ $text-secondary: #8a8a96;
 $text-muted: #5a5a66;
 
 // Status colors
-$status-draft: #5a5a66;
+$status-idea: #8a7df0;
+$status-draft: #8a8a96;
 $status-review: #c87156;
 $status-approved: #4ade80;
 $status-scheduled: #60a5fa;
-$status-published: #4ade80;
+$status-published: #34d399;
+$status-archived: #5a5a66;
 $status-failed: #f87171;
 
 // Score thresholds
 $score-success: #4ade80;
 $score-warning: #fbbf24;
 $score-danger: #f87171;
+
+// Delivery badge pairs
+$delivery-auto-bg: #1f3a2b;
+$delivery-auto-fg: #4ade80;
+$delivery-manual-bg: #3a2f1c;
+$delivery-manual-fg: #fbbf24;
+$delivery-warn-bg: #3a2420;
+$delivery-warn-fg: #f0935f;
+
+// Radius scale
+$radius: 12px;
+$radius-inner: 10px;
+$radius-control: 8px;
+$radius-pill: 99px;
+$radius-modal: 16px;
 
 // Fonts
 $font-body: 'DM Sans', sans-serif;
@@ -46,7 +69,7 @@ $space-10: 40px;
 $space-12: 48px;
 
 // Layout dimensions
-$sidebar-width: 200px;
+$sidebar-width: 212px;
 $sidebar-collapsed-width: 56px;
 $header-height: 56px;
 $sidecar-width: 380px;

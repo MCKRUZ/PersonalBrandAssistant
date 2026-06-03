@@ -69,7 +69,11 @@ describe('ContentEditorComponent', () => {
     completeGeneration: jasmine.createSpy('completeGeneration'),
   };
 
-  function setup(routeParams: Record<string, string> = { id: 'abc-123' }, content?: ContentDetail) {
+  function setup(
+    routeParams: Record<string, string> = { id: 'abc-123' },
+    content?: ContentDetail,
+    queryParams: Record<string, string> = {},
+  ) {
     contentSignal.set(content ?? mockContent());
     loadingSignal.set(false);
     isDirtySignal.set(false);
@@ -109,6 +113,10 @@ describe('ContentEditorComponent', () => {
                 has: (key: string) => key in routeParams,
                 get: (key: string) => routeParams[key] ?? null,
               },
+              queryParamMap: {
+                has: (key: string) => key in queryParams,
+                get: (key: string) => queryParams[key] ?? null,
+              },
             },
           },
         },
@@ -140,111 +148,107 @@ describe('ContentEditorComponent', () => {
     mockStore.reset.calls.reset();
   });
 
-  it('should load content on init when route has id param (edit mode)', () => {
+  it('loads content on init when route has id param (edit mode)', () => {
     setup({ id: 'abc-123' });
     expect(mockStore.loadContent).toHaveBeenCalledWith('abc-123');
   });
 
-  it('should create content on init when route is /content/new (new mode)', () => {
-    setup({});
-    expect(contentService.create).toHaveBeenCalled();
+  it('has no p-splitter and no app-markdown-editor; app-manuscript-surface is present', () => {
+    setup();
+    expect(fixture.nativeElement.querySelector('p-splitter')).toBeFalsy();
+    expect(fixture.nativeElement.querySelector('app-markdown-editor')).toBeFalsy();
+    expect(fixture.nativeElement.querySelector('markdown')).toBeFalsy();
+    expect(fixture.nativeElement.querySelector('app-manuscript-surface')).toBeTruthy();
+  });
+
+  it('keeps the publish modal open after confirm (so its result view can show)', () => {
+    setup();
+    contentService.publish.and.returnValue(of(void 0));
+    component.publishModalVisible.set(true);
+    component.onPublishConfirm({ platforms: [], scheduledAt: undefined });
+    expect(component.publishModalVisible()).toBeTrue();
+  });
+
+  it('seeds create() from topic/type/sourceIdeaId query params on /content/new', () => {
+    setup(
+      {},
+      undefined,
+      { topic: 'My great topic', type: 'LinkedInPost', sourceIdeaId: 'idea-9' },
+    );
+    expect(contentService.create).toHaveBeenCalledWith(jasmine.objectContaining({
+      title: 'My great topic',
+      contentType: 'LinkedInPost' as ContentType,
+      sourceIdeaId: 'idea-9',
+    }));
     expect(router.navigate).toHaveBeenCalledWith(['/content', 'new-id-1']);
   });
 
-  it('should render platform selector dropdown', () => {
-    setup();
-    expect(fixture.nativeElement.querySelector('[data-testid="platform-selector"]')).toBeTruthy();
+  it('falls back to Untitled/Blog when no query params are present on /content/new', () => {
+    setup({}, undefined, {});
+    expect(contentService.create).toHaveBeenCalledWith(jasmine.objectContaining({
+      title: 'Untitled',
+      contentType: ContentType.BlogPost,
+      primaryPlatform: Platform.Blog,
+    }));
+    const arg = contentService.create.calls.mostRecent().args[0] as unknown as Record<string, unknown>;
+    expect('sourceIdeaId' in arg).toBeFalse();
   });
 
-  it('should render content type selector dropdown', () => {
-    setup();
-    expect(fixture.nativeElement.querySelector('[data-testid="type-selector"]')).toBeTruthy();
-  });
-
-  it('should render status badge reflecting current status', () => {
-    setup();
-    const badge = fixture.nativeElement.querySelector('[data-testid="status-badge"]');
-    expect(badge).toBeTruthy();
-    expect(badge.getAttribute('ng-reflect-value') ?? badge.textContent).toContain('Draft');
-  });
-
-  it('should render tags input', () => {
-    setup();
-    expect(fixture.nativeElement.querySelector('[data-testid="tags-input"]')).toBeTruthy();
-  });
-
-  it('should render voice score knob when score exists', () => {
-    setup({}, mockContent({ voiceScore: 85 }));
-    expect(fixture.nativeElement.querySelector('[data-testid="voice-knob"]')).toBeTruthy();
-  });
-
-  it('should render auto-save indicator showing Saved when not dirty', () => {
-    setup();
-    isDirtySignal.set(false);
-    isSavingSignal.set(false);
-    fixture.detectChanges();
-    const indicator = fixture.nativeElement.querySelector('[data-testid="save-indicator"]');
-    expect(indicator.textContent.trim()).toBe('Saved');
-  });
-
-  it('should render auto-save indicator showing Saving... when saving', () => {
-    setup();
-    isSavingSignal.set(true);
-    fixture.detectChanges();
-    const indicator = fixture.nativeElement.querySelector('[data-testid="save-indicator"]');
-    expect(indicator.textContent.trim()).toBe('Saving...');
-  });
-
-  it('should render auto-save indicator showing Unsaved when dirty', () => {
-    setup();
-    isDirtySignal.set(true);
-    isSavingSignal.set(false);
-    fixture.detectChanges();
-    const indicator = fixture.nativeElement.querySelector('[data-testid="save-indicator"]');
-    expect(indicator.textContent.trim()).toBe('Unsaved changes');
-  });
-
-  it('should render bottom action bar with correct buttons for Draft status', () => {
-    setup({}, mockContent({ status: ContentStatus.Draft }));
-    const buttons = fixture.nativeElement.querySelectorAll('[data-testid="action-bar"] p-button');
-    const labels = Array.from(buttons).map((b: any) => b.getAttribute('ng-reflect-label') ?? b.getAttribute('label'));
-    expect(labels).toContain('Save Draft');
-    expect(labels).toContain('Approve');
-    expect(labels).toContain('Submit for Review');
-  });
-
-  it('should render bottom action bar with correct buttons for Approved status', () => {
-    setup({}, mockContent({ status: ContentStatus.Approved }));
-    const buttons = fixture.nativeElement.querySelectorAll('[data-testid="action-bar"] p-button');
-    const labels = Array.from(buttons).map((b: any) => b.getAttribute('ng-reflect-label') ?? b.getAttribute('label'));
-    expect(labels).toContain('Schedule');
-    expect(labels).toContain('Publish Now');
-  });
-
-  it('should render bottom action bar with Restore button for Archived status', () => {
-    setup({}, mockContent({ status: ContentStatus.Archived }));
-    const buttons = fixture.nativeElement.querySelectorAll('[data-testid="action-bar"] p-button');
-    const labels = Array.from(buttons).map((b: any) => b.getAttribute('ng-reflect-label') ?? b.getAttribute('label'));
-    expect(labels).toContain('Restore');
-  });
-
-  it('should call store.updateField when platform dropdown changes', () => {
-    setup();
-    component.onPlatformChange(Platform.LinkedIn);
-    expect(mockStore.updateField).toHaveBeenCalledWith('primaryPlatform', Platform.LinkedIn);
-  });
-
-  it('should trigger auto-save debounce when editor content changes', fakeAsync(() => {
+  it('triggers autosave debounce on body change for Draft status', fakeAsync(() => {
     setup({}, mockContent({ status: ContentStatus.Draft }));
     component.onBodyChange('# Updated content');
     tick(3000);
     expect(mockStore.autoSave).toHaveBeenCalled();
   }));
 
-  it('should NOT auto-save when status is Published', fakeAsync(() => {
+  it('does NOT autosave for Approved status', fakeAsync(() => {
+    setup({}, mockContent({ status: ContentStatus.Approved }));
+    component.onBodyChange('# Updated content');
+    tick(3000);
+    expect(mockStore.autoSave).not.toHaveBeenCalled();
+  }));
+
+  it('does NOT autosave for Published status', fakeAsync(() => {
     setup({}, mockContent({ status: ContentStatus.Published }));
     component.onBodyChange('# Updated content');
     tick(3000);
     expect(mockStore.autoSave).not.toHaveBeenCalled();
   }));
+
+  it('renders the action bar for Draft status with Save/Submit/Approve actions', () => {
+    setup({}, mockContent({ status: ContentStatus.Draft }));
+    const labels = Array.from(
+      fixture.nativeElement.querySelectorAll('[data-testid="action-bar"] .btn'),
+    ).map((b: any) => b.textContent.trim());
+    expect(labels).toContain('Save Draft');
+    expect(labels).toContain('Approve');
+    expect(labels).toContain('Submit for Review');
+  });
+
+  it('renders the action bar for Approved status with Schedule/Publish', () => {
+    setup({}, mockContent({ status: ContentStatus.Approved }));
+    const labels = Array.from(
+      fixture.nativeElement.querySelectorAll('[data-testid="action-bar"] .btn'),
+    ).map((b: any) => b.textContent.trim());
+    expect(labels).toContain('Schedule');
+    expect(labels).toContain('Publish Now');
+  });
+
+  it('renders the Restore action for Archived status', () => {
+    setup({}, mockContent({ status: ContentStatus.Archived }));
+    const labels = Array.from(
+      fixture.nativeElement.querySelectorAll('[data-testid="action-bar"] .btn'),
+    ).map((b: any) => b.textContent.trim());
+    expect(labels).toContain('Restore');
+  });
+
+  it('Assistant toggle (panelOpen) shows and hides the side panel', () => {
+    setup();
+    expect(component.panelOpen()).toBeTrue();
+    expect(fixture.nativeElement.querySelector('[data-testid="side-panel"]')).toBeTruthy();
+
+    component.panelOpen.set(false);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[data-testid="side-panel"]')).toBeFalsy();
+  });
 });

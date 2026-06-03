@@ -109,7 +109,6 @@ describe('SidecarChatComponent', () => {
     fixture = TestBed.createComponent(SidecarChatComponent);
     component = fixture.componentInstance;
     componentRef = fixture.componentRef;
-    componentRef.setInput('visible', true);
     componentRef.setInput('contentId', 'content-1');
     fixture.detectChanges();
   }
@@ -126,7 +125,13 @@ describe('SidecarChatComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  it('should send message via sendChatMessage on submit', () => {
+  it('renders inline without a p-drawer chrome', () => {
+    setup();
+    expect(fixture.nativeElement.querySelector('p-drawer')).toBeFalsy();
+    expect(fixture.nativeElement.querySelector('.chat-container')).toBeTruthy();
+  });
+
+  it('should send message via sendChatMessage on submit (SignalR wiring unchanged)', () => {
     setup();
     component.inputMessage.set('Refine the intro');
     component.sendMessage();
@@ -157,24 +162,53 @@ describe('SidecarChatComponent', () => {
     expect(signalRService.sendChatMessage).not.toHaveBeenCalled();
   });
 
-  it('should display streaming area when tokens are present', () => {
+  it('appends tokens via store.appendToken (SignalR tokens$ wiring unchanged)', () => {
+    setup();
+    tokensSubject.next('chunk');
+    expect(mockStore.appendToken).toHaveBeenCalledWith('chunk');
+  });
+
+  it('completes the stream via store.completeGeneration on generationComplete$', () => {
+    setup();
+    completeSubject.next('final answer');
+    expect(mockStore.completeGeneration).toHaveBeenCalledWith('final answer');
+  });
+
+  it('shows the streaming token bubble (not the thinking dots) once tokens arrive', () => {
     setup();
     isStreamingSignal.set(true);
     currentTokensSignal.set('Hello world');
     fixture.detectChanges();
-    const streaming = fixture.nativeElement.querySelector('[data-testid="streaming-area"]');
-    expect(streaming).toBeTruthy();
-    const shimmer = fixture.nativeElement.querySelector('[data-testid="skeleton-shimmer"]');
-    expect(shimmer).toBeFalsy();
+    expect(fixture.nativeElement.querySelector('[data-testid="streaming-area"]')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('[data-testid="thinking-dots"]')).toBeFalsy();
   });
 
-  it('should show skeleton shimmer before first token', () => {
+  it('shows the 3-dot thinking animation before the first token (no skeleton shimmer)', () => {
     setup();
     isStreamingSignal.set(true);
     currentTokensSignal.set('');
     fixture.detectChanges();
-    const shimmer = fixture.nativeElement.querySelector('[data-testid="skeleton-shimmer"]');
-    expect(shimmer).toBeTruthy();
+    const dots = fixture.nativeElement.querySelector('[data-testid="thinking-dots"]');
+    expect(dots).toBeTruthy();
+    expect(dots.querySelectorAll('.dot').length).toBe(3);
+    expect(fixture.nativeElement.querySelector('[data-testid="skeleton-shimmer"]')).toBeFalsy();
+  });
+
+  it('styles assistant bubbles (elevated + border) differently from user bubbles (brand + dark text)', () => {
+    setup();
+    chatMessagesSignal.set([
+      { role: 'user', content: 'hi', timestamp: '2026-01-01T00:00:00Z' },
+      { role: 'assistant', content: 'hello', timestamp: '2026-01-01T00:00:01Z' },
+    ]);
+    fixture.detectChanges();
+    const user = fixture.nativeElement.querySelector('.user-bubble') as HTMLElement;
+    const assistant = fixture.nativeElement.querySelector('.assistant-bubble') as HTMLElement;
+    expect(user).toBeTruthy();
+    expect(assistant).toBeTruthy();
+    const userStyle = getComputedStyle(user);
+    const assistantStyle = getComputedStyle(assistant);
+    expect(userStyle.backgroundColor).not.toBe(assistantStyle.backgroundColor);
+    expect(parseFloat(assistantStyle.borderTopWidth)).toBeGreaterThan(0);
   });
 
   it('should show action buttons on completed assistant message', () => {
@@ -189,7 +223,7 @@ describe('SidecarChatComponent', () => {
     expect(copyBtn).toBeTruthy();
   });
 
-  it('should call applyToEditor when Apply button clicked', () => {
+  it('Apply calls store.applyToEditor', () => {
     setup();
     chatMessagesSignal.set([
       { role: 'assistant', content: 'New body text', timestamp: '2026-01-01T00:00:00Z' },
@@ -197,6 +231,14 @@ describe('SidecarChatComponent', () => {
     fixture.detectChanges();
     component.applyToEditor('New body text');
     expect(mockStore.applyToEditor).toHaveBeenCalledWith('New body text');
+  });
+
+  it('Copy writes the text to the clipboard', () => {
+    setup();
+    const writeText = jasmine.createSpy('writeText').and.resolveTo();
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    component.copyToClipboard('copy me');
+    expect(writeText).toHaveBeenCalledWith('copy me');
   });
 
   it('should show draft chips when editor body is empty', () => {

@@ -14,7 +14,7 @@ describe('ContentStore', () => {
     items: [],
     totalCount: 0,
     page: 1,
-    pageSize: 20,
+    pageSize: 1000,
     totalPages: 0,
   };
 
@@ -35,10 +35,7 @@ describe('ContentStore', () => {
   };
 
   beforeEach(() => {
-    contentService = jasmine.createSpyObj('ContentService', [
-      'list',
-      'delete',
-    ]);
+    contentService = jasmine.createSpyObj('ContentService', ['list', 'delete']);
     contentService.list.and.returnValue(of(emptyPage));
     contentService.delete.and.returnValue(of(void 0));
 
@@ -52,53 +49,51 @@ describe('ContentStore', () => {
   });
 
   it('has correct initial state', () => {
-    expect(store.contents()).toEqual([]);
-    expect(store.totalCount()).toBe(0);
-    expect(store.page()).toBe(1);
-    expect(store.pageSize()).toBe(20);
+    expect(store.allContents()).toEqual([]);
+    expect(store.activeStatus()).toBeNull();
+    expect(store.search()).toBe('');
     expect(store.filters()).toEqual({});
-    expect(store.viewMode()).toBe('list');
+    expect(store.viewMode()).toBe('board');
     expect(store.loading()).toBeFalse();
     expect(store.error()).toBeNull();
   });
 
-  it('loadContents fetches from service', () => {
+  it('loadAll fetches the whole pipeline into allContents', () => {
     const page: PagedResult<Content> = {
       items: [mockContent],
       totalCount: 1,
       page: 1,
-      pageSize: 20,
+      pageSize: 1000,
       totalPages: 1,
     };
     contentService.list.and.returnValue(of(page));
 
-    store.loadContents();
+    store.loadAll();
 
     expect(contentService.list).toHaveBeenCalled();
-    expect(store.contents()).toEqual([mockContent]);
-    expect(store.totalCount()).toBe(1);
+    expect(store.allContents()).toEqual([mockContent]);
     expect(store.loading()).toBeFalse();
   });
 
-  it('setFilter updates filter and reloads', () => {
-    store.setPage(3);
+  it('setView widens to board/grid/table', () => {
+    store.setView('grid');
+    expect(store.viewMode()).toBe('grid');
+    store.setView('table');
+    expect(store.viewMode()).toBe('table');
+    store.setView('board');
+    expect(store.viewMode()).toBe('board');
+  });
+
+  it('setFilter merges a popover filter without refetching', () => {
     contentService.list.calls.reset();
 
-    store.setFilter('status', ContentStatus.Draft);
+    store.setFilter('platform', Platform.LinkedIn);
 
-    expect(store.filters().status).toBe(ContentStatus.Draft);
-    expect(store.page()).toBe(1);
-    expect(contentService.list).toHaveBeenCalled();
+    expect(store.filters().platform).toBe(Platform.LinkedIn);
+    expect(contentService.list).not.toHaveBeenCalled();
   });
 
-  it('setPage updates pagination and reloads', () => {
-    store.setPage(3);
-
-    expect(store.page()).toBe(3);
-    expect(contentService.list).toHaveBeenCalled();
-  });
-
-  it('deleteContent calls service and reloads', () => {
+  it('deleteContent calls service then reloads via loadAll', () => {
     store.deleteContent('content-1');
 
     expect(contentService.delete).toHaveBeenCalledWith('content-1');
@@ -110,35 +105,9 @@ describe('ContentStore', () => {
       throwError(() => new Error('Network error'))
     );
 
-    store.loadContents();
+    store.loadAll();
 
     expect(store.loading()).toBeFalse();
     expect(store.error()).toBe('Network error');
-  });
-
-  it('computes totalPages correctly', () => {
-    contentService.list.and.returnValue(
-      of({
-        items: [mockContent],
-        totalCount: 45,
-        page: 1,
-        pageSize: 20,
-        totalPages: 3,
-      })
-    );
-
-    store.loadContents();
-
-    expect(store.totalPages()).toBe(3);
-  });
-
-  it('toggleView switches list/grid', () => {
-    expect(store.viewMode()).toBe('list');
-
-    store.toggleView();
-    expect(store.viewMode()).toBe('grid');
-
-    store.toggleView();
-    expect(store.viewMode()).toBe('list');
   });
 });

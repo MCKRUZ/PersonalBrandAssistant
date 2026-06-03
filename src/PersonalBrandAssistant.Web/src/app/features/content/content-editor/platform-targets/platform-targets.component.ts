@@ -37,18 +37,18 @@ import { platformIconClass } from '../../content-list/content-display.utils';
   styles: [`
     .platform-targets {
       display: flex; align-items: center; gap: 16px;
-      padding: 6px 16px; border-bottom: 1px solid #21262d; flex-shrink: 0;
+      padding: 6px 16px; border-bottom: 1px solid var(--surface-elevated); flex-shrink: 0;
       overflow-x: auto;
     }
     .platform-checkbox {
       display: flex; align-items: center; gap: 6px; font-size: 13px;
-      color: #c9d1d9; cursor: pointer; white-space: nowrap;
+      color: var(--text-primary); cursor: pointer; white-space: nowrap;
     }
     .platform-checkbox.disabled { opacity: 0.5; cursor: not-allowed; }
     .platform-checkbox input { cursor: inherit; }
     .platform-label { font-size: 12px; }
-    .char-count, .word-count { font-size: 11px; color: #8b949e; }
-    .char-count.over-limit { color: #f85149; font-weight: 600; }
+    .char-count, .word-count { font-size: 11px; color: var(--text-secondary); }
+    .char-count.over-limit { color: var(--voice-low); font-weight: 600; }
   `],
 })
 export class PlatformTargetsComponent {

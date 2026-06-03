@@ -1,0 +1,26 @@
+{
+  "plugin_root": "C:\\Users\\kruz7\\.claude\\plugins\\cache\\piercelamb-plugins\\deep-implement\\0.2.0",
+  "sections_dir": "C:\\Users\\kruz7\\OneDrive\\Documents\\Code Repos\\MCKRUZ\\personal-brand-assistant\\planning\\content-studio-redesign\\sections",
+  "target_dir": "C:\\Users\\kruz7\\OneDrive\\Documents\\Code Repos\\MCKRUZ\\personal-brand-assistant",
+  "state_dir": "C:\\Users\\kruz7\\OneDrive\\Documents\\Code Repos\\MCKRUZ\\personal-brand-assistant\\planning\\content-studio-redesign\\implementation",
+  "git_root": "C:\\Users\\kruz7\\OneDrive\\Documents\\Code Repos\\MCKRUZ\\personal-brand-assistant",
+  "commit_style": "conventional",
+  "test_command": "uv run pytest",
+  "sections": [
+    "section-01-foundation",
+    "section-02-shared-atoms-store",
+    "section-03-publish-overlay",
+    "section-04-content-list",
+    "section-05-editor"
+  ],
+  "sections_state": {},
+  "pre_commit": {
+    "present": false,
+    "type": "none",
+    "config_file": null,
+    "native_hook": null,
+    "may_modify_files": false,
+    "detected_formatters": []
+  },
+  "created_at": "2026-06-02T23:19:19.784588+00:00"
+}
