@@ -318,3 +318,35 @@ Once `pipeline-bar` + `filters-popover` cover its function, delete `content-filt
 - **Optimistic UX:** `transition` patches status immediately and rolls back on service error with a user-visible notice (handled inside the store from section 02 — the list flow just calls it).
 - **Concurrency:** a board/drawer transition can invalidate an open editor's `lastUpdatedAt` token. Out of scope to fully solve here; the documented limitation in section 02 applies.
 - **Schedule dialog:** keep it simple — a date/time picker producing `scheduledAt`. The same dialog is reused by the board drop (`Scheduled` column) and the drawer "Move to Scheduled" action.
+
+---
+
+## IMPLEMENTATION NOTES (actual — as built)
+
+Implemented by a subagent from this section file, then code-reviewed (CLEAN). Result: 481 tests pass,
+0 failures; `ng build` clean; zero GitHub-dark hexes.
+
+- **New components:** `pipeline-bar`, `content-board` (CDK kanban), `detail-drawer` (`p-drawer`),
+  `filters-popover` (`p-popover`), `studio-empty-state` (inspire + filtered), and a shared
+  `schedule-dialog` (datetime → `scheduledAt`) reused by the board's Scheduled-drop and the drawer's
+  Move-to-Scheduled.
+- **Store:** widened `viewMode` to `'board'|'grid'|'table'` (init `'board'`); REMOVED the legacy paged
+  surface (`contents`/`page`/`pageSize`/`loadContents`/`setPage`/`toggleView`/`totalPages`/…);
+  `deleteContent` now just `loadAll()`. `transition`/`counts`/`filtered`/`byStatus` intact.
+- **Board:** `cdkDropListGroup` + per-status `cdkDropList`; `cdkDropListEnterPredicate` gates entry on
+  `LEGAL_TRANSITIONS`; `onDrop` never mutates event arrays (dispatches `store.transition`, or opens the
+  schedule dialog for the Scheduled column).
+- **Orchestrator rewrite:** serif header + live subtitle, 300ms debounced search, Board/Table toggle,
+  pipeline bar, Filters popover, `@switch(viewMode)` (all from `filtered()`/`byStatus()`), hosted
+  drawer via `selectedId`, inspire/filtered empty states, `loadAll()` on init.
+- **Restyled:** `content-card` (added `variant="board"`), `content-list-table` (card-wrapped, no
+  Actions col, row→drawer), `content-grid` (board cards). **Fixed** the pre-existing ContentCard
+  `'Blog Post'` spec → asserts `'Blog'` (`ContentType.BlogPost==='Blog'`).
+- **Deleted:** `content-filter-sidebar/`, `view-toggle/` (toggle folded into the orchestrator).
+- **Drawer "Publish →"** routes to `/content/:id` (editor owns the publish modal) rather than
+  instantiating the modal from the list.
+- **Follow-ups (non-blocking, from review):** drawer body-preview uses a `subscribe` in an `effect`
+  (idiomatic `rxResource` would be cleaner; low-risk single-select race); `content-card`
+  `edit`/`onDelete`/`duplicate` outputs are now dead — cleanup later.
+- Review: `implementation/code_review/section-04-review.md`.
+

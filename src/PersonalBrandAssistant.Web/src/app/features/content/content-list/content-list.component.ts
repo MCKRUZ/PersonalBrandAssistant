@@ -1,197 +1,292 @@
-import { Component, DestroyRef, inject, OnInit } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  DestroyRef,
+  OnInit,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+import { Subject, debounceTime } from 'rxjs';
 import { ButtonModule } from 'primeng/button';
-import { PaginatorModule } from 'primeng/paginator';
 import { InputTextModule } from 'primeng/inputtext';
 import { ContentStore } from '../stores/content.store';
-import { ContentFilterSidebarComponent } from './content-filter-sidebar/content-filter-sidebar.component';
-import { ContentViewToggleComponent } from './view-toggle/view-toggle.component';
+import { ContentType } from '../models/content.model';
+import { PipelineBarComponent } from './pipeline-bar/pipeline-bar.component';
+import { ContentBoardComponent } from './content-board/content-board.component';
 import { ContentGridComponent } from './content-grid/content-grid.component';
 import { ContentListTableComponent } from './content-list-table/content-list-table.component';
+import { DetailDrawerComponent } from './detail-drawer/detail-drawer.component';
+import { FiltersPopoverComponent } from './filters-popover/filters-popover.component';
+import {
+  StudioEmptyStateComponent,
+  IdeaSuggestion,
+} from './studio-empty-state/studio-empty-state.component';
+
+const IDEA_SUGGESTIONS: IdeaSuggestion[] = [
+  {
+    title: 'A lesson from this week',
+    blurb: 'Turn a small win or failure into a short, honest post.',
+    topic: 'weekly lesson',
+    type: ContentType.LinkedInPost,
+  },
+  {
+    title: 'A take on where AI is heading',
+    blurb: 'Stake a clear position and defend it.',
+    topic: 'AI direction',
+    type: ContentType.Tweet,
+  },
+  {
+    title: 'A deep-dive you keep meaning to write',
+    blurb: 'The long-form piece living in your head.',
+    topic: 'deep dive',
+    type: ContentType.BlogPost,
+  },
+  {
+    title: 'Behind the build',
+    blurb: 'Show how something you shipped actually works.',
+    topic: 'behind the build',
+    type: ContentType.SubstackNewsletter,
+  },
+];
 
 @Component({
   selector: 'app-content-list',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    RouterLink,
     FormsModule,
     ButtonModule,
-    PaginatorModule,
     InputTextModule,
-    ContentFilterSidebarComponent,
-    ContentViewToggleComponent,
+    PipelineBarComponent,
+    ContentBoardComponent,
     ContentGridComponent,
     ContentListTableComponent,
+    DetailDrawerComponent,
+    FiltersPopoverComponent,
+    StudioEmptyStateComponent,
   ],
   template: `
-    <div class="content-layout" data-testid="content-list-page">
-      <aside class="filter-sidebar">
-        <app-content-filter-sidebar />
-      </aside>
-
-      <main class="content-main">
-        <header class="content-header">
-          <div class="header-top">
+    <div class="studio" data-testid="content-list-page">
+      <header class="studio-header">
+        <div class="title-row">
+          <div class="titles">
             <h1>Content Studio</h1>
-            <p-button
-              label="New Content"
-              icon="pi pi-plus"
-              (onClick)="onNewContent()"
-              data-testid="new-content-btn" />
+            <p class="subtitle">{{ subtitle() }}</p>
           </div>
-          <div class="header-controls">
-            <div class="search-wrapper">
-              <i class="pi pi-search"></i>
-              <input type="text" pInputText
-                placeholder="Search content..."
-                [(ngModel)]="searchText"
-                (input)="onSearchInput()"
-                data-testid="search-input" />
-            </div>
-            <app-content-view-toggle />
-          </div>
-        </header>
+          <p-button
+            label="New Content"
+            icon="pi pi-plus"
+            (onClick)="onNewContent()"
+            data-testid="new-content-btn" />
+        </div>
 
-        @if (store.loading()) {
-          <div class="loading-state">Loading content...</div>
+        <div class="controls">
+          <div class="search-wrapper">
+            <i class="pi pi-search"></i>
+            <input
+              type="text"
+              pInputText
+              placeholder="Search title or tags…"
+              [(ngModel)]="searchText"
+              (input)="onSearchInput()"
+              data-testid="search-input" />
+          </div>
+
+          <div class="view-toggle" data-testid="view-toggle">
+            <button
+              type="button"
+              [class.on]="store.viewMode() === 'board'"
+              (click)="store.setView('board')"
+              data-testid="toggle-board">
+              <i class="pi pi-th-large"></i> Board
+            </button>
+            <button
+              type="button"
+              [class.on]="store.viewMode() === 'table'"
+              (click)="store.setView('table')"
+              data-testid="toggle-table">
+              <i class="pi pi-list"></i> Table
+            </button>
+          </div>
+
+          <p-button
+            label="Filters"
+            icon="pi pi-filter"
+            severity="secondary"
+            [outlined]="true"
+            (onClick)="filters.toggle($event)"
+            data-testid="filters-btn" />
+          <app-filters-popover #filters />
+        </div>
+      </header>
+
+      <app-pipeline-bar />
+
+      <div class="views">
+        @if (store.allContents().length === 0 && !store.loading()) {
+          <app-studio-empty-state variant="inspire" [suggestions]="ideaSuggestions" />
+        } @else if (store.filtered().length === 0 && !store.loading()) {
+          <app-studio-empty-state variant="filtered" (clearFilters)="onClearFilters()" />
         } @else {
-          @if (store.viewMode() === 'grid') {
-            <app-content-grid
-              [contents]="store.contents()"
-              (edit)="onEdit($event)"
-              (onDelete)="onDelete($event)"
-              (duplicate)="onDuplicate($event)" />
-          } @else {
-            <app-content-list-table
-              [contents]="store.contents()"
-              (edit)="onEdit($event)"
-              (onDelete)="onDelete($event)"
-              (duplicate)="onDuplicate($event)" />
-          }
-
-          @if (store.totalCount() > store.pageSize()) {
-            <p-paginator
-              [rows]="store.pageSize()"
-              [totalRecords]="store.totalCount()"
-              [first]="(store.page() - 1) * store.pageSize()"
-              (onPageChange)="onPageChange($event)"
-              data-testid="paginator" />
+          @switch (store.viewMode()) {
+            @case ('board') {
+              <app-content-board (openCard)="onOpen($event)" />
+            }
+            @case ('grid') {
+              <app-content-grid [contents]="store.filtered()" (openCard)="onOpen($event)" />
+            }
+            @case ('table') {
+              <app-content-list-table [contents]="store.filtered()" (openRow)="onOpen($event)" />
+            }
           }
         }
-      </main>
+      </div>
+
+      <app-detail-drawer [contentId]="selectedId()" (closed)="onCloseDrawer()" />
     </div>
   `,
-  styles: [
-    `
-      .content-layout {
-        display: grid;
-        grid-template-columns: 240px 1fr;
-        gap: 0;
-        height: 100%;
-        min-height: 0;
-      }
-      .filter-sidebar {
-        overflow-y: auto;
-      }
-      .content-main {
-        padding: 16px 24px;
-        overflow-y: auto;
-        display: flex;
-        flex-direction: column;
-        gap: 16px;
-      }
-      .content-header {
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-      }
-      .header-top {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-      }
-      .header-top h1 {
-        font-size: 24px;
-        font-weight: 600;
-        margin: 0;
-        color: var(--text-primary);
-      }
-      .header-controls {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 12px;
-      }
-      .search-wrapper {
-        position: relative;
-        flex: 1;
-        max-width: 400px;
-      }
-      .search-wrapper i {
-        position: absolute;
-        left: 10px;
-        top: 50%;
-        transform: translateY(-50%);
-        color: var(--text-secondary);
-        font-size: 14px;
-      }
-      .search-wrapper input {
-        width: 100%;
-        padding-left: 32px;
-      }
-      .loading-state {
-        text-align: center;
-        padding: 48px;
-        color: var(--text-secondary);
-      }
-    `,
-  ],
+  styles: [`
+    .studio {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      min-height: 0;
+      overflow: hidden;
+    }
+    .studio-header {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      padding: 22px 28px 0;
+    }
+    .title-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .titles h1 {
+      font-family: var(--font-display);
+      font-size: 30px;
+      font-weight: 400;
+      color: var(--text-primary);
+      margin: 0;
+    }
+    .subtitle {
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin: 4px 0 0;
+    }
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .search-wrapper {
+      position: relative;
+      flex: 1;
+      min-width: 220px;
+      max-width: 420px;
+    }
+    .search-wrapper i {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+    .search-wrapper input {
+      width: 100%;
+      padding-left: 34px;
+    }
+    .view-toggle {
+      display: inline-flex;
+      gap: 2px;
+      padding: 3px;
+      background: var(--surface-card);
+      border: 1px solid var(--surface-border);
+      border-radius: var(--r-pill);
+    }
+    .view-toggle button {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      border-radius: var(--r-pill);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.14s, color 0.14s;
+    }
+    .view-toggle button.on {
+      background: var(--surface-elevated);
+      color: var(--text-primary);
+    }
+    .views {
+      flex: 1;
+      min-height: 0;
+      overflow: auto;
+    }
+  `],
 })
 export class ContentListComponent implements OnInit {
   readonly store = inject(ContentStore);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
 
+  readonly ideaSuggestions = IDEA_SUGGESTIONS;
+
   searchText = '';
-  private searchTimer: ReturnType<typeof setTimeout> | null = null;
+  private readonly search$ = new Subject<string>();
+  readonly selectedId = signal<string | null>(null);
+
+  readonly subtitle = computed(() => {
+    const n = this.store.allContents().length;
+    return `${n} ${n === 1 ? 'piece' : 'pieces'} moving through your pipeline`;
+  });
+
+  constructor() {
+    this.search$
+      .pipe(debounceTime(300), takeUntilDestroyed())
+      .subscribe((term) => this.store.setSearch(term));
+  }
 
   ngOnInit(): void {
-    this.store.loadContents();
-    this.destroyRef.onDestroy(() => {
-      if (this.searchTimer) clearTimeout(this.searchTimer);
-    });
+    this.store.loadAll();
   }
 
   onSearchInput(): void {
-    if (this.searchTimer) clearTimeout(this.searchTimer);
-    this.searchTimer = setTimeout(() => {
-      this.store.setFilter('search', this.searchText || undefined);
-    }, 300);
+    this.search$.next(this.searchText);
   }
 
   onNewContent(): void {
     this.router.navigate(['/content/new']);
   }
 
-  onEdit(id: string): void {
-    this.router.navigate(['/content', id]);
+  onOpen(id: string): void {
+    this.selectedId.set(id);
   }
 
-  onDelete(id: string): void {
-    if (confirm('Are you sure you want to delete this content?')) {
-      this.store.deleteContent(id);
-    }
+  onCloseDrawer(): void {
+    this.selectedId.set(null);
   }
 
-  onDuplicate(_id: string): void {
-    // Will be wired to content duplication in a future section
-  }
-
-  onPageChange(event: { first?: number; rows?: number }): void {
-    const first = event.first ?? 0;
-    const rows = event.rows ?? this.store.pageSize();
-    const page = Math.floor(first / rows) + 1;
-    this.store.setPage(page);
+  onClearFilters(): void {
+    this.store.setActiveStatus(null);
+    this.store.setSearch('');
+    this.searchText = '';
+    this.store.setFilter('platform', undefined);
+    this.store.setFilter('contentType', undefined);
+    this.store.setFilter('dateFrom', undefined);
+    this.store.setFilter('dateTo', undefined);
   }
 }

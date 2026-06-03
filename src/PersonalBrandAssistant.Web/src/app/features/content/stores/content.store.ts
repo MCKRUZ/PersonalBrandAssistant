@@ -25,14 +25,8 @@ type ContentStoreState = {
   allContents: Content[];
   activeStatus: ContentStatus | null;
   search: string;
-
-  // Legacy paged state (consumed by the not-yet-rewritten content-list; removed in section 04).
-  contents: Content[];
-  totalCount: number;
-  page: number;
-  pageSize: number;
   filters: Partial<ContentFilterState>;
-  viewMode: 'list' | 'grid';
+  viewMode: 'board' | 'grid' | 'table';
 
   loading: boolean;
   error: string | null;
@@ -42,12 +36,8 @@ const initialState: ContentStoreState = {
   allContents: [],
   activeStatus: null,
   search: '',
-  contents: [],
-  totalCount: 0,
-  page: 1,
-  pageSize: 20,
   filters: {},
-  viewMode: 'list',
+  viewMode: 'board',
   loading: false,
   error: null,
 };
@@ -63,7 +53,6 @@ export const ContentStore = signalStore(
   { providedIn: 'root' },
   withState(initialState),
   withComputed((state) => ({
-    // --- redesign computeds (over allContents) ---
     counts: computed(() => {
       const counts = emptyCounts();
       for (const c of state.allContents()) counts[c.status]++;
@@ -90,10 +79,6 @@ export const ContentStore = signalStore(
         return true;
       });
     }),
-    // --- legacy paged computeds ---
-    totalPages: computed(() => Math.ceil(state.totalCount() / state.pageSize())),
-    hasNextPage: computed(() => state.page() * state.pageSize() < state.totalCount()),
-    hasPreviousPage: computed(() => state.page() > 1),
   })),
   withComputed((state) => ({
     // board columns, grouped from the filtered set
@@ -108,26 +93,6 @@ export const ContentStore = signalStore(
   })),
   withMethods((store) => {
     const contentService = inject(ContentService);
-
-    // Legacy paged loader (content-list, removed in section 04).
-    const loadContents = rxMethod<void>(
-      pipe(
-        tap(() => patchState(store, { loading: true, error: null })),
-        switchMap(() =>
-          contentService.list(store.filters(), store.page(), store.pageSize()).pipe(
-            tapResponse({
-              next: (result) =>
-                patchState(store, {
-                  contents: result.items,
-                  totalCount: result.totalCount,
-                  loading: false,
-                }),
-              error: (err: Error) => patchState(store, { loading: false, error: err.message }),
-            })
-          )
-        )
-      )
-    );
 
     // The redesign's single fetch: pull the whole pipeline, render/filter client-side.
     const loadAll = rxMethod<void>(
@@ -179,7 +144,6 @@ export const ContentStore = signalStore(
     }
 
     return {
-      loadContents,
       loadAll,
 
       setActiveStatus(status: ContentStatus | null): void {
@@ -188,7 +152,7 @@ export const ContentStore = signalStore(
       setSearch(term: string): void {
         patchState(store, { search: term });
       },
-      setView(mode: 'list' | 'grid'): void {
+      setView(mode: 'board' | 'grid' | 'table'): void {
         patchState(store, { viewMode: mode });
       },
 
@@ -244,25 +208,16 @@ export const ContentStore = signalStore(
         });
       },
 
+      /** Merge popover filters (platform/type/date) into the client-side `filtered()` set. */
       setFilter<K extends keyof ContentFilterState>(key: K, value: ContentFilterState[K]): void {
-        patchState(store, { filters: { ...store.filters(), [key]: value }, page: 1 });
-        loadContents();
+        patchState(store, { filters: { ...store.filters(), [key]: value } });
       },
-      setPage(page: number): void {
-        patchState(store, { page });
-        loadContents();
-      },
+
       deleteContent(id: string): void {
         contentService.delete(id).subscribe({
-          next: () => {
-            loadAll();
-            loadContents();
-          },
+          next: () => loadAll(),
           error: (err: Error) => patchState(store, { error: err.message }),
         });
-      },
-      toggleView(): void {
-        patchState(store, { viewMode: store.viewMode() === 'list' ? 'grid' : 'list' });
       },
     };
   })

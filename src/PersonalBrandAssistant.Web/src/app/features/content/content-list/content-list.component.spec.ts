@@ -1,22 +1,17 @@
 import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
+import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { of } from 'rxjs';
 import { ContentListComponent } from './content-list.component';
 import { ContentStore } from '../stores/content.store';
 import { ContentService } from '../services/content.service';
 import { ContentStatus, ContentType, Platform } from '../models/content.model';
-import type { Content } from '../models/content.model';
+import type { Content, ContentDetail } from '../models/content.model';
 import type { PagedResult } from '../../../models/pagination.model';
 
-describe('ContentListComponent', () => {
-  let component: ContentListComponent;
-  let fixture: ComponentFixture<ContentListComponent>;
-  let store: InstanceType<typeof ContentStore>;
-  let router: Router;
-  let contentService: jasmine.SpyObj<ContentService>;
-
-  const mockContent: Content = {
+function makeContent(over: Partial<Content> = {}): Content {
+  return {
     id: 'content-1',
     title: 'Test Content',
     contentType: ContentType.BlogPost,
@@ -30,28 +25,35 @@ describe('ContentListComponent', () => {
     scheduledAt: null,
     publishedAt: null,
     platformPublishes: [],
+    ...over,
   };
+}
 
-  const emptyPage: PagedResult<Content> = {
-    items: [],
-    totalCount: 0,
-    page: 1,
-    pageSize: 20,
-    totalPages: 0,
-  };
+function page(items: Content[]): PagedResult<Content> {
+  return { items, totalCount: items.length, page: 1, pageSize: 1000, totalPages: 1 };
+}
+
+describe('ContentListComponent', () => {
+  let component: ContentListComponent;
+  let fixture: ComponentFixture<ContentListComponent>;
+  let store: InstanceType<typeof ContentStore>;
+  let router: Router;
+  let svc: jasmine.SpyObj<ContentService>;
 
   beforeEach(() => {
-    contentService = jasmine.createSpyObj('ContentService', ['list', 'delete']);
-    contentService.list.and.returnValue(of(emptyPage));
-    contentService.delete.and.returnValue(of(void 0));
+    svc = jasmine.createSpyObj('ContentService', ['list', 'get', 'delete']);
+    svc.list.and.returnValue(of(page([])));
+    svc.delete.and.returnValue(of(void 0));
+    svc.get.and.returnValue(of({ ...makeContent(), body: 'body' } as ContentDetail));
 
     TestBed.configureTestingModule({
       imports: [ContentListComponent],
       providers: [
         provideRouter([]),
         provideHttpClient(),
+        provideNoopAnimations(),
         ContentStore,
-        { provide: ContentService, useValue: contentService },
+        { provide: ContentService, useValue: svc },
       ],
     });
 
@@ -61,86 +63,100 @@ describe('ContentListComponent', () => {
     router = TestBed.inject(Router);
   });
 
-  it('should load contents on init', () => {
+  function seed(items: Content[]): void {
+    svc.list.and.returnValue(of(page(items)));
+  }
+
+  it('loads all content on init', () => {
     fixture.detectChanges();
-    expect(contentService.list).toHaveBeenCalled();
+    expect(svc.list).toHaveBeenCalled();
   });
 
-  it('should render the two-column layout', () => {
+  it('subtitle reflects allContents().length', () => {
+    seed([makeContent({ id: 'a' }), makeContent({ id: 'b' })]);
     fixture.detectChanges();
-    const page = fixture.nativeElement.querySelector('[data-testid="content-list-page"]');
-    const sidebar = fixture.nativeElement.querySelector('.filter-sidebar');
-    const main = fixture.nativeElement.querySelector('.content-main');
-    expect(page).toBeTruthy();
-    expect(sidebar).toBeTruthy();
-    expect(main).toBeTruthy();
+    expect(component.subtitle()).toContain('2 pieces');
+    const sub = fixture.nativeElement.querySelector('.subtitle');
+    expect(sub.textContent).toContain('2 pieces moving through your pipeline');
   });
 
-  it('should render Content Studio title', () => {
+  it('renders the serif Content Studio title', () => {
     fixture.detectChanges();
     const h1 = fixture.nativeElement.querySelector('h1');
     expect(h1.textContent).toContain('Content Studio');
   });
 
-  it('should render New Content button', () => {
+  it('shows the inspire empty-state when there is no content', () => {
     fixture.detectChanges();
-    const btn = fixture.nativeElement.querySelector('[data-testid="new-content-btn"]');
-    expect(btn).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('[data-testid="empty-inspire"]')).toBeTruthy();
   });
 
-  it('should render search input', () => {
+  it('shows the filtered empty-state when content exists but nothing matches', () => {
+    seed([makeContent({ id: 'a', status: ContentStatus.Draft })]);
     fixture.detectChanges();
-    const input = fixture.nativeElement.querySelector('[data-testid="search-input"]');
-    expect(input).toBeTruthy();
+    store.setActiveStatus(ContentStatus.Published); // nothing Published
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[data-testid="empty-filtered"]')).toBeTruthy();
   });
 
-  it('should render content rows when contents exist', fakeAsync(() => {
-    contentService.list.and.returnValue(
-      of({ items: [mockContent], totalCount: 1, page: 1, pageSize: 20, totalPages: 1 })
-    );
+  it('renders the board by default and switches to table from filtered()', () => {
+    seed([makeContent({ id: 'a' })]);
     fixture.detectChanges();
-    tick();
-    fixture.detectChanges();
-    const rows = fixture.nativeElement.querySelectorAll('[data-testid="content-row"]');
-    expect(rows.length).toBe(1);
-  }));
+    expect(fixture.nativeElement.querySelector('[data-testid="content-board"]')).toBeTruthy();
 
-  it('should show empty state when no contents', () => {
+    store.setView('table');
     fixture.detectChanges();
-    const empty = fixture.nativeElement.querySelector('[data-testid="empty-state"]');
-    expect(empty).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('[data-testid="content-list-table"]')).toBeTruthy();
   });
 
-  it('should navigate to /content/new on New Content click', () => {
+  it('grid view reads from filtered()', () => {
+    seed([makeContent({ id: 'a' })]);
+    fixture.detectChanges();
+    store.setView('grid');
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[data-testid="content-grid"]')).toBeTruthy();
+  });
+
+  it('+ New Content navigates to /content/new', () => {
     spyOn(router, 'navigate');
     fixture.detectChanges();
     component.onNewContent();
     expect(router.navigate).toHaveBeenCalledWith(['/content/new']);
   });
 
-  it('should show paginator when totalCount exceeds pageSize', () => {
-    contentService.list.and.returnValue(
-      of({ items: [mockContent], totalCount: 45, page: 1, pageSize: 20, totalPages: 3 })
-    );
+  it('debounces the search input ~300ms before calling setSearch', fakeAsync(() => {
     fixture.detectChanges();
-    store.loadContents();
-    fixture.detectChanges();
-    const paginator = fixture.nativeElement.querySelector('[data-testid="paginator"]');
-    expect(paginator).toBeTruthy();
-  });
-
-  it('should call store.setPage on paginator page change', () => {
-    spyOn(store, 'setPage');
-    component.onPageChange({ first: 20, rows: 20 });
-    expect(store.setPage).toHaveBeenCalledWith(2);
-  });
-
-  it('should debounce search input and call store.setFilter', fakeAsync(() => {
-    spyOn(store, 'setFilter');
-    fixture.detectChanges();
-    component.searchText = 'test query';
+    spyOn(store, 'setSearch');
+    component.searchText = 'hello';
     component.onSearchInput();
-    tick(300);
-    expect(store.setFilter).toHaveBeenCalledWith('search', 'test query');
+    tick(150);
+    expect(store.setSearch).not.toHaveBeenCalled();
+    tick(200);
+    expect(store.setSearch).toHaveBeenCalledWith('hello');
   }));
+
+  it('opening a card sets selectedId; closing clears it', () => {
+    seed([makeContent({ id: 'a' })]);
+    fixture.detectChanges();
+    component.onOpen('a');
+    expect(component.selectedId()).toBe('a');
+    component.onCloseDrawer();
+    expect(component.selectedId()).toBeNull();
+  });
+
+  it('clear-filters from the filtered empty-state resets status/search/filters', () => {
+    seed([makeContent({ id: 'a', status: ContentStatus.Draft })]);
+    fixture.detectChanges();
+    store.setActiveStatus(ContentStatus.Published);
+    store.setFilter('platform', Platform.LinkedIn);
+    component.searchText = 'x';
+    store.setSearch('x');
+
+    component.onClearFilters();
+
+    expect(store.activeStatus()).toBeNull();
+    expect(store.search()).toBe('');
+    expect(store.filters().platform).toBeUndefined();
+    expect(component.searchText).toBe('');
+  });
 });

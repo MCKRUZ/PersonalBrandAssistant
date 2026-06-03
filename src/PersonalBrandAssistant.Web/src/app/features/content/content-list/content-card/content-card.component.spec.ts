@@ -50,8 +50,9 @@ describe('ContentCardComponent', () => {
   });
 
   it('should render content type label', () => {
+    // ContentType.BlogPost === 'Blog' (backend enum value), so formatContentType yields 'Blog'.
     const type = fixture.nativeElement.querySelector('.content-type');
-    expect(type.textContent).toContain('Blog Post');
+    expect(type.textContent).toContain('Blog');
   });
 
   it('should render voice score dot with correct color class', () => {
@@ -166,5 +167,44 @@ describe('ContentCardComponent', () => {
     retryBtn.click();
 
     expect(emitted).toBe(Platform.LinkedIn);
+  });
+
+  describe('board variant', () => {
+    beforeEach(() => {
+      fixture.componentRef.setInput('variant', 'board');
+      fixture.detectChanges();
+    });
+
+    it('shows type glyph + uppercase type label + voice ring + title + tag chips + platform dots', () => {
+      const el = fixture.nativeElement as HTMLElement;
+      expect(el.querySelector('.glyph')?.textContent).toContain('¶'); // BlogPost glyph
+      expect(el.querySelector('.type-label')?.textContent).toContain('Blog');
+      expect(el.querySelector('app-voice-score-ring')).toBeTruthy();
+      expect(el.querySelector('.board-title')?.textContent).toContain('Test Content Title');
+      expect(el.querySelectorAll('.tag-chip').length).toBe(4); // 3 chips + "+1"
+      expect(el.querySelector('app-platform-dot')).toBeTruthy();
+    });
+
+    it('shows relativeTime of updatedAt by default', () => {
+      const when = (fixture.nativeElement as HTMLElement).querySelector('.when');
+      expect(when?.textContent?.trim().length).toBeGreaterThan(0);
+    });
+
+    it('scheduled card shows "in {n}{unit}" from scheduledAt', () => {
+      const future = new Date(Date.now() + 3 * 86400_000).toISOString();
+      fixture.componentRef.setInput('content', {
+        ...mockContent,
+        status: ContentStatus.Scheduled,
+        scheduledAt: future,
+      });
+      fixture.detectChanges();
+      const when = (fixture.nativeElement as HTMLElement).querySelector('.when');
+      expect(when?.textContent).toContain('in ');
+      expect(when?.textContent).toContain('d');
+    });
+
+    it('does not render list-variant action buttons', () => {
+      expect(fixture.nativeElement.querySelector('[data-testid="edit-btn"]')).toBeNull();
+    });
   });
 });
