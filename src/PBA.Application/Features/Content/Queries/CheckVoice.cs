@@ -46,9 +46,14 @@ public static class CheckVoice
         {
             score = 0;
             feedback = string.Empty;
+
+            var json = ExtractJsonObject(response);
+            if (json is null)
+                return false;
+
             try
             {
-                using var doc = JsonDocument.Parse(response);
+                using var doc = JsonDocument.Parse(json);
                 if (!doc.RootElement.TryGetProperty("score", out var scoreProp) ||
                     !doc.RootElement.TryGetProperty("feedback", out var feedbackProp))
                     return false;
@@ -60,6 +65,22 @@ public static class CheckVoice
             {
                 return false;
             }
+        }
+
+        // LLMs frequently wrap the JSON object in markdown fences or surrounding
+        // prose ("Here is the analysis: {...}"). Extract the outermost object so
+        // JsonDocument.Parse sees only the braces, not the chatter around them.
+        private static string? ExtractJsonObject(string response)
+        {
+            if (string.IsNullOrWhiteSpace(response))
+                return null;
+
+            var start = response.IndexOf('{');
+            var end = response.LastIndexOf('}');
+            if (start < 0 || end <= start)
+                return null;
+
+            return response[start..(end + 1)];
         }
 
         private static string BuildSystemPrompt(Domain.Entities.BrandProfile? profile)

@@ -132,6 +132,46 @@ public class CheckVoiceHandlerTests
     }
 
     [Fact]
+    public async Task Handle_SidecarWrapsJsonInMarkdownFence_ReturnsScore()
+    {
+        await using var context = CreateContext();
+        var content = new ContentEntity { Title = "Test", Body = "Some body" };
+        context.Contents.Add(content);
+        await context.SaveChangesAsync();
+
+        _sidecarMock
+            .Setup(s => s.SendPromptAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("```json\n{\"score\": 82, \"feedback\": \"Strong match\"}\n```");
+
+        var handler = new CheckVoice.Handler(context, _sidecarMock.Object);
+        var result = await handler.Handle(new CheckVoice.Query(content.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(82m, result.Value!.Score);
+        Assert.Equal("Strong match", result.Value.Feedback);
+    }
+
+    [Fact]
+    public async Task Handle_SidecarAddsProseAroundJson_ReturnsScore()
+    {
+        await using var context = CreateContext();
+        var content = new ContentEntity { Title = "Test", Body = "Some body" };
+        context.Contents.Add(content);
+        await context.SaveChangesAsync();
+
+        _sidecarMock
+            .Setup(s => s.SendPromptAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("Here is my analysis:\n{\"score\": 64, \"feedback\": \"Decent\"}\nLet me know if you need more.");
+
+        var handler = new CheckVoice.Handler(context, _sidecarMock.Object);
+        var result = await handler.Handle(new CheckVoice.Query(content.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(64m, result.Value!.Score);
+        Assert.Equal("Decent", result.Value.Feedback);
+    }
+
+    [Fact]
     public async Task Handle_ScoreOutOfRange_ReturnsFailure()
     {
         await using var context = CreateContext();
