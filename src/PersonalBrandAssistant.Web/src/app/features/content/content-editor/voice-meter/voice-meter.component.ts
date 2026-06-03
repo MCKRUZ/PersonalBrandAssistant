@@ -39,7 +39,7 @@ import { voiceBandColor } from '../../content-list/content-display.utils';
           [style.background]="bandColor()"></div>
       </div>
 
-      <p class="vm-note" data-testid="band-note">{{ note() }}</p>
+      <p class="vm-note" [class.vm-note--error]="checkError()" data-testid="band-note">{{ note() }}</p>
     </div>
   `,
   styles: [`
@@ -95,6 +95,7 @@ import { voiceBandColor } from '../../content-list/content-display.utils';
       color: var(--text-secondary);
       line-height: 1.4;
     }
+    .vm-note--error { color: var(--voice-low); }
   `],
 })
 export class VoiceMeterComponent {
@@ -108,6 +109,7 @@ export class VoiceMeterComponent {
   readonly displayScore = signal<number | null>(null);
   readonly displayFeedback = signal<string | null>(null);
   readonly checking = signal(false);
+  readonly checkError = signal(false);
 
   constructor() {
     // Keep display in sync with external inputs until a re-check overrides them.
@@ -122,6 +124,7 @@ export class VoiceMeterComponent {
   readonly bandColor = computed(() => voiceBandColor(this.displayScore()));
 
   readonly note = computed(() => {
+    if (this.checkError()) return "Couldn't check your voice. Try again.";
     const fb = this.displayFeedback();
     if (fb && fb.trim()) return fb;
     const s = this.displayScore();
@@ -135,13 +138,14 @@ export class VoiceMeterComponent {
     const id = this.contentId();
     if (!id || this.checking()) return;
     this.checking.set(true);
+    this.checkError.set(false);
     this.contentService.voiceCheck(id).subscribe({
       next: (result) => {
         this.displayScore.set(this.normalize(result.score));
         this.displayFeedback.set(result.feedback);
         this.checking.set(false);
       },
-      error: () => this.checking.set(false),
+      error: () => { this.checking.set(false); this.checkError.set(true); },
     });
   }
 

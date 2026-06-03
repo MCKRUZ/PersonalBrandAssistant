@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
 import { VoiceMeterComponent } from './voice-meter.component';
 import { ContentService } from '../../services/content.service';
 
@@ -60,5 +60,17 @@ describe('VoiceMeterComponent', () => {
     expect(component.displayScore()).toBe(88);
     const note = fixture.nativeElement.querySelector('[data-testid="band-note"]');
     expect(note.textContent).toContain('Much closer now.');
+  });
+
+  it('shows an error note (not a low-score note) when voiceCheck fails', () => {
+    setup(70);
+    contentService.voiceCheck.and.returnValue(throwError(() => new Error('500')));
+    component.recheck();
+    fixture.detectChanges();
+    expect(component.checkError()).toBeTrue();
+    expect(component.checking()).toBeFalse();
+    const note = fixture.nativeElement.querySelector('[data-testid="band-note"]');
+    expect(note.textContent.toLowerCase()).toContain("couldn't check your voice");
+    expect(note.classList).toContain('vm-note--error');
   });
 });
