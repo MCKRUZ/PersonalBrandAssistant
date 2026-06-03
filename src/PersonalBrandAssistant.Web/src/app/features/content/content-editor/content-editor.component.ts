@@ -459,7 +459,7 @@ export class ContentEditorComponent implements OnInit {
   onPublishConfirm(event: { platforms: Platform[]; scheduledAt?: string }): void {
     const id = this.store.content()?.id;
     if (!id) return;
-    this.publishModalVisible.set(false);
+    // Keep the modal open so it can show its post-confirm result view; it closes via (cancel)/Done.
     if (event.scheduledAt) {
       this.contentService
         .schedule(id, { scheduledAt: event.scheduledAt })

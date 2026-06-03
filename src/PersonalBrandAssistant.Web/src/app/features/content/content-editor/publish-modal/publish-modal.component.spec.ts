@@ -1,148 +1,144 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { of } from 'rxjs';
 import { PublishModalComponent } from './publish-modal.component';
+import { ContentService } from '../../services/content.service';
 import {
-  Platform,
   ContentStatus,
   ContentType,
-  PublishStatus,
+  Platform,
+  PUBLISHABLE_PLATFORMS,
 } from '../../models/content.model';
 import type { ContentDetail, PlatformConnectionStatus } from '../../models/content.model';
 
-function makeDetail(overrides: Partial<ContentDetail> = {}): ContentDetail {
+function detail(over: Partial<ContentDetail> = {}): ContentDetail {
   return {
-    id: 'c-1',
-    title: 'Test Post',
-    body: 'Hello world content here.',
-    status: ContentStatus.Approved,
+    id: 'c1',
+    title: 'A Post',
     contentType: ContentType.BlogPost,
+    status: ContentStatus.Approved,
     primaryPlatform: Platform.Blog,
-    targetPlatforms: [Platform.Blog, Platform.LinkedIn],
-    voiceScore: null,
+    targetPlatforms: [Platform.Blog],
+    voiceScore: 70,
     tags: [],
     createdAt: '2026-01-01T00:00:00Z',
     updatedAt: '2026-01-01T00:00:00Z',
     scheduledAt: null,
     publishedAt: null,
     platformPublishes: [],
+    body: '# Title\n\nA paragraph of body text.',
     viralityPrediction: null,
     sourceIdeaId: null,
     parentContentId: null,
     children: [],
-    ...overrides,
-  };
+    ...over,
+  } as ContentDetail;
 }
 
-function makeConnection(platform: Platform, connected = true): PlatformConnectionStatus {
-  return {
-    platform,
-    isConnected: connected,
-    isExpiring: false,
-    expiresAt: null,
-    capabilities: {
-      maxCharacters: 0,
-      supportsMarkdown: true,
-      supportsHtml: false,
-      supportsImages: true,
-      supportsScheduling: true,
-      supportsThreads: false,
-    },
-  };
-}
+const allConnected: PlatformConnectionStatus[] = PUBLISHABLE_PLATFORMS.map((platform) => ({
+  platform,
+  isConnected: platform !== Platform.Twitter, // Twitter disconnected to exercise the warn badge
+  isExpiring: false,
+  expiresAt: null,
+  capabilities: {
+    maxCharacters: 0, supportsMarkdown: true, supportsHtml: true,
+    supportsImages: true, supportsScheduling: true, supportsThreads: true,
+  },
+}));
 
 describe('PublishModalComponent', () => {
-  let component: PublishModalComponent;
   let fixture: ComponentFixture<PublishModalComponent>;
+  let svc: jasmine.SpyObj<ContentService>;
 
-  const connections = [
-    makeConnection(Platform.Blog),
-    makeConnection(Platform.LinkedIn),
-    makeConnection(Platform.Medium, false),
-    makeConnection(Platform.Twitter),
-    makeConnection(Platform.Substack),
-  ];
-
-  beforeEach(() => {
-    TestBed.configureTestingModule({
-      imports: [PublishModalComponent],
-    });
-    fixture = TestBed.createComponent(PublishModalComponent);
-    component = fixture.componentInstance;
-  });
-
-  function setupModal(overrides: Partial<ContentDetail> = {}) {
+  function setup(mode: 'publish' | 'schedule' = 'publish', content = detail()): void {
     fixture.componentRef.setInput('visible', true);
-    fixture.componentRef.setInput('content', makeDetail(overrides));
-    fixture.componentRef.setInput('connectedPlatforms', connections);
-    fixture.componentRef.setInput('mode', 'publish');
+    fixture.componentRef.setInput('content', content);
+    fixture.componentRef.setInput('connectedPlatforms', allConnected);
+    fixture.componentRef.setInput('mode', mode);
     fixture.detectChanges();
   }
 
-  it('should show primary platform prominently at top', () => {
-    setupModal();
-    const primary = fixture.nativeElement.querySelector('[data-testid="primary-platform"]');
-    expect(primary).toBeTruthy();
-    expect(primary.textContent).toContain('Blog');
+  beforeEach(async () => {
+    svc = jasmine.createSpyObj('ContentService', ['getPublishStatus', 'retryPlatform']);
+    svc.getPublishStatus.and.returnValue(of({ contentId: 'c1', primaryPlatform: Platform.Blog, platformStatuses: [] }));
+    svc.retryPlatform.and.returnValue(of(void 0));
+
+    await TestBed.configureTestingModule({
+      imports: [PublishModalComponent],
+      providers: [{ provide: ContentService, useValue: svc }],
+    }).compileComponents();
+    fixture = TestBed.createComponent(PublishModalComponent);
   });
 
-  it('should show connection status per platform', () => {
-    setupModal();
-    const badges = fixture.nativeElement.querySelectorAll('.connection-status');
-    expect(badges.length).toBeGreaterThan(0);
+  it('renders one destination row per publishable platform; primary checked+disabled', () => {
+    setup();
+    const rows = fixture.nativeElement.querySelectorAll('.dest');
+    expect(rows.length).toBe(PUBLISHABLE_PLATFORMS.length);
+    const primary = fixture.nativeElement.querySelector('[data-platform="Blog"] input') as HTMLInputElement;
+    expect(primary.checked).toBeTrue();
+    expect(primary.disabled).toBeTrue();
   });
 
-  it('should allow toggling secondary platforms', () => {
-    setupModal({ targetPlatforms: [Platform.Blog, Platform.LinkedIn, Platform.Twitter] });
-    const twitterCheckbox = fixture.nativeElement.querySelector('[data-platform="Twitter"] input') as HTMLInputElement;
-    expect(twitterCheckbox).toBeTruthy();
-    expect(twitterCheckbox.disabled).toBeFalse();
+  it('shows a delivery badge and usage per row', () => {
+    setup();
+    expect(fixture.nativeElement.querySelectorAll('app-delivery-badge').length).toBe(PUBLISHABLE_PLATFORMS.length);
+    const li = fixture.nativeElement.querySelector('[data-platform="LinkedIn"]') as HTMLElement;
+    expect(li.textContent).toMatch(/\d+\/3000/);
+    const tw = fixture.nativeElement.querySelector('[data-platform="Twitter"]') as HTMLElement;
+    expect(tw.textContent).toContain('tweets');
   });
 
-  it('should not allow deselecting the primary platform', () => {
-    setupModal();
-    const primaryCheckbox = fixture.nativeElement.querySelector('[data-testid="primary-platform"] input') as HTMLInputElement;
-    expect(primaryCheckbox.disabled).toBeTrue();
-    expect(primaryCheckbox.checked).toBeTrue();
-  });
-
-  it('should emit confirm with selected platforms', () => {
-    setupModal({ targetPlatforms: [Platform.Blog, Platform.LinkedIn] });
-    let emitted: { platforms: Platform[]; scheduledAt?: string } | undefined;
-    component.confirm.subscribe((v: { platforms: Platform[]; scheduledAt?: string }) => (emitted = v));
-
-    const confirmBtn = fixture.nativeElement.querySelector('[data-testid="confirm-btn"]') as HTMLButtonElement;
-    confirmBtn.click();
-
-    expect(emitted).toBeTruthy();
-    expect(emitted!.platforms).toContain(Platform.Blog);
-    expect(emitted!.platforms).toContain(Platform.LinkedIn);
-  });
-
-  it('should keep confirm button enabled when only primary platform is selected', () => {
-    setupModal({ targetPlatforms: [] });
+  it('selecting a destination updates the footer summary and adds a preview tab', () => {
+    setup();
+    fixture.componentInstance.toggle(Platform.Medium);
     fixture.detectChanges();
+    const summary = fixture.nativeElement.querySelector('.pub-summary') as HTMLElement;
+    expect(summary.textContent).toContain('2 destinations');
+    expect(fixture.nativeElement.querySelectorAll('.pub-tab').length).toBe(2);
+  });
+
+  it('a11y: role=dialog, aria-modal, cdkTrapFocus; Escape cancels', () => {
+    setup();
+    const dialog = fixture.nativeElement.querySelector('.pub');
+    expect(dialog.getAttribute('role')).toBe('dialog');
+    expect(dialog.getAttribute('aria-modal')).toBe('true');
+    expect(dialog.hasAttribute('cdktrapfocus')).toBeTrue();
+
+    const cancelSpy = jasmine.createSpy('cancel');
+    fixture.componentInstance.cancel.subscribe(cancelSpy);
+    fixture.componentInstance.onEscape();
+    expect(cancelSpy).toHaveBeenCalled();
+  });
+
+  it('now-mode confirm emits the selected platforms and swaps in the result view', () => {
+    setup('publish');
+    fixture.componentInstance.toggle(Platform.LinkedIn);
+    const confirmSpy = jasmine.createSpy('confirm');
+    fixture.componentInstance.confirm.subscribe(confirmSpy);
+
+    fixture.componentInstance.onConfirm();
+    fixture.detectChanges();
+
+    expect(confirmSpy).toHaveBeenCalledWith(jasmine.objectContaining({
+      platforms: jasmine.arrayContaining([Platform.Blog, Platform.LinkedIn]),
+    }));
+    expect(confirmSpy.calls.mostRecent().args[0].scheduledAt).toBeUndefined();
+    expect(fixture.nativeElement.querySelector('app-publish-result')).toBeTruthy();
+  });
+
+  it('schedule mode disables destination toggles and requires a datetime', () => {
+    setup('schedule');
     const confirmBtn = fixture.nativeElement.querySelector('[data-testid="confirm-btn"]') as HTMLButtonElement;
+    expect(confirmBtn.disabled).toBeTrue();
+    const medium = fixture.nativeElement.querySelector('[data-platform="Medium"] input') as HTMLInputElement;
+    expect(medium.disabled).toBeTrue();
+
+    fixture.componentInstance.scheduledAt.set('2026-07-01T09:00');
+    fixture.detectChanges();
     expect(confirmBtn.disabled).toBeFalse();
-  });
 
-  it('should emit cancel when cancel button clicked', () => {
-    setupModal();
-    let cancelled = false;
-    component.cancel.subscribe(() => (cancelled = true));
-
-    const cancelBtn = fixture.nativeElement.querySelector('[data-testid="cancel-btn"]') as HTMLButtonElement;
-    cancelBtn.click();
-
-    expect(cancelled).toBeTrue();
-  });
-
-  it('should show Schedule header when mode is schedule', () => {
-    fixture.componentRef.setInput('visible', true);
-    fixture.componentRef.setInput('content', makeDetail());
-    fixture.componentRef.setInput('connectedPlatforms', connections);
-    fixture.componentRef.setInput('mode', 'schedule');
-    fixture.detectChanges();
-
-    const header = fixture.nativeElement.querySelector('.modal-header');
-    expect(header?.textContent).toContain('Schedule');
+    const confirmSpy = jasmine.createSpy('confirm');
+    fixture.componentInstance.confirm.subscribe(confirmSpy);
+    fixture.componentInstance.onConfirm();
+    expect(confirmSpy.calls.mostRecent().args[0].scheduledAt).toBeTruthy();
   });
 });

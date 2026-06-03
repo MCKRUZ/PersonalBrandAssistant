@@ -311,3 +311,32 @@ Modified:
 4. **Bespoke modal a11y** — no PrimeNG to lean on. Focus-trap, Esc, scrim-dismiss, `aria-modal` must all be hand-wired and tested (3.4).
 5. **Schedule sends no platforms** — easy to accidentally forward `selected` into the schedule call. The 3.4 test asserts schedule-mode confirm sends `{scheduledAt}` only.
 6. **Modal API contract** — section 05 opens this modal; if you change its inputs/outputs, keep the editor wiring working (coordinate; default = preserve `(confirm)`/`(cancel)`).
+
+---
+
+## IMPLEMENTATION NOTES (actual — as built)
+
+- **Pure logic** (`platform-metadata.ts`, `markdown-blocks.ts` toBlocks/plainText via marked@17
+  `lexer`, `thread-splitter.ts` with the ` i/n` suffix re-pack loop) — built + unit-tested first;
+  14 pure-logic specs green. Reviewer verified the splitter terminates and never exceeds the limit,
+  and the markdown stripper doesn't double-count.
+- **5 preview components** (blog/medium/substack/linkedin/twitter) built by a subagent; cards use
+  intentional light/white platform-mock colors (NOT a token violation). 10 specs green.
+- **`delivery-badge`** + **`publish-result`** (presentational result rows: auto Publishing→Published
+  + Retry, manual Copy/Open, scheduled) built + tested.
+- **`publish-modal` rewrite**: bespoke 1080px modal (HTML+SCSS templates), 340px/1fr grid,
+  destinations (primary checked+disabled, platform-dot tile, delivery badge, char/thread usage),
+  when-section (schedule disables destinations), preview tabs → 5 previews, footer summary, result
+  view, `cdkTrapFocus`/Esc/scrim. Injects `ContentService` for `getPublishStatus` polling (2s, 30s
+  cap) + `retryPlatform`. **Contract PRESERVED** (`visible`/`content`/`connectedPlatforms`/`mode` in;
+  `confirm({platforms,scheduledAt?})`/`cancel` out) so the editor keeps compiling.
+- **CRITICAL fix during review**: the editor closed the modal on `confirm`, making the result view +
+  polling dead code. Removed the immediate `publishModalVisible.set(false)` in
+  `content-editor.component.ts:onPublishConfirm` (the ONE small editor change made in this section) so
+  the modal stays open to show the result view; it closes via the result view's "Done" → `cancel`.
+  Also: stop polling when hidden (effect else-branch); a11y `aria-labelledby` + datetime label.
+- **Tests:** 38 section-03 specs; full suite 452 pass / 1 pre-existing unrelated fail (ContentCard,
+  section 04). `ng build` clean. Review: see `implementation/code_review/section-03-review.md`.
+- **Section 05 note:** the modal already owns the result view + polling. When section 05 rewrites the
+  editor, keep the modal mounted after `confirm` (do not auto-close) and close on `cancel`/Done.
+

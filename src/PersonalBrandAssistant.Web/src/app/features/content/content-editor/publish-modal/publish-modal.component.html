@@ -1,0 +1,132 @@
+@if (visible()) {
+  <div class="pub-scrim" (click)="onCancel()">
+    <div
+      class="pub"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="pub-title"
+      cdkTrapFocus
+      [cdkTrapFocusAutoCapture]="true"
+      (click)="$event.stopPropagation()"
+    >
+      <header class="pub-head">
+        <h2 id="pub-title">{{ mode() === 'schedule' ? 'Schedule' : 'Publish' }}</h2>
+        <span class="pub-sub">{{ content().title }}</span>
+      </header>
+
+      @if (result(); as rows) {
+        <div class="pub-result">
+          <app-publish-result [rows]="rows" (retry)="retry($event)" />
+        </div>
+        <footer class="pub-foot">
+          <button type="button" class="ghost" (click)="onCancel()">Done</button>
+        </footer>
+      } @else {
+        <div class="pub-grid">
+          <!-- LEFT: destinations -->
+          <div class="pub-dests">
+            @for (p of publishable; track p) {
+              <label class="dest" [class.on]="isSelected(p)" [attr.data-platform]="p">
+                <input
+                  type="checkbox"
+                  [checked]="isSelected(p)"
+                  [disabled]="isPrimary(p) || mode() === 'schedule'"
+                  (change)="toggle(p)"
+                />
+                <app-platform-dot [platform]="p" variant="tile" />
+                <div class="dest-body">
+                  <div class="dest-name">
+                    {{ meta[p].label }}
+                    @if (isPrimary(p)) { <span class="primary-badge">Primary</span> }
+                  </div>
+                  <div class="dest-fmt">{{ meta[p].fmt }}</div>
+                </div>
+                <div class="dest-right">
+                  <app-delivery-badge [meta]="meta[p]" [isConnected]="isConnected(p)" />
+                  @if (usage(p)) {
+                    <span class="usage" [class.over]="overLimit(p)">{{ usage(p) }}</span>
+                  }
+                </div>
+              </label>
+            }
+
+            <div class="pub-when">
+              @if (mode() === 'schedule') {
+                <label class="when-label" for="pub-when">When</label>
+                <input
+                  id="pub-when"
+                  type="datetime-local"
+                  class="when-input"
+                  [value]="scheduledAt()"
+                  (input)="scheduledAt.set(asInputValue($event))"
+                  data-testid="schedule-input"
+                />
+                <p class="when-note">
+                  Scheduling applies to the whole post; per-platform selection only affects immediate publish.
+                </p>
+              } @else {
+                <span class="when-now">Publish now</span>
+              }
+            </div>
+          </div>
+
+          <!-- RIGHT: preview -->
+          <div class="pub-preview">
+            <div class="pub-tabs">
+              @for (p of tabs(); track p) {
+                <button
+                  type="button"
+                  class="pub-tab"
+                  [class.on]="currentTab() === p"
+                  (click)="setTab(p)"
+                >
+                  {{ meta[p].label }}
+                </button>
+              }
+            </div>
+
+            @if (currentTab(); as p) {
+              <div class="pub-caption">{{ caption(p) }}</div>
+              <div class="pub-canvas">
+                @switch (p) {
+                  @case ('Blog') {
+                    <app-blog-preview [blocks]="blocks()" [title]="content().title" [subtitle]="subtitle()" />
+                  }
+                  @case ('Medium') {
+                    <app-medium-preview [blocks]="blocks()" [title]="content().title" [subtitle]="subtitle()" />
+                  }
+                  @case ('Substack') {
+                    <app-substack-preview [blocks]="blocks()" [title]="content().title" [subtitle]="subtitle()" />
+                  }
+                  @case ('LinkedIn') {
+                    <app-linkedin-preview [blocks]="blocks()" [title]="content().title" [body]="plain()" />
+                  }
+                  @case ('Twitter') {
+                    <app-twitter-preview [blocks]="blocks()" [title]="content().title" [body]="plain()" />
+                  }
+                }
+              </div>
+            }
+          </div>
+        </div>
+
+        <footer class="pub-foot">
+          <span class="pub-summary">
+            {{ summary().n }} destinations · {{ summary().auto }} auto · {{ summary().manual }} manual
+          </span>
+          <span class="spacer"></span>
+          <button type="button" class="ghost" data-testid="cancel-btn" (click)="onCancel()">Cancel</button>
+          <button
+            type="button"
+            class="primary"
+            data-testid="confirm-btn"
+            [disabled]="!canConfirm()"
+            (click)="onConfirm()"
+          >
+            {{ mode() === 'schedule' ? 'Schedule' : 'Publish ' + summary().n }} →
+          </button>
+        </footer>
+      }
+    </div>
+  </div>
+}
