@@ -319,3 +319,31 @@ Modify:
 - `transition()` dispatches the correct endpoint per `(current, target)`, no-ops illegal targets with a notice, optimistically patches status on a NEW array without fabricating `updatedAt`, reloads the record on success, rolls back on error, and never calls `schedule()`.
 - No GitHub-dark hex colors introduced; all colors are `var(--…)` token references.
 - Build green: `cd src/PersonalBrandAssistant.Web && npx ng build`.
+
+---
+
+## IMPLEMENTATION NOTES (actual — as built)
+
+- **`content-display.utils.ts`**: added STATUS_META, TYPE_GLYPH, voiceBandColor (>=80/>=60/else),
+  LEGAL_TRANSITIONS, nextStatus, relativeTime. Glyphs chosen: Blog ¶, LinkedIn ▤, Tweet ◇, Thread ⋮,
+  Substack ✉, Reddit ▷, YouTubeVideo ▶, YouTubeShort ▹.
+- **Atoms** in `shared/`: `status-tag` (setter + computed `meta`), `voice-score-ring` and
+  `platform-dot` use Angular 19 signal `input()` (NOT `@Input() set` — that collided with the
+  same-named readonly getter; signal inputs are cleaner and specs use `componentRef.setInput`).
+- **Store**: kept BOTH APIs to stay build-green — the legacy paged surface (`contents`, `page`,
+  `loadContents`, per-key `setFilter`, `setPage`, `toggleView`, `viewMode: 'list'|'grid'`,
+  `totalPages`/`hasNextPage`/`hasPreviousPage`) AND the new load-all surface (`allContents`,
+  `activeStatus`, `search`, `counts`, `filtered`, `byStatus`, `loadAll`, `setActiveStatus`,
+  `setSearch`, `setView`, `transition`). **`viewMode` widening to 'board'|'grid'|'table' + `setView`
+  to the union is DEFERRED to section 04** (when content-list/view-toggle are rewritten and the
+  legacy paged path is removed). Section 04 must delete the legacy surface + the double-fetch in
+  `deleteContent`.
+- **`transition(id, target)`** dispatches via the real state-machine endpoints (NOT `update`), with
+  the (current,target)→endpoint map; Approved→Scheduled is a no-op (caller opens the schedule
+  dialog); optimistic status-only patch, reload-on-success, rollback-on-error.
+- **Tests:** new specs `content-display.utils.spec.ts`, the 3 atom specs, and
+  `content.store.redesign.spec.ts` (separate file from the legacy `content.store.spec.ts` so its
+  beforeEach can spy all transition endpoints). Full suite 422 pass / 1 pre-existing unrelated fail
+  (ContentCard 'Blog Post' assertion — section-14 era, owned by section 04). `ng build` clean.
+- **Code review:** CLEAN. See `implementation/code_review/section-02-review.md`.
+
