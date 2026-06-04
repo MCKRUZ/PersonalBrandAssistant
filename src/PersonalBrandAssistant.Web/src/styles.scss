@@ -43,3 +43,11 @@ body {
     scroll-behavior: auto !important;
   }
 }
+
+// Analytics metric-description tooltips: comfortable reading width + leading.
+// PrimeNG renders tooltips at the body level, so this must live in global styles.
+.analytics-tip .p-tooltip-text {
+  max-width: 260px;
+  line-height: 1.45;
+  font-size: 12.5px;
+}

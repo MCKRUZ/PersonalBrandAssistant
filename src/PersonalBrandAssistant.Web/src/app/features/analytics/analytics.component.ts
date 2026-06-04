@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { TableModule } from 'primeng/table';
 import { ChartModule } from 'primeng/chart';
 import { SelectButtonModule } from 'primeng/selectbutton';
+import { TooltipModule } from 'primeng/tooltip';
 import { FormsModule } from '@angular/forms';
 import { AnalyticsService } from './services/analytics.service';
 import { AnalyticsHealth, AnalyticsPeriod, WebsiteAnalytics } from './models/analytics.model';
@@ -11,6 +12,7 @@ interface Kpi {
   readonly icon: string;
   readonly label: string;
   readonly value: string;
+  readonly desc: string;
 }
 
 interface LegendRow {
@@ -26,7 +28,7 @@ const TRAFFIC_COLORS = ['#c87156', '#8a7df0', '#60a5fa', '#4ade80', '#fbbf24', '
 @Component({
   selector: 'app-analytics',
   standalone: true,
-  imports: [CommonModule, FormsModule, TableModule, ChartModule, SelectButtonModule],
+  imports: [CommonModule, FormsModule, TableModule, ChartModule, SelectButtonModule, TooltipModule],
   template: `
     <div class="analytics">
       <header class="page-head">
@@ -73,6 +75,9 @@ const TRAFFIC_COLORS = ['#c87156', '#8a7df0', '#60a5fa', '#4ade80', '#fbbf24', '
               <div class="kpi-top">
                 <span class="kpi-icon"><i class="pi {{ k.icon }}"></i></span>
                 <span class="kpi-label">{{ k.label }}</span>
+                <i class="pi pi-info-circle info-icon" tabindex="0" role="button"
+                   [attr.aria-label]="k.label + ': ' + k.desc"
+                   [pTooltip]="k.desc" tooltipPosition="top" [tooltipStyleClass]="'analytics-tip'"></i>
               </div>
               <div class="kpi-value">{{ k.value }}</div>
             </div>
@@ -81,7 +86,13 @@ const TRAFFIC_COLORS = ['#c87156', '#8a7df0', '#60a5fa', '#4ade80', '#fbbf24', '
 
         <section class="panels">
           <div class="panel">
-            <div class="panel-head"><h2>Traffic Sources</h2></div>
+            <div class="panel-head">
+              <h2>Traffic Sources</h2>
+              <i class="pi pi-info-circle info-icon" tabindex="0" role="button"
+                 aria-label="Traffic Sources: how visitors arrived"
+                 pTooltip="How visitors arrived, grouped by channel — direct, referral, organic search, social (Google Analytics)."
+                 tooltipPosition="top" [tooltipStyleClass]="'analytics-tip'"></i>
+            </div>
             @if (d.trafficSources.length) {
               <div class="doughnut-wrap">
                 <p-chart type="doughnut" [data]="trafficData()" [options]="chartOptions" />
@@ -106,7 +117,13 @@ const TRAFFIC_COLORS = ['#c87156', '#8a7df0', '#60a5fa', '#4ade80', '#fbbf24', '
           </div>
 
           <div class="panel">
-            <div class="panel-head"><h2>Top Pages</h2></div>
+            <div class="panel-head">
+              <h2>Top Pages</h2>
+              <i class="pi pi-info-circle info-icon" tabindex="0" role="button"
+                 aria-label="Top Pages: most-viewed pages"
+                 pTooltip="Your most-viewed pages this period, with total views and the unique visitors who saw each (Google Analytics)."
+                 tooltipPosition="top" [tooltipStyleClass]="'analytics-tip'"></i>
+            </div>
             @if (d.topPages.length) {
               <table class="data-table">
                 <thead><tr><th>Page</th><th class="num">Views</th><th class="num">Users</th></tr></thead>
@@ -130,7 +147,13 @@ const TRAFFIC_COLORS = ['#c87156', '#8a7df0', '#60a5fa', '#4ade80', '#fbbf24', '
         </section>
 
         <section class="panel">
-          <div class="panel-head"><h2>Top Search Queries</h2></div>
+          <div class="panel-head">
+            <h2>Top Search Queries</h2>
+            <i class="pi pi-info-circle info-icon" tabindex="0" role="button"
+               aria-label="Top Search Queries: Google searches where the site appeared"
+               pTooltip="Google searches where your site appeared. Impressions = times shown, Clicks = visits from search, CTR = click rate, Position = average rank (lower is better). Source: Search Console."
+               tooltipPosition="top" [tooltipStyleClass]="'analytics-tip'"></i>
+          </div>
           @if (d.searchQueries.length) {
             <table class="data-table queries">
               <thead>
@@ -186,6 +209,13 @@ const TRAFFIC_COLORS = ['#c87156', '#8a7df0', '#60a5fa', '#4ade80', '#fbbf24', '
     }
     .kpi-card:hover { border-color: var(--surface-disabled); box-shadow: 0 6px 20px -12px rgba(0,0,0,.6); }
     .kpi-top { display: flex; align-items: center; gap: 10px; }
+    .kpi-top .kpi-label { flex: 1; }
+    .info-icon {
+      font-size: 13px; color: var(--text-muted); cursor: help;
+      transition: color .14s; border-radius: 99px; outline: none;
+    }
+    .info-icon:hover, .info-icon:focus-visible { color: var(--brand-primary); }
+    .info-icon:focus-visible { box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand-primary) 50%, transparent); }
     .kpi-icon {
       width: 34px; height: 34px; border-radius: var(--r-control);
       background: var(--accent-soft); color: var(--brand-primary);
@@ -198,7 +228,7 @@ const TRAFFIC_COLORS = ['#c87156', '#8a7df0', '#60a5fa', '#4ade80', '#fbbf24', '
     @media (max-width: 880px) { .panels { grid-template-columns: 1fr; } }
 
     .panel { background: var(--surface-card); border: 1px solid var(--surface-border); border-radius: var(--r); padding: 18px 20px; }
-    .panel-head { margin-bottom: 14px; }
+    .panel-head { display: flex; align-items: center; gap: 7px; margin-bottom: 14px; }
     .panel-head h2 { font-family: var(--font-display); font-size: 17px; font-weight: 400; color: var(--text-primary); margin: 0; }
 
     .doughnut-wrap { position: relative; height: 200px; margin-bottom: 12px; }
@@ -318,12 +348,18 @@ export class AnalyticsComponent implements OnInit {
     const o = this.data()?.overview;
     if (!o) return [];
     return [
-      { icon: 'pi-users', label: 'Users', value: this.num(o.activeUsers) },
-      { icon: 'pi-chart-line', label: 'Sessions', value: this.num(o.sessions) },
-      { icon: 'pi-eye', label: 'Page Views', value: this.num(o.pageViews) },
-      { icon: 'pi-user-plus', label: 'New Users', value: this.num(o.newUsers) },
-      { icon: 'pi-percentage', label: 'Bounce Rate', value: `${(o.bounceRate * 100).toFixed(1)}%` },
-      { icon: 'pi-clock', label: 'Avg Session', value: this.duration(o.avgSessionDuration) },
+      { icon: 'pi-users', label: 'Users', value: this.num(o.activeUsers),
+        desc: 'Distinct people who visited the site in this period. One person is counted once no matter how many times they return (GA4 active users).' },
+      { icon: 'pi-chart-line', label: 'Sessions', value: this.num(o.sessions),
+        desc: 'Individual visits to the site. A single person can start several sessions, so this is usually higher than Users (GA4).' },
+      { icon: 'pi-eye', label: 'Page Views', value: this.num(o.pageViews),
+        desc: 'Total pages loaded, including repeat views of the same page. Measures overall content consumption (GA4).' },
+      { icon: 'pi-user-plus', label: 'New Users', value: this.num(o.newUsers),
+        desc: 'First-time visitors who had never been to the site before this period (GA4).' },
+      { icon: 'pi-percentage', label: 'Bounce Rate', value: `${(o.bounceRate * 100).toFixed(1)}%`,
+        desc: 'Share of sessions where the visitor left without any meaningful interaction. Lower is better (GA4).' },
+      { icon: 'pi-clock', label: 'Avg Session', value: this.duration(o.avgSessionDuration),
+        desc: 'Average time a visitor spent on the site per session. Longer sessions suggest more engaging content (GA4).' },
     ];
   });
 
