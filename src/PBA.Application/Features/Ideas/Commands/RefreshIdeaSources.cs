@@ -52,6 +52,7 @@ public static class RefreshIdeaSources
                             ThumbnailUrl = entry.ThumbnailUrl,
                             Category = entry.Category ?? source.Category,
                             Status = IdeaStatus.New,
+                            DetectedAt = entry.PublishedAt,
                             DeduplicationKey = dedupKey
                         });
 
