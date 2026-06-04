@@ -31,7 +31,7 @@ public class RefreshIdeaSourcesHandlerTests
         await db.SaveChangesAsync();
 
         var mockReader = new Mock<IRssFeedReader>();
-        mockReader.Setup(r => r.ReadFeedAsync(It.IsAny<string>(), It.IsAny<DateTimeOffset?>(), It.IsAny<CancellationToken>()))
+        mockReader.Setup(r => r.ReadFeedAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<RssFeedItem>());
 
         var handler = new RefreshIdeaSources.Handler(
@@ -40,7 +40,7 @@ public class RefreshIdeaSourcesHandlerTests
         await handler.Handle(new RefreshIdeaSources.Command(), CancellationToken.None);
 
         mockReader.Verify(r => r.ReadFeedAsync(
-            It.IsAny<string>(), It.IsAny<DateTimeOffset?>(), It.IsAny<CancellationToken>()),
+            It.IsAny<string>(), It.IsAny<CancellationToken>()),
             Times.Exactly(2));
     }
 
@@ -60,7 +60,7 @@ public class RefreshIdeaSourcesHandlerTests
         };
 
         var mockReader = new Mock<IRssFeedReader>();
-        mockReader.Setup(r => r.ReadFeedAsync(source.FeedUrl!, It.IsAny<DateTimeOffset?>(), It.IsAny<CancellationToken>()))
+        mockReader.Setup(r => r.ReadFeedAsync(source.FeedUrl!, It.IsAny<CancellationToken>()))
             .ReturnsAsync(items);
 
         var handler = new RefreshIdeaSources.Handler(
@@ -74,6 +74,34 @@ public class RefreshIdeaSourcesHandlerTests
     }
 
     [Fact]
+    public async Task Handle_SetsDetectedAt_FromFeedPublishDate()
+    {
+        // Regression: refresh used to omit DetectedAt, so items defaulted to
+        // 0001-01-01 and sank to the bottom of the DetectedAt-sorted feed —
+        // ingested but invisible. Must carry the feed's publish date like the poller.
+        using var db = CreateContext();
+        var source = new IdeaSource { Name = "Source", Category = "Tech", IsEnabled = true, FeedUrl = "https://blog.com/rss" };
+        db.IdeaSources.Add(source);
+        await db.SaveChangesAsync();
+
+        var published = new DateTimeOffset(2026, 6, 3, 0, 0, 0, TimeSpan.Zero);
+        var mockReader = new Mock<IRssFeedReader>();
+        mockReader.Setup(r => r.ReadFeedAsync(source.FeedUrl!, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<RssFeedItem>
+            {
+                new("Today's Story", "Desc", "https://blog.com/today", null, "Tech", published),
+            });
+
+        var handler = new RefreshIdeaSources.Handler(
+            db, mockReader.Object, NullLogger<RefreshIdeaSources.Handler>.Instance);
+
+        await handler.Handle(new RefreshIdeaSources.Command(), CancellationToken.None);
+
+        var idea = await db.Ideas.SingleAsync();
+        Assert.Equal(published, idea.DetectedAt);
+    }
+
+    [Fact]
     public async Task Handle_HandlesFeedErrors_GracefullyPerSource()
     {
         using var db = CreateContext();
@@ -83,9 +111,9 @@ public class RefreshIdeaSourcesHandlerTests
         await db.SaveChangesAsync();
 
         var mockReader = new Mock<IRssFeedReader>();
-        mockReader.Setup(r => r.ReadFeedAsync(failSource.FeedUrl!, It.IsAny<DateTimeOffset?>(), It.IsAny<CancellationToken>()))
+        mockReader.Setup(r => r.ReadFeedAsync(failSource.FeedUrl!, It.IsAny<CancellationToken>()))
             .ThrowsAsync(new HttpRequestException("Connection refused"));
-        mockReader.Setup(r => r.ReadFeedAsync(okSource.FeedUrl!, It.IsAny<DateTimeOffset?>(), It.IsAny<CancellationToken>()))
+        mockReader.Setup(r => r.ReadFeedAsync(okSource.FeedUrl!, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<RssFeedItem>
             {
                 new("Good Article", "Desc", "https://working.com/good", null, "OK", DateTimeOffset.UtcNow),

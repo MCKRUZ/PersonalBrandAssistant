@@ -30,7 +30,7 @@ public static class RefreshIdeaSources
                 try
                 {
                     var entries = await feedReader.ReadFeedAsync(
-                        source.FeedUrl!, source.LastPolledAt, cancellationToken);
+                        source.FeedUrl!, cancellationToken);
 
                     foreach (var entry in entries)
                     {
@@ -52,6 +52,7 @@ public static class RefreshIdeaSources
                             ThumbnailUrl = entry.ThumbnailUrl,
                             Category = entry.Category ?? source.Category,
                             Status = IdeaStatus.New,
+                            DetectedAt = entry.PublishedAt,
                             DeduplicationKey = dedupKey
                         });
 

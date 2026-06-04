@@ -17,7 +17,7 @@ public class RssFeedReader : IRssFeedReader
     }
 
     public async Task<List<RssFeedItem>> ReadFeedAsync(
-        string feedUrl, DateTimeOffset? since, CancellationToken ct = default)
+        string feedUrl, CancellationToken ct = default)
     {
         using var stream = await _httpClient.GetStreamAsync(feedUrl, ct);
         using var xmlReader = XmlReader.Create(stream, new XmlReaderSettings { Async = true });
@@ -35,9 +35,6 @@ public class RssFeedReader : IRssFeedReader
                     ? item.LastUpdatedTime
                     : DateTimeOffset.UtcNow).ToUniversalTime();
 
-            if (since.HasValue && published <= since.Value)
-                continue;
-
             var url = item.Links.FirstOrDefault()?.Uri?.AbsoluteUri;
             var description = item.Summary?.Text;
             var thumbnail = GetThumbnailUrl(item);
@@ -52,8 +49,7 @@ public class RssFeedReader : IRssFeedReader
                 published));
         }
 
-        _logger.LogDebug("Read {Count} items from {FeedUrl} (since {Since})",
-            items.Count, feedUrl, since);
+        _logger.LogDebug("Read {Count} items from {FeedUrl}", items.Count, feedUrl);
 
         return items;
     }
