@@ -75,7 +75,7 @@ public class RssPollingService : BackgroundService
         {
             try
             {
-                var entries = await feedReader.ReadFeedAsync(source.FeedUrl!, source.LastPolledAt, ct);
+                var entries = await feedReader.ReadFeedAsync(source.FeedUrl!, ct);
 
                 var newCount = 0;
                 foreach (var entry in entries)

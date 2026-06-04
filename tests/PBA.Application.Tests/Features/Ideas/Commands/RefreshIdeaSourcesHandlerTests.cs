@@ -31,7 +31,7 @@ public class RefreshIdeaSourcesHandlerTests
         await db.SaveChangesAsync();
 
         var mockReader = new Mock<IRssFeedReader>();
-        mockReader.Setup(r => r.ReadFeedAsync(It.IsAny<string>(), It.IsAny<DateTimeOffset?>(), It.IsAny<CancellationToken>()))
+        mockReader.Setup(r => r.ReadFeedAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<RssFeedItem>());
 
         var handler = new RefreshIdeaSources.Handler(
@@ -40,7 +40,7 @@ public class RefreshIdeaSourcesHandlerTests
         await handler.Handle(new RefreshIdeaSources.Command(), CancellationToken.None);
 
         mockReader.Verify(r => r.ReadFeedAsync(
-            It.IsAny<string>(), It.IsAny<DateTimeOffset?>(), It.IsAny<CancellationToken>()),
+            It.IsAny<string>(), It.IsAny<CancellationToken>()),
             Times.Exactly(2));
     }
 
@@ -60,7 +60,7 @@ public class RefreshIdeaSourcesHandlerTests
         };
 
         var mockReader = new Mock<IRssFeedReader>();
-        mockReader.Setup(r => r.ReadFeedAsync(source.FeedUrl!, It.IsAny<DateTimeOffset?>(), It.IsAny<CancellationToken>()))
+        mockReader.Setup(r => r.ReadFeedAsync(source.FeedUrl!, It.IsAny<CancellationToken>()))
             .ReturnsAsync(items);
 
         var handler = new RefreshIdeaSources.Handler(
@@ -83,9 +83,9 @@ public class RefreshIdeaSourcesHandlerTests
         await db.SaveChangesAsync();
 
         var mockReader = new Mock<IRssFeedReader>();
-        mockReader.Setup(r => r.ReadFeedAsync(failSource.FeedUrl!, It.IsAny<DateTimeOffset?>(), It.IsAny<CancellationToken>()))
+        mockReader.Setup(r => r.ReadFeedAsync(failSource.FeedUrl!, It.IsAny<CancellationToken>()))
             .ThrowsAsync(new HttpRequestException("Connection refused"));
-        mockReader.Setup(r => r.ReadFeedAsync(okSource.FeedUrl!, It.IsAny<DateTimeOffset?>(), It.IsAny<CancellationToken>()))
+        mockReader.Setup(r => r.ReadFeedAsync(okSource.FeedUrl!, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<RssFeedItem>
             {
                 new("Good Article", "Desc", "https://working.com/good", null, "OK", DateTimeOffset.UtcNow),

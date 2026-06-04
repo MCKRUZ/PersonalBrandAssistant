@@ -30,7 +30,7 @@ public static class RefreshIdeaSources
                 try
                 {
                     var entries = await feedReader.ReadFeedAsync(
-                        source.FeedUrl!, source.LastPolledAt, cancellationToken);
+                        source.FeedUrl!, cancellationToken);
 
                     foreach (var entry in entries)
                     {

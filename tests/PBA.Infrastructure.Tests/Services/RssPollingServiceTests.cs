@@ -75,7 +75,7 @@ public class RssPollingServiceTests : IDisposable
     public async Task PollAsync_CreatesIdeasForNewEntries()
     {
         var source = AddRssSource();
-        _mockReader.Setup(r => r.ReadFeedAsync(source.FeedUrl!, It.IsAny<DateTimeOffset?>(), It.IsAny<CancellationToken>()))
+        _mockReader.Setup(r => r.ReadFeedAsync(source.FeedUrl!, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<RssFeedItem>
             {
                 new("Article 1", "Content", "https://testblog.com/article-1", null, "tech", DateTimeOffset.UtcNow),
@@ -105,7 +105,7 @@ public class RssPollingServiceTests : IDisposable
         });
         _dbContext.SaveChanges();
 
-        _mockReader.Setup(r => r.ReadFeedAsync(source.FeedUrl!, It.IsAny<DateTimeOffset?>(), It.IsAny<CancellationToken>()))
+        _mockReader.Setup(r => r.ReadFeedAsync(source.FeedUrl!, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<RssFeedItem>
             {
                 new("Existing", "Content", "https://testblog.com/existing", null, null, DateTimeOffset.UtcNow),
@@ -123,7 +123,7 @@ public class RssPollingServiceTests : IDisposable
     public async Task PollAsync_UpdatesSourceTimestampsOnSuccess()
     {
         var source = AddRssSource();
-        _mockReader.Setup(r => r.ReadFeedAsync(source.FeedUrl!, It.IsAny<DateTimeOffset?>(), It.IsAny<CancellationToken>()))
+        _mockReader.Setup(r => r.ReadFeedAsync(source.FeedUrl!, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<RssFeedItem>());
 
         var service = CreateService();
@@ -138,7 +138,7 @@ public class RssPollingServiceTests : IDisposable
     public async Task PollAsync_ResetsConsecutiveFailuresOnSuccess()
     {
         var source = AddRssSource(failures: 3);
-        _mockReader.Setup(r => r.ReadFeedAsync(source.FeedUrl!, It.IsAny<DateTimeOffset?>(), It.IsAny<CancellationToken>()))
+        _mockReader.Setup(r => r.ReadFeedAsync(source.FeedUrl!, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<RssFeedItem>());
 
         var service = CreateService();
@@ -153,7 +153,7 @@ public class RssPollingServiceTests : IDisposable
     public async Task PollAsync_IncrementsFailuresOnError()
     {
         var source = AddRssSource();
-        _mockReader.Setup(r => r.ReadFeedAsync(source.FeedUrl!, It.IsAny<DateTimeOffset?>(), It.IsAny<CancellationToken>()))
+        _mockReader.Setup(r => r.ReadFeedAsync(source.FeedUrl!, It.IsAny<CancellationToken>()))
             .ThrowsAsync(new HttpRequestException("Connection refused"));
 
         var service = CreateService();
@@ -168,7 +168,7 @@ public class RssPollingServiceTests : IDisposable
     public async Task PollAsync_DisablesSourceAfterMaxFailures()
     {
         var source = AddRssSource(failures: 4);
-        _mockReader.Setup(r => r.ReadFeedAsync(source.FeedUrl!, It.IsAny<DateTimeOffset?>(), It.IsAny<CancellationToken>()))
+        _mockReader.Setup(r => r.ReadFeedAsync(source.FeedUrl!, It.IsAny<CancellationToken>()))
             .ThrowsAsync(new HttpRequestException("Timeout"));
 
         var service = CreateService();
@@ -187,7 +187,7 @@ public class RssPollingServiceTests : IDisposable
         var service = CreateService();
         await service.PollAsync(CancellationToken.None);
 
-        _mockReader.Verify(r => r.ReadFeedAsync(It.IsAny<string>(), It.IsAny<DateTimeOffset?>(), It.IsAny<CancellationToken>()), Times.Never);
+        _mockReader.Verify(r => r.ReadFeedAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
