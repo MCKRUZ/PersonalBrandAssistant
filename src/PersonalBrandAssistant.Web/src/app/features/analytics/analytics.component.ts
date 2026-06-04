@@ -211,7 +211,7 @@ const TRAFFIC_COLORS = ['#c87156', '#8a7df0', '#60a5fa', '#4ade80', '#fbbf24', '
     .kpi-top { display: flex; align-items: center; gap: 10px; }
     .kpi-top .kpi-label { flex: 1; }
     .info-icon {
-      font-size: 13px; color: var(--text-muted); cursor: help;
+      font-size: 13px; color: var(--text-secondary); cursor: help;
       transition: color .14s; border-radius: 99px; outline: none;
     }
     .info-icon:hover, .info-icon:focus-visible { color: var(--brand-primary); }
