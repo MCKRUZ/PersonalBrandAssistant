@@ -15,7 +15,7 @@ public static class AnalyticsEndpoints
             ISender sender, CancellationToken ct) =>
         {
             if (!TryResolveRange(period, from, to, out var range))
-                return Results.BadRequest($"Invalid period '{period}'. Use 7d, 30d, or 90d.");
+                return Results.BadRequest("Invalid period or date range. Use period (7d, 30d, 90d) or a from/to range where from <= to.");
 
             var result = await sender.Send(new GetWebsiteAnalytics.Query(range.From, range.To), ct);
             return result.ToApiResult();
@@ -44,6 +44,7 @@ public static class AnalyticsEndpoints
 
         if (from.HasValue && to.HasValue)
         {
+            if (from.Value > to.Value) return false;
             range = (from.Value, to.Value);
             return true;
         }

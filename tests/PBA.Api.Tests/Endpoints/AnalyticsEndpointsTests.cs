@@ -67,6 +67,16 @@ public class AnalyticsEndpointsTests : IClassFixture<TestWebApplicationFactory>
     }
 
     [Fact]
+    public async Task GetWebsite_InvertedDateRange_Returns400()
+    {
+        var client = CreateClientWith(new Mock<IGoogleAnalyticsService>());
+
+        var response = await client.GetAsync("/api/analytics/website?from=2026-02-01&to=2026-01-01");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
     public async Task GetHealth_Returns200_WithGa4AndSearchConsoleFlags()
     {
         var ga = new Mock<IGoogleAnalyticsService>();
