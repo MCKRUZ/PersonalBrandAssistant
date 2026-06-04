@@ -11,6 +11,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Google.Analytics.Data.V1Beta" Version="2.0.0-beta10" />
+    <PackageReference Include="Google.Apis.SearchConsole.v1" Version="1.74.0.3847" />
     <PackageReference Include="MediatR" Version="12.5.0" />
     <PackageReference Include="FluentValidation" Version="11.12.0" />
     <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="11.12.0" />
