@@ -24,8 +24,8 @@ public class GoogleAnalyticsServiceTests
     {
         var options = Options.Create(new GoogleAnalyticsOptions
         {
-            PropertyId = "261358185",
-            SiteUrl = "https://matthewkruczek.ai/",
+            PropertyId = "test-property-123",
+            SiteUrl = "https://example.com/",
             CredentialsPath = "secrets/google-analytics-sa.json"
         });
         _sut = new GoogleAnalyticsService(
@@ -105,7 +105,9 @@ public class GoogleAnalyticsServiceTests
                 PageRow("/about", "150", "60")
             }
         };
+        RunReportRequest? captured = null;
         _ga4.Setup(c => c.RunReportAsync(It.IsAny<RunReportRequest>(), It.IsAny<CancellationToken>()))
+            .Callback<RunReportRequest, CancellationToken>((r, _) => captured = r)
             .ReturnsAsync(response);
 
         var result = await _sut.GetTopPagesAsync(_from, _to, 3, CancellationToken.None);
@@ -115,6 +117,7 @@ public class GoogleAnalyticsServiceTests
         Assert.Equal("/blog/post-1", result.Value[0].PagePath);
         Assert.Equal(300, result.Value[0].Views);
         Assert.Equal(100, result.Value[0].UniqueUsers);
+        Assert.Equal(3L, captured!.Limit);
     }
 
     [Fact]
