@@ -313,39 +313,27 @@ Add to `src/PersonalBrandAssistant.Infrastructure/DependencyInjection.cs` in the
 2. **Register GA4 client (Singleton):**
    Build the `BetaAnalyticsDataClient` from the service account JSON file. If the credentials file is missing, log a warning and register a no-op/failing implementation so the app still starts.
    ```csharp
-   services.AddSingleton<BetaAnalyticsDataClient>(sp =>
-   {
-       var opts = sp.GetRequiredService<IOptions<GoogleAnalyticsOptions>>().Value;
-       return new BetaAnalyticsDataClientBuilder
-       {
-           CredentialsPath = opts.CredentialsPath
-       }.Build();
-   });
-   services.AddSingleton<IGa4Client, Ga4ClientWrapper>();
+   services.AddSingleton<IGa4Client, Ga4Client>();
    ```
+   The `Ga4Client` builds the underlying `BetaAnalyticsDataClient` lazily on first use,
+   reading the credentials file via
+   `CredentialFactory.FromFile<ServiceAccountCredential>(path).ToGoogleCredential()`
+   fed into `new BetaAnalyticsDataClientBuilder { GoogleCredential = credential }.Build()`.
 
 3. **Register Search Console client (Singleton):**
    ```csharp
-   services.AddSingleton<SearchConsoleService>(sp =>
-   {
-       var opts = sp.GetRequiredService<IOptions<GoogleAnalyticsOptions>>().Value;
-       var credential = GoogleCredential.FromFile(opts.CredentialsPath)
-           .CreateScoped(SearchConsoleService.Scope.WebmastersReadonly);
-       return new SearchConsoleService(new Google.Apis.Services.BaseClientService.Initializer
-       {
-           HttpClientInitializer = credential,
-           ApplicationName = "PersonalBrandAssistant"
-       });
-   });
-   services.AddSingleton<ISearchConsoleClient, SearchConsoleClientWrapper>();
+   services.AddSingleton<ISearchConsoleClient, SearchConsoleClient>();
    ```
+   The `SearchConsoleClient` builds the underlying `SearchConsoleService` lazily on first use
+   (see below), reading the credentials file via
+   `CredentialFactory.FromFile<ServiceAccountCredential>(path).ToGoogleCredential().CreateScoped(...)`.
 
 4. **Register the service (Scoped):**
    ```csharp
    services.AddScoped<IGoogleAnalyticsService, GoogleAnalyticsService>();
    ```
 
-**Important:** The Singleton registrations for `BetaAnalyticsDataClient` and `SearchConsoleService` will throw at resolution time if the credentials file does not exist. Wrap in a try/catch at registration or use a factory that logs warnings. The GA4/GSC permissions validation startup check (Section 05) will handle this gracefully.
+**Important:** The SDK clients are constructed lazily inside `Ga4Client` / `SearchConsoleClient` (wrapped in `Lazy<T>`), so the credentials file is read on the first API call, not at DI resolution time. A missing/invalid credentials file therefore does NOT throw when the Singletons are resolved — the exception surfaces on first use and flows into `GoogleAnalyticsService`'s try/catch, which converts it to a `Result.Fail`. This lets `/health` report `false` and the website endpoint degrade gracefully.
 
 ---
 
@@ -391,7 +379,6 @@ GA4 Data API allows approximately 40,000 tokens/hour (most report requests cost 
 
 - **Service made `internal sealed`:** GoogleAnalyticsService is internal since its constructor depends on internal wrapper interfaces. DI resolves via the public `IGoogleAnalyticsService` interface.
 - **DynamicProxyGenAssembly2:** Added to InternalsVisibleTo in csproj to allow Moq to proxy internal interfaces.
-- **Deprecated GoogleCredential.FromFile:** Used with `#pragma warning disable CS0618` since the new `CredentialFactory` API is not available in the installed package version.
-- **Code review fix:** Refactored DI to register `GoogleCredential` as a shared singleton, eliminating duplicate file reads.
+- **Credential loading:** Uses the current `CredentialFactory.FromFile<ServiceAccountCredential>(path).ToGoogleCredential()` API (no `#pragma warning disable CS0618` needed). The credential is built lazily inside each client (`Ga4Client`, `SearchConsoleClient`) via `Lazy<T>` so the file read happens on first call, keeping DI resolution fault-tolerant.
 - **Docker compose changes deferred:** Skipped docker-compose.yml modification (secrets volume already configured separately).
 - **Test count:** 11 tests (7 service unit + 2 credential + 2 from section-01 interface tests matching filter). All passing.

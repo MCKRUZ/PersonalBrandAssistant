@@ -10,23 +10,27 @@ namespace PBA.Infrastructure.Services.Analytics;
 
 public sealed class SearchConsoleClient : ISearchConsoleClient
 {
-    private readonly SearchConsoleService _service;
+    private readonly Lazy<SearchConsoleService> _service;
 
     public SearchConsoleClient(IOptions<GoogleAnalyticsOptions> options)
     {
-        var credential = CredentialFactory
-            .FromFile<ServiceAccountCredential>(options.Value.CredentialsPath)
-            .ToGoogleCredential()
-            .CreateScoped(SearchConsoleService.Scope.WebmastersReadonly);
-
-        _service = new SearchConsoleService(new BaseClientService.Initializer
+        var path = options.Value.CredentialsPath;
+        _service = new Lazy<SearchConsoleService>(() =>
         {
-            HttpClientInitializer = credential,
-            ApplicationName = "PersonalBrandAssistant"
+            var credential = CredentialFactory
+                .FromFile<ServiceAccountCredential>(path)
+                .ToGoogleCredential()
+                .CreateScoped(SearchConsoleService.Scope.WebmastersReadonly);
+
+            return new SearchConsoleService(new BaseClientService.Initializer
+            {
+                HttpClientInitializer = credential,
+                ApplicationName = "PersonalBrandAssistant"
+            });
         });
     }
 
     public async Task<SearchAnalyticsQueryResponse> QueryAsync(
         string siteUrl, SearchAnalyticsQueryRequest request, CancellationToken ct) =>
-        await _service.Searchanalytics.Query(request, siteUrl).ExecuteAsync(ct);
+        await _service.Value.Searchanalytics.Query(request, siteUrl).ExecuteAsync(ct);
 }

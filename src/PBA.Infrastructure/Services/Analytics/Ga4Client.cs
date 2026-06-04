@@ -8,20 +8,24 @@ namespace PBA.Infrastructure.Services.Analytics;
 
 public sealed class Ga4Client : IGa4Client
 {
-    private readonly BetaAnalyticsDataClient _client;
+    private readonly Lazy<BetaAnalyticsDataClient> _client;
 
     public Ga4Client(IOptions<GoogleAnalyticsOptions> options)
     {
-        var credential = CredentialFactory
-            .FromFile<ServiceAccountCredential>(options.Value.CredentialsPath)
-            .ToGoogleCredential();
-
-        _client = new BetaAnalyticsDataClientBuilder
+        var path = options.Value.CredentialsPath;
+        _client = new Lazy<BetaAnalyticsDataClient>(() =>
         {
-            GoogleCredential = credential
-        }.Build();
+            var credential = CredentialFactory
+                .FromFile<ServiceAccountCredential>(path)
+                .ToGoogleCredential();
+
+            return new BetaAnalyticsDataClientBuilder
+            {
+                GoogleCredential = credential
+            }.Build();
+        });
     }
 
     public Task<RunReportResponse> RunReportAsync(RunReportRequest request, CancellationToken ct) =>
-        _client.RunReportAsync(request, ct);
+        _client.Value.RunReportAsync(request, ct);
 }
