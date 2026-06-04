@@ -5,7 +5,7 @@ import { ChartModule } from 'primeng/chart';
 import { SelectButtonModule } from 'primeng/selectbutton';
 import { FormsModule } from '@angular/forms';
 import { AnalyticsService } from './services/analytics.service';
-import { AnalyticsPeriod, WebsiteAnalytics } from './models/analytics.model';
+import { AnalyticsHealth, AnalyticsPeriod, WebsiteAnalytics } from './models/analytics.model';
 
 @Component({
   selector: 'app-analytics',
@@ -21,6 +21,16 @@ import { AnalyticsPeriod, WebsiteAnalytics } from './models/analytics.model';
           (ngModelChange)="changePeriod($event)"
           optionLabel="label" optionValue="value" />
       </div>
+
+      @if (health(); as h) {
+        @if (!h.ga4 || !h.searchConsole) {
+          <div class="p-3 mb-3 border-round" style="background:#fff3cd;color:#664d03;">
+            Some analytics sources are unavailable
+            @if (!h.ga4) { <span> · Google Analytics</span> }
+            @if (!h.searchConsole) { <span> · Search Console</span> }
+          </div>
+        }
+      }
 
       @if (loading()) {
         <p>Loading…</p>
@@ -73,13 +83,17 @@ export class AnalyticsComponent implements OnInit {
   readonly period = signal<AnalyticsPeriod>('30d');
   readonly loading = signal(false);
   readonly data = signal<WebsiteAnalytics | null>(null);
+  readonly health = signal<AnalyticsHealth | null>(null);
   readonly trafficChart = signal<unknown>({});
 
   constructor(private readonly api: AnalyticsService) {}
 
   ngOnInit(): void {
     this.load();
-    this.api.getHealth().subscribe();
+    this.api.getHealth().subscribe({
+      next: h => this.health.set(h),
+      error: () => this.health.set({ ga4: false, searchConsole: false }),
+    });
   }
 
   changePeriod(p: AnalyticsPeriod): void {

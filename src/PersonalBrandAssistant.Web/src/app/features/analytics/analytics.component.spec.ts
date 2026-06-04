@@ -34,4 +34,17 @@ describe('AnalyticsComponent', () => {
     const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
     expect(text).toContain('123');
   });
+
+  it('shows an unavailable banner when a health source is down', () => {
+    const fixture = TestBed.createComponent(AnalyticsComponent);
+    fixture.detectChanges();
+
+    httpMock.expectOne('/api/analytics/website?period=30d').flush(stub);
+    const health = httpMock.match('/api/analytics/health');
+    health.forEach(r => r.flush({ ga4: false, searchConsole: true }));
+
+    fixture.detectChanges();
+    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(text).toContain('unavailable');
+  });
 });
