@@ -67,6 +67,12 @@ public static class DependencyInjection
         services.AddScoped<IFeedSeedService, FeedSeedService>();
         services.AddScoped<IIdeaSourceSeedService, IdeaSourceSeedService>();
 
+        services.Configure<GoogleAnalyticsOptions>(
+            configuration.GetSection(GoogleAnalyticsOptions.SectionName));
+        services.AddSingleton<IGa4Client, PBA.Infrastructure.Services.Analytics.Ga4Client>();
+        services.AddSingleton<ISearchConsoleClient, PBA.Infrastructure.Services.Analytics.SearchConsoleClient>();
+        services.AddScoped<IGoogleAnalyticsService, PBA.Infrastructure.Services.Analytics.GoogleAnalyticsService>();
+
         return services;
     }
 
