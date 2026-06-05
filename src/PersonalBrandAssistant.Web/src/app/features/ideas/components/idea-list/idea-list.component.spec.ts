@@ -65,4 +65,15 @@ describe('IdeaListComponent', () => {
     titleHeader.click();
     expect(store.setSort).toHaveBeenCalledWith({ field: 'title', direction: 'asc' });
   });
+
+  it('should call store.setSort with field "score" when Score column header is clicked', () => {
+    spyOn(store, 'setSort');
+    const sortableHeaders = fixture.nativeElement.querySelectorAll('.sortable') as NodeListOf<HTMLElement>;
+    const scoreHeader = Array.from(sortableHeaders).find(
+      (el) => el.textContent?.trim().startsWith('Score')
+    );
+    expect(scoreHeader).withContext('Score sortable header must exist').toBeTruthy();
+    scoreHeader!.click();
+    expect(store.setSort).toHaveBeenCalledWith({ field: 'score', direction: 'asc' });
+  });
 });
