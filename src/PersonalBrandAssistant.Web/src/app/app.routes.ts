@@ -15,6 +15,7 @@ export const routes: Routes = [
       { path: 'analytics', loadComponent: () => import('./features/analytics/analytics.component').then(m => m.AnalyticsComponent) },
       { path: 'listening', loadComponent: () => import('./features/listening/listening.component').then(m => m.ListeningComponent) },
       { path: 'settings', loadChildren: () => import('./features/settings/settings.routes').then(m => m.SETTINGS_ROUTES) },
+      { path: 'daily-brief', loadChildren: () => import('./features/digest/digest.routes').then(m => m.digestRoutes) },
     ]
   }
 ];
