@@ -25,6 +25,8 @@ public static class ListIdeas
         public string? SearchText { get; init; }
         public string SortBy { get; init; } = "DetectedAt";
         public string SortDirection { get; init; } = "desc";
+        public int? MinScore { get; init; }
+        public bool IncludeDuplicates { get; init; } = false;
     }
 
     public sealed class Handler(IAppDbContext db) : IRequestHandler<Query, Result<PagedResult<IdeaDto>>>
@@ -63,6 +65,12 @@ public static class ListIdeas
                     || (i.Summary != null && i.Summary.ToLower().Contains(search)));
             }
 
+            if (!request.IncludeDuplicates)
+                query = query.Where(i => i.DuplicateOfId == null);
+
+            if (request.MinScore.HasValue)
+                query = query.Where(i => i.Score >= request.MinScore.Value);
+
             var totalCount = await query.CountAsync(cancellationToken);
 
             query = ApplySort(query, request.SortBy, request.SortDirection);
@@ -83,7 +91,10 @@ public static class ListIdeas
                     Status = i.Status,
                     Tags = i.Tags,
                     DetectedAt = i.DetectedAt,
-                    HasSavedDetails = i.SavedDetails != null
+                    HasSavedDetails = i.SavedDetails != null,
+                    Score = i.Score,
+                    ScoreReason = i.ScoreReason,
+                    IsDuplicate = i.DuplicateOfId != null
                 })
                 .ToListAsync(cancellationToken);
 
@@ -106,6 +117,7 @@ public static class ListIdeas
                 "sourcename" => i => i.SourceName,
                 "category" => i => i.Category!,
                 "status" => i => i.Status,
+                "score" => i => (object)(i.Score ?? -1),
                 _ => i => i.DetectedAt
             };
 

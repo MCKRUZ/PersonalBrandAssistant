@@ -260,4 +260,82 @@ public class ListIdeasHandlerTests
         Assert.Equal(10, result.Value.TotalCount);
         Assert.Equal(4, result.Value.TotalPages);
     }
+
+    [Fact]
+    public async Task Handle_SortByScore_OrdersDescending()
+    {
+        await using var context = CreateContext();
+        context.Ideas.Add(new Idea { Title = "Score3", Score = 3, DeduplicationKey = Guid.NewGuid().ToString(), SourceName = "test-source" });
+        context.Ideas.Add(new Idea { Title = "Score9", Score = 9, DeduplicationKey = Guid.NewGuid().ToString(), SourceName = "test-source" });
+        context.Ideas.Add(new Idea { Title = "Score6", Score = 6, DeduplicationKey = Guid.NewGuid().ToString(), SourceName = "test-source" });
+        await context.SaveChangesAsync();
+
+        var handler = new ListIdeas.Handler(context);
+        var result = await handler.Handle(
+            new ListIdeas.Query { SortBy = "score", SortDirection = "desc" },
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(3, result.Value!.Items.Count);
+        Assert.Equal("Score9", result.Value.Items[0].Title);
+        Assert.Equal("Score6", result.Value.Items[1].Title);
+        Assert.Equal("Score3", result.Value.Items[2].Title);
+    }
+
+    [Fact]
+    public async Task Handle_MinScoreFilter_ExcludesBelowThreshold()
+    {
+        await using var context = CreateContext();
+        context.Ideas.Add(new Idea { Title = "Low", Score = 3, DeduplicationKey = Guid.NewGuid().ToString(), SourceName = "test-source" });
+        context.Ideas.Add(new Idea { Title = "High", Score = 8, DeduplicationKey = Guid.NewGuid().ToString(), SourceName = "test-source" });
+        context.Ideas.Add(new Idea { Title = "Mid", Score = 6, DeduplicationKey = Guid.NewGuid().ToString(), SourceName = "test-source" });
+        await context.SaveChangesAsync();
+
+        var handler = new ListIdeas.Handler(context);
+        var result = await handler.Handle(
+            new ListIdeas.Query { MinScore = 6 },
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(2, result.Value!.Items.Count);
+        Assert.DoesNotContain(result.Value.Items, i => i.Title == "Low");
+    }
+
+    [Fact]
+    public async Task Handle_DefaultQuery_ExcludesDuplicates()
+    {
+        await using var context = CreateContext();
+        var originalId = Guid.NewGuid();
+        context.Ideas.Add(new Idea { Id = originalId, Title = "Original", DeduplicationKey = Guid.NewGuid().ToString(), SourceName = "test-source" });
+        context.Ideas.Add(new Idea { Title = "Duplicate", DuplicateOfId = originalId, DeduplicationKey = Guid.NewGuid().ToString(), SourceName = "test-source" });
+        await context.SaveChangesAsync();
+
+        var handler = new ListIdeas.Handler(context);
+        var result = await handler.Handle(new ListIdeas.Query(), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Single(result.Value!.Items);
+        Assert.Equal("Original", result.Value.Items[0].Title);
+        Assert.False(result.Value.Items[0].IsDuplicate);
+    }
+
+    [Fact]
+    public async Task Handle_IncludeDuplicatesTrue_ReturnsDuplicates()
+    {
+        await using var context = CreateContext();
+        var originalId = Guid.NewGuid();
+        context.Ideas.Add(new Idea { Id = originalId, Title = "Original", DeduplicationKey = Guid.NewGuid().ToString(), SourceName = "test-source" });
+        context.Ideas.Add(new Idea { Title = "Duplicate", DuplicateOfId = originalId, DeduplicationKey = Guid.NewGuid().ToString(), SourceName = "test-source" });
+        await context.SaveChangesAsync();
+
+        var handler = new ListIdeas.Handler(context);
+        var result = await handler.Handle(
+            new ListIdeas.Query { IncludeDuplicates = true },
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(2, result.Value!.Items.Count);
+        Assert.Contains(result.Value.Items, i => i.IsDuplicate);
+        Assert.Contains(result.Value.Items, i => !i.IsDuplicate);
+    }
 }
