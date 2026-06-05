@@ -28,6 +28,7 @@ public class SidecarClient : ISidecarClient, IDisposable
     public async Task<string> SendPromptAsync(
         string systemPrompt,
         string userPrompt,
+        string? model = null,
         CancellationToken ct = default)
     {
         await _globalSemaphore.WaitAsync(ct);

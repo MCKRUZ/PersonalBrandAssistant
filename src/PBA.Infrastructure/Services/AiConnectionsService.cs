@@ -73,7 +73,7 @@ public class AiConnectionsService : BackgroundService
         var systemPrompt = BuildSystemPrompt();
         var userPrompt = BuildUserPrompt(savedIdeas);
 
-        var response = await _sidecarClient.SendPromptAsync(systemPrompt, userPrompt, ct);
+        var response = await _sidecarClient.SendPromptAsync(systemPrompt, userPrompt, model: null, ct);
 
         var connections = ParseResponse(response);
         if (connections == null)

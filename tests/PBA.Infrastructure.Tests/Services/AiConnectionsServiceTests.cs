@@ -72,7 +72,7 @@ public class AiConnectionsServiceTests : IDisposable
         await service.AnalyzeConnectionsAsync(CancellationToken.None);
 
         _sidecarMock.Verify(
-            s => s.SendPromptAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
+            s => s.SendPromptAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()),
             Times.Never);
     }
 
@@ -82,8 +82,8 @@ public class AiConnectionsServiceTests : IDisposable
         SeedIdeas(60, IdeaStatus.Saved);
         string? capturedPrompt = null;
         _sidecarMock.Setup(s => s.SendPromptAsync(
-                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .Callback<string, string, CancellationToken>((_, user, _) => capturedPrompt = user)
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .Callback<string, string, string?, CancellationToken>((_, user, _, _) => capturedPrompt = user)
             .ReturnsAsync("[]");
 
         var service = CreateService();
@@ -111,8 +111,8 @@ public class AiConnectionsServiceTests : IDisposable
 
         string? capturedPrompt = null;
         _sidecarMock.Setup(s => s.SendPromptAsync(
-                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .Callback<string, string, CancellationToken>((_, user, _) => capturedPrompt = user)
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .Callback<string, string, string?, CancellationToken>((_, user, _, _) => capturedPrompt = user)
             .ReturnsAsync("[]");
 
         var service = CreateService();
@@ -145,7 +145,7 @@ public class AiConnectionsServiceTests : IDisposable
         });
 
         _sidecarMock.Setup(s => s.SendPromptAsync(
-                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(responseJson);
 
         var service = CreateService();
@@ -179,7 +179,7 @@ public class AiConnectionsServiceTests : IDisposable
         var fencedResponse = $"```json\n{json}\n```";
 
         _sidecarMock.Setup(s => s.SendPromptAsync(
-                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(fencedResponse);
 
         var service = CreateService();
@@ -195,7 +195,7 @@ public class AiConnectionsServiceTests : IDisposable
     {
         SeedIdeas(2);
         _sidecarMock.Setup(s => s.SendPromptAsync(
-                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("I can't process that request");
 
         var service = CreateService();
@@ -233,7 +233,7 @@ public class AiConnectionsServiceTests : IDisposable
         });
 
         _sidecarMock.Setup(s => s.SendPromptAsync(
-                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(responseJson);
 
         var service = CreateService();

@@ -38,7 +38,7 @@ public class GenerateCrossPostHandlerTests
         await context.SaveChangesAsync();
 
         _sidecarMock
-            .Setup(s => s.SendPromptAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Setup(s => s.SendPromptAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("Adapted for Twitter");
 
         var handler = new GenerateCrossPost.Handler(context, _sidecarMock.Object);
@@ -66,7 +66,7 @@ public class GenerateCrossPostHandlerTests
         await context.SaveChangesAsync();
 
         _sidecarMock
-            .Setup(s => s.SendPromptAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Setup(s => s.SendPromptAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("LinkedIn version");
 
         var handler = new GenerateCrossPost.Handler(context, _sidecarMock.Object);
@@ -95,7 +95,7 @@ public class GenerateCrossPostHandlerTests
 
         string? capturedPrompt = null;
         _sidecarMock
-            .Setup(s => s.SendPromptAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Setup(s => s.SendPromptAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .Callback<string, string, CancellationToken>((_, userPrompt, _) => capturedPrompt = userPrompt)
             .ReturnsAsync("Adapted");
 
@@ -122,7 +122,7 @@ public class GenerateCrossPostHandlerTests
         await context.SaveChangesAsync();
 
         _sidecarMock
-            .Setup(s => s.SendPromptAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Setup(s => s.SendPromptAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("Cross-posted");
 
         var handler = new GenerateCrossPost.Handler(context, _sidecarMock.Object);
@@ -150,7 +150,7 @@ public class GenerateCrossPostHandlerTests
         await context.SaveChangesAsync();
 
         _sidecarMock
-            .Setup(s => s.SendPromptAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Setup(s => s.SendPromptAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("Sidecar generated this");
 
         var handler = new GenerateCrossPost.Handler(context, _sidecarMock.Object);
