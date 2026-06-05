@@ -9,7 +9,7 @@ export class NewsService {
 
   getIdeas(limit = 5000): Observable<Idea[]> {
     return this.ideaService.list(
-      { status: null, sourceId: null, category: null, tags: [], dateFrom: null, dateTo: null, searchText: null },
+      { status: null, sourceId: null, category: null, tags: [], dateFrom: null, dateTo: null, searchText: null, minScore: null },
       1, limit,
       { field: 'detectedAt', direction: 'desc' }
     ).pipe(map(result => result.items));
@@ -17,7 +17,7 @@ export class NewsService {
 
   getSavedIdeas(): Observable<Idea[]> {
     return this.ideaService.list(
-      { status: IdeaStatus.Saved, sourceId: null, category: null, tags: [], dateFrom: null, dateTo: null, searchText: null },
+      { status: IdeaStatus.Saved, sourceId: null, category: null, tags: [], dateFrom: null, dateTo: null, searchText: null, minScore: null },
       1, 1000,
       { field: 'detectedAt', direction: 'desc' }
     ).pipe(map(result => result.items));

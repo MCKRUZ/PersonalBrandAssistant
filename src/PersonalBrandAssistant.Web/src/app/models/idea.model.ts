@@ -112,6 +112,7 @@ export interface IdeaFilterState {
   dateFrom: string | null;
   dateTo: string | null;
   searchText: string | null;
+  minScore: number | null;
 }
 
 export interface IdeaSortState {

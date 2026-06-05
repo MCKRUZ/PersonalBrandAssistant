@@ -5,6 +5,7 @@ import { CheckboxModule } from 'primeng/checkbox';
 import { SelectModule } from 'primeng/select';
 import { DatePickerModule } from 'primeng/datepicker';
 import { InputTextModule } from 'primeng/inputtext';
+import { InputNumberModule } from 'primeng/inputnumber';
 import { IdeaStore } from '../../store/idea.store';
 import { IdeaSourceStore } from '../../store/idea-source.store';
 import { IdeaStatus } from '../../../../models/idea.model';
@@ -12,7 +13,7 @@ import { IdeaStatus } from '../../../../models/idea.model';
 @Component({
   selector: 'app-idea-filter-sidebar',
   standalone: true,
-  imports: [FormsModule, ButtonModule, CheckboxModule, SelectModule, DatePickerModule, InputTextModule],
+  imports: [FormsModule, ButtonModule, CheckboxModule, SelectModule, DatePickerModule, InputTextModule, InputNumberModule],
   template: `
     <div class="filter-sidebar" data-testid="filter-sidebar">
       <div class="filter-header">
@@ -56,6 +57,20 @@ import { IdeaStatus } from '../../../../models/idea.model';
           (input)="onCategoryChange()"
           placeholder="Filter by category"
           [style]="{ width: '100%' }" />
+      </section>
+
+      <section class="filter-section">
+        <h4>Min Score</h4>
+        <p-select
+          [options]="scoreOptions"
+          [(ngModel)]="selectedMinScore"
+          (onChange)="onMinScoreChange()"
+          placeholder="Any Score"
+          optionLabel="label"
+          optionValue="value"
+          [showClear]="true"
+          [style]="{ width: '100%' }"
+          data-testid="min-score-filter" />
       </section>
 
       <section class="filter-section">
@@ -136,8 +151,14 @@ export class IdeaFilterSidebarComponent {
     { label: 'Dismissed', value: IdeaStatus.Dismissed, checked: false },
   ];
 
+  readonly scoreOptions = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => ({
+    label: `${n}+`,
+    value: n,
+  }));
+
   selectedStatus: IdeaStatus | null = null;
   selectedSourceId: string | null = null;
+  selectedMinScore: number | null = null;
   categoryText = '';
   dateFrom: Date | null = null;
   dateTo: Date | null = null;
@@ -162,6 +183,10 @@ export class IdeaFilterSidebarComponent {
     this.store.setFilter({ category: this.categoryText || null });
   }
 
+  onMinScoreChange(): void {
+    this.store.setFilter({ minScore: this.selectedMinScore });
+  }
+
   onDateChange(): void {
     this.store.setFilter({
       dateFrom: this.dateFrom?.toISOString() ?? null,
@@ -173,6 +198,7 @@ export class IdeaFilterSidebarComponent {
     this.selectedStatus = null;
     for (const s of this.statuses) s.checked = false;
     this.selectedSourceId = null;
+    this.selectedMinScore = null;
     this.categoryText = '';
     this.dateFrom = null;
     this.dateTo = null;
@@ -184,6 +210,7 @@ export class IdeaFilterSidebarComponent {
       dateFrom: null,
       dateTo: null,
       searchText: null,
+      minScore: null,
     });
   }
 }

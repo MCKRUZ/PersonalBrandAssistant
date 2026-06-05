@@ -42,6 +42,7 @@ export class IdeaService {
         params = params.append('tags', tag);
       });
     }
+    if (filter.minScore != null) params = params.set('minScore', filter.minScore.toString());
 
     return this.http.get<PagedResult<Idea>>(`${this.baseUrl}/ideas`, { params });
   }
