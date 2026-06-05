@@ -18,6 +18,11 @@ public class Idea
     public List<string> Tags { get; set; } = [];
     public DateTimeOffset DetectedAt { get; set; }
     public required string DeduplicationKey { get; set; }
+    public int? Score { get; set; }
+    public string? ScoreReason { get; set; }
+    public DateTimeOffset? ScoredAt { get; set; }
+    public Guid? DuplicateOfId { get; set; }
+    public DateTimeOffset? ClusteredAt { get; set; }
 
     public IdeaSource? IdeaSource { get; set; }
     public SavedIdea? SavedDetails { get; set; }
