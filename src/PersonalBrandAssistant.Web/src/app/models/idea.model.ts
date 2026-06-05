@@ -25,6 +25,9 @@ export interface Idea {
   tags: string[];
   detectedAt: string;
   hasSavedDetails: boolean;
+  score: number | null;
+  scoreReason: string | null;
+  isDuplicate: boolean;
 }
 
 export interface IdeaDetail extends Idea {

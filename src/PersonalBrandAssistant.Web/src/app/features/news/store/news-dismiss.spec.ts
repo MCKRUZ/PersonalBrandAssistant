@@ -24,6 +24,9 @@ describe('NewsStore dismiss', () => {
     hasSavedDetails: false,
     description: null,
     url: `https://example.com/${id}`,
+    score: null,
+    scoreReason: null,
+    isDuplicate: false,
   });
 
   const flushIdeasLoad = (ideas: Idea[]) => {

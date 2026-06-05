@@ -18,6 +18,11 @@ import { Idea, IdeaStatus } from '../../../../models/idea.model';
           <span class="status-badge" [attr.data-status]="idea().status">
             {{ idea().status }}
           </span>
+          @if (idea().score !== null) {
+            <span class="idea-score-badge" data-testid="idea-score-badge" [title]="idea().scoreReason ?? ''">
+              {{ idea().score }}/10
+            </span>
+          }
           <span class="source-name">{{ idea().sourceName }}</span>
           <span class="detected-at">{{ idea().detectedAt | date: 'shortDate' }}</span>
         </div>
@@ -120,6 +125,15 @@ import { Idea, IdeaStatus } from '../../../../models/idea.model';
       .status-badge[data-status='Dismissed'] {
         background: #f8514933;
         color: #f85149;
+      }
+      .idea-score-badge {
+        font-size: 11px;
+        font-weight: 700;
+        padding: 2px 8px;
+        border-radius: 12px;
+        background: #bb800033;
+        color: #e3b341;
+        cursor: default;
       }
       .card-title-link {
         text-decoration: none;

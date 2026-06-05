@@ -20,6 +20,9 @@ describe('IdeaGridComponent', () => {
       hasSavedDetails: false,
       description: null,
       url: null,
+      score: null,
+      scoreReason: null,
+      isDuplicate: false,
     },
     {
       id: 'idea-2',
@@ -34,6 +37,9 @@ describe('IdeaGridComponent', () => {
       hasSavedDetails: false,
       description: null,
       url: null,
+      score: null,
+      scoreReason: null,
+      isDuplicate: false,
     },
   ];
 
