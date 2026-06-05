@@ -19,17 +19,18 @@ public sealed class DigestService(
     ILogger<DigestService> logger) : BackgroundService
 {
     private readonly DigestOptions _options = options.Value;
+    private readonly TimeOnly _runAt = TimeOnly.ParseExact(options.Value.RunAtLocalTime, "HH:mm", CultureInfo.InvariantCulture);
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        var runAt = TimeOnly.ParseExact(_options.RunAtLocalTime, "HH:mm", CultureInfo.InvariantCulture);
+        logger.LogInformation("DigestService scheduled daily at {Time} (host TZ {Tz})", _options.RunAtLocalTime, TimeZoneInfo.Local.Id);
 
         while (!stoppingToken.IsCancellationRequested)
         {
             try
             {
                 var now = DateTimeOffset.Now;
-                if (TimeOnly.FromDateTime(now.DateTime) >= runAt)
+                if (TimeOnly.FromDateTime(now.DateTime) >= _runAt)
                     await GenerateDigestAsync(now, stoppingToken);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
@@ -53,7 +54,7 @@ public sealed class DigestService(
 
         var since = now.AddHours(-_options.LookbackHours);
         var top = await db.Ideas
-            .Where(i => i.ScoredAt != null && i.DuplicateOfId == null && i.DetectedAt >= since)
+            .Where(i => i.ScoredAt != null && i.Score != null && i.DuplicateOfId == null && i.DetectedAt >= since)
             .OrderByDescending(i => i.Score)
             .Take(_options.TopN)
             .ToListAsync(ct);

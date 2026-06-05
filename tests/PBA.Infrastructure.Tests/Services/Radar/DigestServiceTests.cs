@@ -67,6 +67,7 @@ public class DigestServiceTests
         Assert.Equal("Brief", digest.Title);
         Assert.Equal(2, digest.Items.Count);
         Assert.Equal(1, digest.Items.Single(i => i.IdeaId == a.Id).Rank); // highest score ranked 1
+        Assert.Equal(2, digest.Items.Single(i => i.IdeaId == b.Id).Rank);
         Assert.Single(db.FeedItems.Where(f => f.Type == FeedItemType.SystemNotification));
     }
 
@@ -112,5 +113,32 @@ public class DigestServiceTests
         await svc.GenerateDigestAsync(DateTimeOffset.UtcNow, CancellationToken.None);
         Assert.Empty(db.Digests);
         writer.Verify(w => w.WriteAsync(It.IsAny<IReadOnlyList<DigestInput>>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task GenerateDigestAsync_WriterReturnsFewerItems_MissingWhyItMattersIsEmpty()
+    {
+        var (svc, db, writer) = Build(new DigestOptions { TopN = 8, LookbackHours = 24 });
+        var a = Scored(9); var b = Scored(7);
+        db.Ideas.AddRange(a, b);
+        await db.SaveChangesAsync();
+
+        // Writer only returns copy for index 0 — index 1 is absent
+        writer.Setup(w => w.WriteAsync(It.IsAny<IReadOnlyList<DigestInput>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new DigestCopy("Brief", "Intro", new List<DigestItemCopy>
+            {
+                new(0, "Why A")
+            }));
+
+        var exception = await Record.ExceptionAsync(() =>
+            svc.GenerateDigestAsync(DateTimeOffset.UtcNow, CancellationToken.None));
+
+        Assert.Null(exception);
+
+        var digest = db.Digests.Include(d => d.Items).Single();
+        Assert.Equal(2, digest.Items.Count);
+
+        var rank2Item = digest.Items.Single(i => i.Rank == 2);
+        Assert.Equal(string.Empty, rank2Item.WhyItMatters);
     }
 }
