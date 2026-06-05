@@ -11,7 +11,6 @@ namespace PBA.Infrastructure.Services.Radar;
 
 public sealed class IdeaScoringService(
     IServiceScopeFactory scopeFactory,
-    IIdeaAnalyzer analyzer,
     IOptions<IdeaScoringOptions> options,
     ILogger<IdeaScoringService> logger) : BackgroundService
 {
@@ -43,6 +42,7 @@ public sealed class IdeaScoringService(
     {
         using var scope = scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var analyzer = scope.ServiceProvider.GetRequiredService<IIdeaAnalyzer>();
 
         var query = db.Ideas.Where(i => i.ScoredAt == null);
         if (backfillCutoff is { } cutoff)
@@ -76,7 +76,8 @@ public sealed class IdeaScoringService(
                 await Task.Delay(_options.ThrottleMs, ct);
         }
 
-        await db.SaveChangesAsync(ct);
+        if (scored > 0)
+            await db.SaveChangesAsync(ct);
         logger.LogInformation("Scored {Scored}/{Total} ideas", scored, batch.Count);
     }
 }

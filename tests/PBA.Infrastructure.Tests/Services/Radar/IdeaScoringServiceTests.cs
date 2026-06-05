@@ -33,6 +33,7 @@ public class IdeaScoringServiceTests
         // Follows the same pattern as RssPollingServiceTests.
         var serviceProvider = new Mock<IServiceProvider>();
         serviceProvider.Setup(p => p.GetService(typeof(ApplicationDbContext))).Returns(db);
+        serviceProvider.Setup(p => p.GetService(typeof(IIdeaAnalyzer))).Returns(analyzer.Object);
 
         var scope = new Mock<IServiceScope>();
         scope.Setup(s => s.ServiceProvider).Returns(serviceProvider.Object);
@@ -40,7 +41,7 @@ public class IdeaScoringServiceTests
         var scopeFactory = new Mock<IServiceScopeFactory>();
         scopeFactory.Setup(f => f.CreateScope()).Returns(scope.Object);
 
-        var svc = new IdeaScoringService(scopeFactory.Object, analyzer.Object, Options.Create(options),
+        var svc = new IdeaScoringService(scopeFactory.Object, Options.Create(options),
             NullLogger<IdeaScoringService>.Instance);
         return (svc, db, analyzer);
     }
@@ -95,6 +96,9 @@ public class IdeaScoringServiceTests
         await svc.ScoreBatchAsync(backfillCutoff: null, CancellationToken.None);
 
         Assert.Equal(2, db.Ideas.Count(i => i.ScoredAt != null));
+        analyzer.Verify(a => a.AnalyzeAsync(
+            It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
+            Times.Exactly(2));
     }
 
     [Fact]
