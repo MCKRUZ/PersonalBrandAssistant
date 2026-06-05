@@ -1,4 +1,6 @@
-# PersonalBrandAssistant
+# PersonalBrandAssistant — Web
+
+Angular 19 frontend for the Personal Brand Assistant. For the project overview, features, API, and deployment, see the [root README](../../README.md). This file covers Angular CLI usage only.
 
 This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 19.2.22.
 
