@@ -103,7 +103,7 @@ public class CheckVoiceHandlerTests
         string? capturedUserPrompt = null;
         _sidecarMock
             .Setup(s => s.SendPromptAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
-            .Callback<string, string, CancellationToken>((_, userPrompt, _) => capturedUserPrompt = userPrompt)
+            .Callback<string, string, string?, CancellationToken>((_, userPrompt, _, _) => capturedUserPrompt = userPrompt)
             .ReturnsAsync("{\"score\": 75, \"feedback\": \"OK\"}");
 
         var handler = new CheckVoice.Handler(context, _sidecarMock.Object);

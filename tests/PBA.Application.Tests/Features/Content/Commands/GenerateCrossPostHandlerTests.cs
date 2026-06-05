@@ -96,7 +96,7 @@ public class GenerateCrossPostHandlerTests
         string? capturedPrompt = null;
         _sidecarMock
             .Setup(s => s.SendPromptAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
-            .Callback<string, string, CancellationToken>((_, userPrompt, _) => capturedPrompt = userPrompt)
+            .Callback<string, string, string?, CancellationToken>((_, userPrompt, _, _) => capturedPrompt = userPrompt)
             .ReturnsAsync("Adapted");
 
         var handler = new GenerateCrossPost.Handler(context, _sidecarMock.Object);

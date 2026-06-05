@@ -41,7 +41,7 @@ public class DraftContentHandlerTests
         string? capturedPrompt = null;
         _sidecarMock
             .Setup(s => s.SendPromptAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
-            .Callback<string, string, CancellationToken>((_, userPrompt, _) => capturedPrompt = userPrompt)
+            .Callback<string, string, string?, CancellationToken>((_, userPrompt, _, _) => capturedPrompt = userPrompt)
             .ReturnsAsync("Generated content");
 
         var handler = new DraftContent.Handler(context, _sidecarMock.Object);
@@ -71,7 +71,7 @@ public class DraftContentHandlerTests
         string? capturedPrompt = null;
         _sidecarMock
             .Setup(s => s.SendPromptAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
-            .Callback<string, string, CancellationToken>((_, userPrompt, _) => capturedPrompt = userPrompt)
+            .Callback<string, string, string?, CancellationToken>((_, userPrompt, _, _) => capturedPrompt = userPrompt)
             .ReturnsAsync("Refined content");
 
         var handler = new DraftContent.Handler(context, _sidecarMock.Object);
@@ -99,7 +99,7 @@ public class DraftContentHandlerTests
         string? capturedPrompt = null;
         _sidecarMock
             .Setup(s => s.SendPromptAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
-            .Callback<string, string, CancellationToken>((_, userPrompt, _) => capturedPrompt = userPrompt)
+            .Callback<string, string, string?, CancellationToken>((_, userPrompt, _, _) => capturedPrompt = userPrompt)
             .ReturnsAsync("Short");
 
         var handler = new DraftContent.Handler(context, _sidecarMock.Object);
@@ -127,7 +127,7 @@ public class DraftContentHandlerTests
         string? capturedPrompt = null;
         _sidecarMock
             .Setup(s => s.SendPromptAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
-            .Callback<string, string, CancellationToken>((_, userPrompt, _) => capturedPrompt = userPrompt)
+            .Callback<string, string, string?, CancellationToken>((_, userPrompt, _, _) => capturedPrompt = userPrompt)
             .ReturnsAsync("Expanded content");
 
         var handler = new DraftContent.Handler(context, _sidecarMock.Object);
@@ -155,7 +155,7 @@ public class DraftContentHandlerTests
         string? capturedPrompt = null;
         _sidecarMock
             .Setup(s => s.SendPromptAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
-            .Callback<string, string, CancellationToken>((_, userPrompt, _) => capturedPrompt = userPrompt)
+            .Callback<string, string, string?, CancellationToken>((_, userPrompt, _, _) => capturedPrompt = userPrompt)
             .ReturnsAsync("Professional text");
 
         var handler = new DraftContent.Handler(context, _sidecarMock.Object);
@@ -191,7 +191,7 @@ public class DraftContentHandlerTests
         string? capturedSystemPrompt = null;
         _sidecarMock
             .Setup(s => s.SendPromptAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
-            .Callback<string, string, CancellationToken>((systemPrompt, _, _) => capturedSystemPrompt = systemPrompt)
+            .Callback<string, string, string?, CancellationToken>((systemPrompt, _, _, _) => capturedSystemPrompt = systemPrompt)
             .ReturnsAsync("Content");
 
         var handler = new DraftContent.Handler(context, _sidecarMock.Object);

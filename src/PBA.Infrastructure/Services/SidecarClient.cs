@@ -31,6 +31,7 @@ public class SidecarClient : ISidecarClient, IDisposable
         string? model = null,
         CancellationToken ct = default)
     {
+        // model override not supported by the CLI backend; ignored.
         await _globalSemaphore.WaitAsync(ct);
         try
         {
