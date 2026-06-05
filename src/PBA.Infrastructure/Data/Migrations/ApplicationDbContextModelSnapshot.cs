@@ -211,6 +211,69 @@ namespace PBA.Infrastructure.Data.Migrations
                     b.ToTable("ContentPlatformPublishes");
                 });
 
+            modelBuilder.Entity("PBA.Domain.Entities.Digest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Intro")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("ItemCount")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Date")
+                        .IsUnique();
+
+                    b.ToTable("Digests");
+                });
+
+            modelBuilder.Entity("PBA.Domain.Entities.DigestItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("DigestId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("IdeaId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Rank")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Score")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("WhyItMatters")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DigestId");
+
+                    b.HasIndex("IdeaId");
+
+                    b.ToTable("DigestItems");
+                });
+
             modelBuilder.Entity("PBA.Domain.Entities.FeedItem", b =>
                 {
                     b.Property<Guid>("Id")
@@ -279,6 +342,9 @@ namespace PBA.Infrastructure.Data.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<DateTimeOffset?>("ClusteredAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("DeduplicationKey")
                         .IsRequired()
                         .HasMaxLength(500)
@@ -290,8 +356,20 @@ namespace PBA.Infrastructure.Data.Migrations
                     b.Property<DateTimeOffset>("DetectedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid?>("DuplicateOfId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid?>("IdeaSourceId")
                         .HasColumnType("uuid");
+
+                    b.Property<int?>("Score")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ScoreReason")
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset?>("ScoredAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("SourceName")
                         .IsRequired()
@@ -325,7 +403,13 @@ namespace PBA.Infrastructure.Data.Migrations
 
                     b.HasIndex("DeduplicationKey");
 
+                    b.HasIndex("DuplicateOfId");
+
                     b.HasIndex("IdeaSourceId");
+
+                    b.HasIndex("Score");
+
+                    b.HasIndex("ScoredAt");
 
                     b.ToTable("Ideas");
                 });
@@ -499,8 +583,32 @@ namespace PBA.Infrastructure.Data.Migrations
                     b.Navigation("Content");
                 });
 
+            modelBuilder.Entity("PBA.Domain.Entities.DigestItem", b =>
+                {
+                    b.HasOne("PBA.Domain.Entities.Digest", "Digest")
+                        .WithMany("Items")
+                        .HasForeignKey("DigestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("PBA.Domain.Entities.Idea", "Idea")
+                        .WithMany()
+                        .HasForeignKey("IdeaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Digest");
+
+                    b.Navigation("Idea");
+                });
+
             modelBuilder.Entity("PBA.Domain.Entities.Idea", b =>
                 {
+                    b.HasOne("PBA.Domain.Entities.Idea", null)
+                        .WithMany()
+                        .HasForeignKey("DuplicateOfId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("PBA.Domain.Entities.IdeaSource", "IdeaSource")
                         .WithMany("Ideas")
                         .HasForeignKey("IdeaSourceId")
@@ -525,6 +633,11 @@ namespace PBA.Infrastructure.Data.Migrations
                     b.Navigation("Children");
 
                     b.Navigation("CrossPosts");
+                });
+
+            modelBuilder.Entity("PBA.Domain.Entities.Digest", b =>
+                {
+                    b.Navigation("Items");
                 });
 
             modelBuilder.Entity("PBA.Domain.Entities.Idea", b =>

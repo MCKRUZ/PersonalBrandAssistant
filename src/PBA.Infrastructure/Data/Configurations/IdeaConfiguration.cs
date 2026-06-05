@@ -27,5 +27,16 @@ public class IdeaConfiguration : IEntityTypeConfiguration<Idea>
 
         builder.HasIndex(i => i.IdeaSourceId);
         builder.HasIndex(i => i.DeduplicationKey);
+
+        builder.Property(i => i.ScoreReason).HasColumnType("text");
+
+        builder.HasIndex(i => i.ScoredAt);
+        builder.HasIndex(i => i.Score);
+        builder.HasIndex(i => i.DuplicateOfId);
+
+        builder.HasOne<Idea>()
+            .WithMany()
+            .HasForeignKey(i => i.DuplicateOfId)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }

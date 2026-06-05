@@ -41,7 +41,7 @@ public static class GenerateCrossPost
             string response;
             try
             {
-                response = await sidecar.SendPromptAsync(systemPrompt, userPrompt, cancellationToken);
+                response = await sidecar.SendPromptAsync(systemPrompt, userPrompt, ct: cancellationToken);
             }
             catch (Exception ex)
             {

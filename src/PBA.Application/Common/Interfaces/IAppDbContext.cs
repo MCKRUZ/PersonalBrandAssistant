@@ -13,5 +13,7 @@ public interface IAppDbContext
     DbSet<SavedIdea> SavedIdeas { get; }
     DbSet<IdeaSource> IdeaSources { get; }
     DbSet<FeedItem> FeedItems { get; }
+    DbSet<Digest> Digests { get; }
+    DbSet<DigestItem> DigestItems { get; }
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

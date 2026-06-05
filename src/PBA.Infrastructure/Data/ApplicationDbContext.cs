@@ -14,6 +14,8 @@ public class ApplicationDbContext : DbContext, IAppDbContext
     public DbSet<Idea> Ideas => Set<Idea>();
     public DbSet<SavedIdea> SavedIdeas => Set<SavedIdea>();
     public DbSet<FeedItem> FeedItems => Set<FeedItem>();
+    public DbSet<Digest> Digests => Set<Digest>();
+    public DbSet<DigestItem> DigestItems => Set<DigestItem>();
     public DbSet<PlatformCredential> PlatformCredentials => Set<PlatformCredential>();
     public DbSet<BrandProfile> BrandProfiles => Set<BrandProfile>();
 

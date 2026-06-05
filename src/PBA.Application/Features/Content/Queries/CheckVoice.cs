@@ -24,7 +24,7 @@ public static class CheckVoice
             var systemPrompt = BuildSystemPrompt(profile);
             var userPrompt = BuildUserPrompt(content.Body);
 
-            var response = await sidecar.SendPromptAsync(systemPrompt, userPrompt, cancellationToken);
+            var response = await sidecar.SendPromptAsync(systemPrompt, userPrompt, ct: cancellationToken);
 
             if (!TryParseVoiceResponse(response, out var score, out var feedback))
                 return Result<VoiceCheckDto>.Fail("Sidecar returned invalid voice check response");

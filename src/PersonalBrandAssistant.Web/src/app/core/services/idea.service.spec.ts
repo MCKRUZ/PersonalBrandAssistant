@@ -72,6 +72,13 @@ describe('IdeaService', () => {
     req.flush({ items: [], totalCount: 0, page: 1, pageSize: 20, totalPages: 0 });
   });
 
+  it('includes minScore in list params when set', () => {
+    service.list({ minScore: 6 } as any, 1, 20, { field: 'score', direction: 'desc' }).subscribe();
+    const req = httpMock.expectOne((r) => r.url === '/api/ideas');
+    expect(req.request.params.get('minScore')).toBe('6');
+    req.flush({ items: [], totalCount: 0, page: 1, pageSize: 20 });
+  });
+
   it('getById() sends GET /api/ideas/{id}', () => {
     const mockDetail: IdeaDetail = {
       id: 'abc-123',
@@ -86,6 +93,9 @@ describe('IdeaService', () => {
       hasSavedDetails: false,
       description: null,
       url: null,
+      score: null,
+      scoreReason: null,
+      isDuplicate: false,
       aiConnections: null,
       savedDetails: null,
       sourceInfo: null,

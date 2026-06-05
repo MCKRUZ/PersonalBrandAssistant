@@ -32,7 +32,7 @@ public class CheckVoiceHandlerTests
         await context.SaveChangesAsync();
 
         _sidecarMock
-            .Setup(s => s.SendPromptAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Setup(s => s.SendPromptAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("{\"score\": 85, \"feedback\": \"Good match\"}");
 
         var handler = new CheckVoice.Handler(context, _sidecarMock.Object);
@@ -52,7 +52,7 @@ public class CheckVoiceHandlerTests
         await context.SaveChangesAsync();
 
         _sidecarMock
-            .Setup(s => s.SendPromptAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Setup(s => s.SendPromptAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("{\"score\": 85, \"feedback\": \"Good match\"}");
 
         var handler = new CheckVoice.Handler(context, _sidecarMock.Object);
@@ -83,7 +83,7 @@ public class CheckVoiceHandlerTests
         await context.SaveChangesAsync();
 
         _sidecarMock
-            .Setup(s => s.SendPromptAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Setup(s => s.SendPromptAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("{\"score\": 50, \"feedback\": \"Default profile\"}");
 
         var handler = new CheckVoice.Handler(context, _sidecarMock.Object);
@@ -102,8 +102,8 @@ public class CheckVoiceHandlerTests
 
         string? capturedUserPrompt = null;
         _sidecarMock
-            .Setup(s => s.SendPromptAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .Callback<string, string, CancellationToken>((_, userPrompt, _) => capturedUserPrompt = userPrompt)
+            .Setup(s => s.SendPromptAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .Callback<string, string, string?, CancellationToken>((_, userPrompt, _, _) => capturedUserPrompt = userPrompt)
             .ReturnsAsync("{\"score\": 75, \"feedback\": \"OK\"}");
 
         var handler = new CheckVoice.Handler(context, _sidecarMock.Object);
@@ -122,7 +122,7 @@ public class CheckVoiceHandlerTests
         await context.SaveChangesAsync();
 
         _sidecarMock
-            .Setup(s => s.SendPromptAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Setup(s => s.SendPromptAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("This is not valid JSON at all");
 
         var handler = new CheckVoice.Handler(context, _sidecarMock.Object);
@@ -140,7 +140,7 @@ public class CheckVoiceHandlerTests
         await context.SaveChangesAsync();
 
         _sidecarMock
-            .Setup(s => s.SendPromptAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Setup(s => s.SendPromptAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("```json\n{\"score\": 82, \"feedback\": \"Strong match\"}\n```");
 
         var handler = new CheckVoice.Handler(context, _sidecarMock.Object);
@@ -160,7 +160,7 @@ public class CheckVoiceHandlerTests
         await context.SaveChangesAsync();
 
         _sidecarMock
-            .Setup(s => s.SendPromptAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Setup(s => s.SendPromptAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("Here is my analysis:\n{\"score\": 64, \"feedback\": \"Decent\"}\nLet me know if you need more.");
 
         var handler = new CheckVoice.Handler(context, _sidecarMock.Object);
@@ -180,7 +180,7 @@ public class CheckVoiceHandlerTests
         await context.SaveChangesAsync();
 
         _sidecarMock
-            .Setup(s => s.SendPromptAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Setup(s => s.SendPromptAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("{\"score\": 150, \"feedback\": \"Manipulated\"}");
 
         var handler = new CheckVoice.Handler(context, _sidecarMock.Object);

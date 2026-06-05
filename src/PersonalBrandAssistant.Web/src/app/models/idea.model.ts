@@ -25,6 +25,9 @@ export interface Idea {
   tags: string[];
   detectedAt: string;
   hasSavedDetails: boolean;
+  score: number | null;
+  scoreReason: string | null;
+  isDuplicate: boolean;
 }
 
 export interface IdeaDetail extends Idea {
@@ -109,6 +112,7 @@ export interface IdeaFilterState {
   dateFrom: string | null;
   dateTo: string | null;
   searchText: string | null;
+  minScore: number | null;
 }
 
 export interface IdeaSortState {

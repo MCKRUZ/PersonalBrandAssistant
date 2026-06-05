@@ -28,8 +28,10 @@ public class SidecarClient : ISidecarClient, IDisposable
     public async Task<string> SendPromptAsync(
         string systemPrompt,
         string userPrompt,
+        string? model = null,
         CancellationToken ct = default)
     {
+        // model override not supported by the CLI backend; ignored.
         await _globalSemaphore.WaitAsync(ct);
         try
         {

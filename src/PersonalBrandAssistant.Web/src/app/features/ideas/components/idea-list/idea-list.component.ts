@@ -29,6 +29,13 @@ import { Idea } from '../../../../models/idea.model';
                [class.pi-sort-down]="store.sort().direction === 'desc'"></i>
           }
         </span>
+        <span class="col-score sortable" (click)="onSort('score')">
+          Score
+          @if (store.sort().field === 'score') {
+            <i class="pi" [class.pi-sort-up]="store.sort().direction === 'asc'"
+               [class.pi-sort-down]="store.sort().direction === 'desc'"></i>
+          }
+        </span>
         <span class="col-actions">Actions</span>
       </div>
 
@@ -47,6 +54,7 @@ import { Idea } from '../../../../models/idea.model';
           <span class="col-source">{{ idea.sourceName }}</span>
           <span class="col-category">{{ idea.category }}</span>
           <span class="col-date">{{ idea.detectedAt | date: 'shortDate' }}</span>
+          <span class="col-score">{{ idea.score != null ? idea.score + '/10' : '' }}</span>
           <span class="col-actions">
             <p-button icon="pi pi-bookmark" severity="secondary" [text]="true" size="small"
               (onClick)="save.emit(idea.id)" pTooltip="Save" />
@@ -71,7 +79,7 @@ import { Idea } from '../../../../models/idea.model';
       }
       .list-header {
         display: grid;
-        grid-template-columns: 60px 1fr 120px 120px 100px 120px;
+        grid-template-columns: 60px 1fr 120px 120px 100px 70px 120px;
         gap: 8px;
         padding: 8px 12px;
         font-size: 12px;
@@ -89,7 +97,7 @@ import { Idea } from '../../../../models/idea.model';
       }
       .list-row {
         display: grid;
-        grid-template-columns: 60px 1fr 120px 120px 100px 120px;
+        grid-template-columns: 60px 1fr 120px 120px 100px 70px 120px;
         gap: 8px;
         padding: 10px 12px;
         align-items: center;
@@ -135,6 +143,11 @@ import { Idea } from '../../../../models/idea.model';
         color: #8b949e;
         font-size: 12px;
       }
+      .col-score {
+        color: #8b949e;
+        font-size: 12px;
+        text-align: center;
+      }
       .col-actions {
         display: flex;
         gap: 2px;
@@ -160,7 +173,7 @@ import { Idea } from '../../../../models/idea.model';
           font-weight: 600;
           font-size: 0.9rem;
         }
-        .col-source, .col-category, .col-date {
+        .col-source, .col-category, .col-date, .col-score {
           font-size: 0.72rem;
         }
         .col-actions {

@@ -45,7 +45,7 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>
             services.AddSingleton(new Mock<IContentScheduler>().Object);
 
             var sidecarMock = new Mock<ISidecarClient>();
-            sidecarMock.Setup(x => x.SendPromptAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            sidecarMock.Setup(x => x.SendPromptAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync("""{"score": 85, "feedback": "Good brand voice alignment"}""");
             services.AddSingleton(sidecarMock.Object);
 

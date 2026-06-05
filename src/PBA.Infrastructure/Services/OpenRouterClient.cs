@@ -26,13 +26,13 @@ public sealed class OpenRouterClient(
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
     };
 
-    public async Task<string> SendPromptAsync(string systemPrompt, string userPrompt, CancellationToken ct = default)
+    public async Task<string> SendPromptAsync(string systemPrompt, string userPrompt, string? model = null, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(_options.ApiKey))
             throw new InvalidOperationException("OpenRouter API key is not configured.");
 
         var payload = new ChatRequest(
-            _options.Model,
+            model ?? _options.Model,
             [new ChatMessage("system", systemPrompt), new ChatMessage("user", userPrompt)],
             _options.MaxTokens);
 
@@ -82,7 +82,7 @@ public sealed class OpenRouterClient(
         string userPrompt,
         [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
     {
-        var result = await SendPromptAsync(systemPrompt, userPrompt, ct);
+        var result = await SendPromptAsync(systemPrompt, userPrompt, model: null, ct);
         yield return result;
     }
 

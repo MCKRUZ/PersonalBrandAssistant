@@ -23,6 +23,9 @@ describe('SaveIdeaDialogComponent', () => {
     hasSavedDetails: false,
     description: null,
     url: null,
+    score: null,
+    scoreReason: null,
+    isDuplicate: false,
   };
 
   beforeEach(async () => {

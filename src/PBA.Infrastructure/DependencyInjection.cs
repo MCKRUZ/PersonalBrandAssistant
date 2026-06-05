@@ -56,6 +56,19 @@ public static class DependencyInjection
         services.AddHttpClient<ISidecarClient, OpenRouterClient>();
         services.AddHostedService<AiConnectionsService>();
 
+        // AI News Radar (Horizon-inspired): scoring -> clustering -> daily digest.
+        services.Configure<IdeaScoringOptions>(configuration.GetSection(IdeaScoringOptions.SectionName));
+        services.Configure<ClusteringOptions>(configuration.GetSection(ClusteringOptions.SectionName));
+        services.Configure<DigestOptions>(configuration.GetSection(DigestOptions.SectionName));
+
+        services.AddScoped<IIdeaAnalyzer, PBA.Infrastructure.Services.Radar.IdeaAnalyzer>();
+        services.AddScoped<IIdeaClusterer, PBA.Infrastructure.Services.Radar.IdeaClusterer>();
+        services.AddScoped<IDigestWriter, PBA.Infrastructure.Services.Radar.DigestWriter>();
+
+        services.AddHostedService<PBA.Infrastructure.Services.Radar.IdeaScoringService>();
+        services.AddHostedService<PBA.Infrastructure.Services.Radar.IdeaClusteringService>();
+        services.AddHostedService<PBA.Infrastructure.Services.Radar.DigestService>();
+
         services.Configure<BlogConnectorOptions>(configuration.GetSection(BlogConnectorOptions.SectionName));
 
         services.AddScoped<IContentPublisher, ContentPublisher>();

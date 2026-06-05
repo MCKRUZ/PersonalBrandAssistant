@@ -19,6 +19,9 @@ describe('IdeaCardComponent', () => {
     hasSavedDetails: false,
     description: null,
     url: null,
+    score: null,
+    scoreReason: null,
+    isDuplicate: false,
   };
 
   beforeEach(async () => {
@@ -84,5 +87,18 @@ describe('IdeaCardComponent', () => {
     const btn = fixture.nativeElement.querySelector('[data-testid="create-content-btn"] button') as HTMLElement;
     btn.click();
     expect(component.createContent.emit).toHaveBeenCalledWith('idea-1');
+  });
+
+  it('renders a score badge when score is present', () => {
+    fixture.componentRef.setInput('idea', { ...mockIdea, score: 8, scoreReason: 'Strong angle' });
+    fixture.detectChanges();
+    const badge = fixture.nativeElement.querySelector('[data-testid="idea-score-badge"]');
+    expect(badge?.textContent).toContain('8');
+  });
+
+  it('does not render a score badge when score is null', () => {
+    fixture.componentRef.setInput('idea', { ...mockIdea, score: null });
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[data-testid="idea-score-badge"]')).toBeNull();
   });
 });

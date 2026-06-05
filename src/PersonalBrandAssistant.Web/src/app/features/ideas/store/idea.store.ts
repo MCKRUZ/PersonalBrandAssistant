@@ -32,6 +32,7 @@ const initialState: IdeaStoreState = {
     dateFrom: null,
     dateTo: null,
     searchText: null,
+    minScore: null,
   },
   sort: { field: 'detectedAt', direction: 'desc' },
   viewMode: 'list',

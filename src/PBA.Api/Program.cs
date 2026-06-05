@@ -50,6 +50,7 @@ app.MapOAuthEndpoints();
 app.MapPlatformEndpoints();
 app.MapFeedEndpoints();
 app.MapAnalyticsEndpoints();
+app.MapDigestEndpoints();
 
 app.MapHub<ContentHub>("/hubs/content");
 app.MapHub<FeedHub>("/hubs/feed");

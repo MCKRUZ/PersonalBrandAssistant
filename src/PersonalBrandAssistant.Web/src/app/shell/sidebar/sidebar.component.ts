@@ -151,6 +151,7 @@ export class SidebarComponent {
     { label: 'Feed', route: '/feed', icon: '⌂' },
     { label: 'Discover', route: '/discover', icon: '◎' },
     { label: 'Ideas', route: '/ideas', icon: '◈' },
+    { label: 'Daily Brief', route: '/daily-brief', icon: '◑' },
     { label: 'Create', route: '/content', icon: '✎' },
     { label: 'Calendar', route: '/calendar', icon: '▦' },
     { label: 'Analytics', route: '/analytics', icon: '◧' },

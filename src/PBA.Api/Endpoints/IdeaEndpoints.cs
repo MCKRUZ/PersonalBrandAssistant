@@ -31,7 +31,9 @@ public static class IdeaEndpoints
                 DateTo = p.DateTo,
                 SearchText = p.SearchText,
                 SortBy = p.SortBy ?? "detectedat",
-                SortDirection = p.SortDirection ?? "desc"
+                SortDirection = p.SortDirection ?? "desc",
+                MinScore = p.MinScore,
+                IncludeDuplicates = p.IncludeDuplicates ?? false
             };
             var result = await sender.Send(query, ct);
             return result.ToApiResult();
@@ -119,4 +121,6 @@ public record ListIdeasQueryParams
     public int? PageSize { get; init; }
     public string? SortBy { get; init; }
     public string? SortDirection { get; init; }
+    public int? MinScore { get; init; }
+    public bool? IncludeDuplicates { get; init; }
 }

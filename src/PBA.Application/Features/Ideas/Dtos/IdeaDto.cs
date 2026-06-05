@@ -16,4 +16,7 @@ public record IdeaDto
     public IReadOnlyList<string> Tags { get; init; } = [];
     public DateTimeOffset DetectedAt { get; init; }
     public bool HasSavedDetails { get; init; }
+    public int? Score { get; init; }
+    public string? ScoreReason { get; init; }
+    public bool IsDuplicate { get; init; }
 }
