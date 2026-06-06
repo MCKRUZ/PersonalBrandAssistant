@@ -9,7 +9,7 @@ interface Chip { key: keyof IdeaFilterState; label: string; }
   template: `
     @if (chips().length > 0) {
       <div class="chips">
-        @for (chip of chips(); track chip.key) {
+        @for (chip of chips(); track chip.label) {
           <span class="filter-chip" data-testid="filter-chip">
             {{ chip.label }}
             <button type="button" aria-label="Remove filter" (click)="clear.emit(chip.key)">

@@ -22,6 +22,13 @@ describe('ActiveFilterChipsComponent', () => {
     expect(chips.length).toBe(2);
   });
 
+  it('renders a distinct chip per tag without duplicate-track errors', () => {
+    fixture.componentRef.setInput('filter', { ...empty, tags: ['ai', 'agents', 'llm'] });
+    fixture.detectChanges();
+    const chips = fixture.nativeElement.querySelectorAll('[data-testid="filter-chip"]');
+    expect(chips.length).toBe(3);
+  });
+
   it('emits clear with the filter key when a chip is removed', () => {
     let cleared: keyof IdeaFilterState | undefined;
     fixture.componentRef.setInput('filter', { ...empty, minScore: 7 });
