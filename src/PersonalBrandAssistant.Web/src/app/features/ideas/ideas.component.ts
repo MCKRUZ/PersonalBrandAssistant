@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { PaginatorModule } from 'primeng/paginator';
 import { InputTextModule } from 'primeng/inputtext';
+import { SelectModule } from 'primeng/select';
 import { IdeaStore } from './store/idea.store';
 import { IdeaSourceStore } from './store/idea-source.store';
 import { IdeaFilterSidebarComponent } from './components/idea-filter-sidebar/idea-filter-sidebar.component';
@@ -12,7 +13,9 @@ import { IdeaGridComponent } from './components/idea-grid/idea-grid.component';
 import { IdeaListComponent } from './components/idea-list/idea-list.component';
 import { SaveIdeaDialogComponent } from './components/save-idea-dialog/save-idea-dialog.component';
 import { SmartSuggestionsComponent } from './components/smart-suggestions/smart-suggestions.component';
-import { Idea } from '../../models/idea.model';
+import { ActiveFilterChipsComponent } from './components/active-filter-chips/active-filter-chips.component';
+import { ScoreDistributionComponent } from './components/score-distribution/score-distribution.component';
+import { Idea, IdeaFilterState } from '../../models/idea.model';
 import { IdeaService } from '../../core/services/idea.service';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
@@ -25,12 +28,15 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
     ButtonModule,
     PaginatorModule,
     InputTextModule,
+    SelectModule,
     IdeaFilterSidebarComponent,
     ViewToggleComponent,
     IdeaGridComponent,
     IdeaListComponent,
     SaveIdeaDialogComponent,
     SmartSuggestionsComponent,
+    ActiveFilterChipsComponent,
+    ScoreDistributionComponent,
   ],
   template: `
     <div class="ideas-layout" data-testid="ideas-page">
@@ -55,8 +61,12 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
                 (input)="onSearchInput()"
                 data-testid="search-input" />
             </div>
+            <p-select [options]="sortOptions" optionLabel="label" optionValue="value"
+              [(ngModel)]="sortField" (onChange)="onSortChange($event.value)"
+              data-testid="sort-select" styleClass="sort-select" />
             <app-view-toggle />
           </div>
+          <app-active-filter-chips [filter]="store.filter()" (clear)="onClearFilter($event)" />
         </header>
 
         @if (store.loading()) {
@@ -92,6 +102,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
         [(visible)]="saveDialogVisible" />
 
       <aside class="suggestions-sidebar">
+        <app-score-distribution [ideas]="store.ideas()" />
         <app-smart-suggestions (createContent)="onCreateContent($event)" />
       </aside>
     </div>
@@ -129,11 +140,11 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
         font-size: 24px;
         font-weight: 600;
         margin: 0;
-        color: #f0f6fc;
+        color: var(--text-primary);
       }
       .manage-sources-link {
         font-size: 13px;
-        color: #58a6ff;
+        color: var(--brand-primary);
         text-decoration: none;
         display: flex;
         align-items: center;
@@ -158,7 +169,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
         left: 10px;
         top: 50%;
         transform: translateY(-50%);
-        color: #8b949e;
+        color: var(--text-secondary);
         font-size: 14px;
       }
       .search-wrapper input {
@@ -168,11 +179,11 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
       .loading-state {
         text-align: center;
         padding: 48px;
-        color: #8b949e;
+        color: var(--text-secondary);
       }
       .suggestions-sidebar {
         padding: 16px;
-        border-left: 1px solid #21262d;
+        border-left: 1px solid var(--surface-border);
         overflow-y: auto;
         display: flex;
         flex-direction: column;
@@ -192,6 +203,13 @@ export class IdeasComponent implements OnInit {
   selectedIdeaForSave: Idea | null = null;
   private searchTimer: ReturnType<typeof setTimeout> | null = null;
 
+  readonly sortOptions = [
+    { label: 'Newest', value: 'detectedAt' },
+    { label: 'Highest score', value: 'score' },
+    { label: 'Source', value: 'sourceName' },
+  ];
+  sortField = 'detectedAt';
+
   ngOnInit(): void {
     this.store.loadIdeas();
     this.sourceStore.loadAll();
@@ -205,6 +223,15 @@ export class IdeasComponent implements OnInit {
     this.searchTimer = setTimeout(() => {
       this.store.setFilter({ searchText: this.searchText || null });
     }, 300);
+  }
+
+  onSortChange(field: string): void {
+    this.sortField = field;
+    this.store.setSort({ field, direction: 'desc' });
+  }
+
+  onClearFilter(key: keyof IdeaFilterState): void {
+    this.store.setFilter({ [key]: key === 'tags' ? [] : null } as Partial<IdeaFilterState>);
   }
 
   onSave(id: string): void {
