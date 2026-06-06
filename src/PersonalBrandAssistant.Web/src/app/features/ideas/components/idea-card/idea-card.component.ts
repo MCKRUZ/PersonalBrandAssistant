@@ -1,7 +1,6 @@
 import { Component, input, output } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { ButtonModule } from 'primeng/button';
-import { TagModule } from 'primeng/tag';
 import { TooltipModule } from 'primeng/tooltip';
 import { Idea } from '../../../../models/idea.model';
 import { ScoreBadgeComponent } from '../../../../shared/score-badge/score-badge.component';
@@ -9,7 +8,7 @@ import { ScoreBadgeComponent } from '../../../../shared/score-badge/score-badge.
 @Component({
   selector: 'app-idea-card',
   standalone: true,
-  imports: [DatePipe, ButtonModule, TagModule, TooltipModule, ScoreBadgeComponent],
+  imports: [DatePipe, ButtonModule, TooltipModule, ScoreBadgeComponent],
   template: `
     <div class="idea-card" data-testid="idea-card">
       @if (idea().thumbnailUrl) {
