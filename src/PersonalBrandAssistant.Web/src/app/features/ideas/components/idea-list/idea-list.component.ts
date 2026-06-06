@@ -48,7 +48,7 @@ import { ScoreBadgeComponent } from '../../../../shared/score-badge/score-badge.
       a.row-title:hover { color: var(--brand-primary); }
       .row-meta { font-size: 12px; color: var(--text-secondary); display: flex; gap: 6px; }
       .row-actions { display: flex; gap: 2px; opacity: 0; transition: opacity 0.15s; }
-      .idea-row:hover .row-actions { opacity: 1; }
+      .idea-row:hover .row-actions, .idea-row:focus-within .row-actions { opacity: 1; }
     `,
   ],
 })
