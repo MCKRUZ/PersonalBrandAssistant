@@ -23,6 +23,7 @@ public class Idea
     public DateTimeOffset? ScoredAt { get; set; }
     public Guid? DuplicateOfId { get; set; }
     public DateTimeOffset? ClusteredAt { get; set; }
+    public DateTimeOffset? AlertedAt { get; set; }
 
     public IdeaSource? IdeaSource { get; set; }
     public SavedIdea? SavedDetails { get; set; }

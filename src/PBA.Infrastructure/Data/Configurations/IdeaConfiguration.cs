@@ -33,6 +33,7 @@ public class IdeaConfiguration : IEntityTypeConfiguration<Idea>
         builder.HasIndex(i => i.ScoredAt);
         builder.HasIndex(i => i.Score);
         builder.HasIndex(i => i.DuplicateOfId);
+        builder.HasIndex(i => i.AlertedAt);
 
         builder.HasOne<Idea>()
             .WithMany()

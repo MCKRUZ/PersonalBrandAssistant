@@ -107,5 +107,14 @@ public sealed class DigestService(
 
         await db.SaveChangesAsync(ct);
         logger.LogInformation("Generated digest {Date} with {Count} items", date, top.Count);
+
+        var dispatcher = scope.ServiceProvider.GetRequiredService<IDeliveryDispatcher>();
+        var deliveryItems = digest.Items
+            .OrderBy(i => i.Rank)
+            .Join(top, di => di.IdeaId, idea => idea.Id,
+                (di, idea) => new DeliveryItem(di.Rank, di.Score, idea.Title, di.WhyItMatters, idea.Url))
+            .ToList();
+        await dispatcher.DispatchAsync(
+            new DeliveryNotification(DeliveryKind.Digest, copy.Title, copy.Intro, deliveryItems), ct);
     }
 }

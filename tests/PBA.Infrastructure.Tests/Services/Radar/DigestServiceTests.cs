@@ -18,17 +18,19 @@ public class DigestServiceTests
     // Use mock scope so scope.Dispose() does not dispose the shared db instance.
     // Writer is resolved from the provider (not constructor) per Correction 1.
     // Mirrors IdeaScoringServiceTests.Build harness pattern.
-    private static (DigestService svc, ApplicationDbContext db, Mock<IDigestWriter> writer) Build(DigestOptions options)
+    private static (DigestService svc, ApplicationDbContext db, Mock<IDigestWriter> writer, Mock<IDeliveryDispatcher> dispatcher) Build(DigestOptions options)
     {
         var dbOptions = new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
             .Options;
         var db = new ApplicationDbContext(dbOptions);
         var writer = new Mock<IDigestWriter>();
+        var dispatcher = new Mock<IDeliveryDispatcher>();
 
         var serviceProvider = new Mock<IServiceProvider>();
         serviceProvider.Setup(p => p.GetService(typeof(ApplicationDbContext))).Returns(db);
         serviceProvider.Setup(p => p.GetService(typeof(IDigestWriter))).Returns(writer.Object);
+        serviceProvider.Setup(p => p.GetService(typeof(IDeliveryDispatcher))).Returns(dispatcher.Object);
 
         var scope = new Mock<IServiceScope>();
         scope.Setup(s => s.ServiceProvider).Returns(serviceProvider.Object);
@@ -37,7 +39,7 @@ public class DigestServiceTests
         scopeFactory.Setup(f => f.CreateScope()).Returns(scope.Object);
 
         var svc = new DigestService(scopeFactory.Object, Options.Create(options), NullLogger<DigestService>.Instance);
-        return (svc, db, writer);
+        return (svc, db, writer, dispatcher);
     }
 
     private static Idea Scored(int score, Guid? dupOf = null) => new()
@@ -50,7 +52,7 @@ public class DigestServiceTests
     [Fact]
     public async Task GenerateDigestAsync_TopScoredPrimaries_CreatesDigestItemsAndFeedAlert()
     {
-        var (svc, db, writer) = Build(new DigestOptions { TopN = 8, LookbackHours = 24 });
+        var (svc, db, writer, _) = Build(new DigestOptions { TopN = 8, LookbackHours = 24 });
         var a = Scored(9); var b = Scored(7);
         db.Ideas.AddRange(a, b);
         await db.SaveChangesAsync();
@@ -72,9 +74,35 @@ public class DigestServiceTests
     }
 
     [Fact]
+    public async Task GenerateDigestAsync_AfterPersist_DispatchesDigestNotificationWithItems()
+    {
+        var (svc, db, writer, dispatcher) = Build(new DigestOptions { TopN = 8, LookbackHours = 24 });
+        db.Ideas.AddRange(Scored(9), Scored(7));
+        await db.SaveChangesAsync();
+        writer.Setup(w => w.WriteAsync(It.IsAny<IReadOnlyList<DigestInput>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new DigestCopy("Brief", "Intro", new List<DigestItemCopy> { new(0, "Why A"), new(1, "Why B") }));
+
+        await svc.GenerateDigestAsync(DateTimeOffset.UtcNow, CancellationToken.None);
+
+        dispatcher.Verify(d => d.DispatchAsync(
+            It.Is<DeliveryNotification>(n => n.Kind == DeliveryKind.Digest && n.Title == "Brief" && n.Items.Count == 2),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task GenerateDigestAsync_NoScoredIdeas_DoesNotDispatch()
+    {
+        var (svc, db, _, dispatcher) = Build(new DigestOptions());
+
+        await svc.GenerateDigestAsync(DateTimeOffset.UtcNow, CancellationToken.None);
+
+        dispatcher.Verify(d => d.DispatchAsync(It.IsAny<DeliveryNotification>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
     public async Task GenerateDigestAsync_ExcludesDuplicates()
     {
-        var (svc, db, writer) = Build(new DigestOptions { TopN = 8 });
+        var (svc, db, writer, _) = Build(new DigestOptions { TopN = 8 });
         var primary = Scored(9);
         db.Ideas.Add(primary);
         await db.SaveChangesAsync();
@@ -94,7 +122,7 @@ public class DigestServiceTests
     [Fact]
     public async Task GenerateDigestAsync_DigestForDateExists_SkipsAndDoesNotCallWriter()
     {
-        var (svc, db, writer) = Build(new DigestOptions());
+        var (svc, db, writer, _) = Build(new DigestOptions());
         var today = DateOnly.FromDateTime(DateTimeOffset.UtcNow.UtcDateTime);
         db.Digests.Add(new Digest { Date = today, Title = "x", Intro = "y", CreatedAt = DateTimeOffset.UtcNow });
         db.Ideas.Add(Scored(9));
@@ -109,7 +137,7 @@ public class DigestServiceTests
     [Fact]
     public async Task GenerateDigestAsync_NoScoredIdeas_DoesNothing()
     {
-        var (svc, db, writer) = Build(new DigestOptions());
+        var (svc, db, writer, _) = Build(new DigestOptions());
         await svc.GenerateDigestAsync(DateTimeOffset.UtcNow, CancellationToken.None);
         Assert.Empty(db.Digests);
         writer.Verify(w => w.WriteAsync(It.IsAny<IReadOnlyList<DigestInput>>(), It.IsAny<CancellationToken>()), Times.Never);
@@ -118,7 +146,7 @@ public class DigestServiceTests
     [Fact]
     public async Task GenerateDigestAsync_WriterReturnsFewerItems_MissingWhyItMattersIsEmpty()
     {
-        var (svc, db, writer) = Build(new DigestOptions { TopN = 8, LookbackHours = 24 });
+        var (svc, db, writer, _) = Build(new DigestOptions { TopN = 8, LookbackHours = 24 });
         var a = Scored(9); var b = Scored(7);
         db.Ideas.AddRange(a, b);
         await db.SaveChangesAsync();
