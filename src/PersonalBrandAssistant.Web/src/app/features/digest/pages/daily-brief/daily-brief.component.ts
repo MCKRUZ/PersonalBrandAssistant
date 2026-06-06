@@ -1,47 +1,56 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { DigestService } from '../../services/digest.service';
-import { Digest } from '../../models/digest.model';
+import { Digest, DigestSummary } from '../../models/digest.model';
+import { BriefHistoryComponent } from '../../components/brief-history/brief-history.component';
+import { BriefDetailComponent } from '../../components/brief-detail/brief-detail.component';
 
 @Component({
   selector: 'app-daily-brief',
   standalone: true,
-  imports: [CommonModule],
+  imports: [BriefHistoryComponent, BriefDetailComponent],
   template: `
-    @if (digest(); as d) {
-      <article class="daily-brief">
-        <header>
-          <h1>{{ d.title }}</h1>
-          <p class="intro">{{ d.intro }}</p>
-        </header>
-        <ol class="brief-items">
-          @for (item of d.items; track item.ideaId) {
-            <li>
-              <span class="rank">{{ item.rank }}</span>
-              <span class="score">{{ item.score }}/10</span>
-              @if (item.url) {
-                <a [href]="item.url" target="_blank" rel="noopener">{{ item.title }}</a>
-              } @else {
-                <span>{{ item.title }}</span>
-              }
-              <p class="why">{{ item.whyItMatters }}</p>
-            </li>
-          }
-        </ol>
-      </article>
-    } @else {
-      <p class="empty">No daily brief yet. Check back after the next run.</p>
-    }
+    <div class="brief-layout">
+      <aside class="history-pane">
+        <app-brief-history [digests]="history()" [selectedId]="selectedId()" (select)="onSelect($event)" />
+      </aside>
+      <main class="detail-pane">
+        @if (loading()) {
+          <div class="loading">Loading brief…</div>
+        } @else {
+          <app-brief-detail [digest]="current()" />
+        }
+      </main>
+    </div>
   `,
+  styles: [`
+    .brief-layout { display: grid; grid-template-columns: 260px 1fr; height: 100%; min-height: 0; }
+    .history-pane { border-right: 1px solid var(--surface-border); overflow-y: auto; background: var(--surface-sidebar); }
+    .detail-pane { overflow-y: auto; }
+    .loading { padding: 48px; text-align: center; color: var(--text-secondary); }
+  `],
 })
 export class DailyBriefComponent implements OnInit {
   private readonly service = inject(DigestService);
-  readonly digest = signal<Digest | null>(null);
+  readonly history = signal<DigestSummary[]>([]);
+  readonly current = signal<Digest | null>(null);
+  readonly selectedId = signal<string | null>(null);
+  readonly loading = signal(false);
 
   ngOnInit(): void {
+    this.service.list().subscribe({ next: (h) => this.history.set(h), error: () => this.history.set([]) });
     this.service.getLatest().subscribe({
-      next: (d) => this.digest.set(d),
-      error: () => this.digest.set(null),
+      next: (d) => { this.current.set(d); this.selectedId.set(d?.id ?? null); },
+      error: () => this.current.set(null),
+    });
+  }
+
+  onSelect(id: string): void {
+    if (id === this.selectedId()) return;
+    this.selectedId.set(id);
+    this.loading.set(true);
+    this.service.getById(id).subscribe({
+      next: (d) => { this.current.set(d); this.loading.set(false); },
+      error: () => { this.current.set(null); this.loading.set(false); },
     });
   }
 }
