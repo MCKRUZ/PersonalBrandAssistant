@@ -1,13 +1,11 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { IdeaListComponent } from './idea-list.component';
-import { IdeaStore } from '../../store/idea.store';
 import { Idea, IdeaStatus } from '../../../../models/idea.model';
 
 describe('IdeaListComponent', () => {
   let fixture: ComponentFixture<IdeaListComponent>;
   let component: IdeaListComponent;
-  let store: InstanceType<typeof IdeaStore>;
 
   const mockIdeas: Idea[] = [
     {
@@ -35,7 +33,6 @@ describe('IdeaListComponent', () => {
       providers: [provideHttpClient()],
     }).compileComponents();
 
-    store = TestBed.inject(IdeaStore);
     fixture = TestBed.createComponent(IdeaListComponent);
     component = fixture.componentInstance;
     fixture.componentRef.setInput('ideas', mockIdeas);

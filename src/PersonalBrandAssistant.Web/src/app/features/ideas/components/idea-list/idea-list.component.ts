@@ -1,8 +1,7 @@
-import { Component, inject, input, output } from '@angular/core';
+import { Component, input, output } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { ButtonModule } from 'primeng/button';
 import { TooltipModule } from 'primeng/tooltip';
-import { IdeaStore } from '../../store/idea.store';
 import { Idea } from '../../../../models/idea.model';
 import { ScoreBadgeComponent } from '../../../../shared/score-badge/score-badge.component';
 
@@ -54,7 +53,6 @@ import { ScoreBadgeComponent } from '../../../../shared/score-badge/score-badge.
   ],
 })
 export class IdeaListComponent {
-  readonly store = inject(IdeaStore);
   readonly ideas = input.required<Idea[]>();
   readonly save = output<string>();
   readonly dismiss = output<string>();
