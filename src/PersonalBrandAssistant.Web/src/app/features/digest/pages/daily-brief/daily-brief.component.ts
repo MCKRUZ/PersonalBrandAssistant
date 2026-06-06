@@ -37,10 +37,11 @@ export class DailyBriefComponent implements OnInit {
   readonly loading = signal(false);
 
   ngOnInit(): void {
+    this.loading.set(true);
     this.service.list().subscribe({ next: (h) => this.history.set(h), error: () => this.history.set([]) });
     this.service.getLatest().subscribe({
-      next: (d) => { this.current.set(d); this.selectedId.set(d?.id ?? null); },
-      error: () => this.current.set(null),
+      next: (d) => { this.current.set(d); this.selectedId.set(d?.id ?? null); this.loading.set(false); },
+      error: () => { this.current.set(null); this.loading.set(false); },
     });
   }
 
