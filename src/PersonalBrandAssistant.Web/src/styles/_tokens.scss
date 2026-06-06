@@ -42,6 +42,11 @@
   --voice-mid: #fbbf24;
   --voice-low: #f87171;
 
+  // score bands (mirror $score-* in _variables.scss)
+  --score-success: #4ade80;
+  --score-warning: #fbbf24;
+  --score-danger: #f87171;
+
   // delivery badge pairs
   --delivery-auto-bg: #1f3a2b;
   --delivery-auto-fg: #4ade80;
