@@ -5,7 +5,7 @@ import { Component, computed, input } from '@angular/core';
   standalone: true,
   template: `
     @if (score() !== null) {
-      <span class="score-badge" [class]="band()" [title]="title()">{{ score() }}/10</span>
+      <span [class]="'score-badge ' + band()" [title]="title()">{{ score() }}/10</span>
     }
   `,
   styles: [`

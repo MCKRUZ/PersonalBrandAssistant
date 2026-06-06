@@ -35,4 +35,8 @@ describe('ScoreBadgeComponent', () => {
   it('renders nothing when score is null', () => {
     expect(render(null).querySelector('.score-badge')).toBeNull();
   });
+
+  it('uses the danger band for score 0', () => {
+    expect(render(0).querySelector('.score-badge')?.classList).toContain('band-danger');
+  });
 });
