@@ -64,6 +64,23 @@ public class HighScoreAlertServiceTests
     }
 
     [Fact]
+    public async Task SweepAsync_Alert_WritesHighPriorityTrendAlertFeedItem()
+    {
+        var (svc, db, _) = Build(Default);
+        var idea = Idea(9);
+        db.Ideas.Add(idea);
+        await db.SaveChangesAsync();
+
+        await svc.SweepAsync(DateTimeOffset.UtcNow, CancellationToken.None);
+
+        var feedItem = Assert.Single(db.FeedItems);
+        Assert.Equal(FeedItemType.TrendAlert, feedItem.Type);
+        Assert.Equal(FeedItemPriority.High, feedItem.Priority);
+        Assert.Equal(idea.Id, feedItem.ActionTargetId);
+        Assert.Contains(idea.Title, feedItem.Title);
+    }
+
+    [Fact]
     public async Task SweepAsync_BelowThreshold_DoesNotDispatch()
     {
         var (svc, db, dispatcher) = Build(Default);

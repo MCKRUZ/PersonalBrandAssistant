@@ -1,9 +1,12 @@
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using PBA.Application.Common.Interfaces;
+using PBA.Domain.Entities;
+using PBA.Domain.Enums;
 using PBA.Infrastructure.Configuration;
 using PBA.Infrastructure.Data;
 
@@ -75,6 +78,18 @@ public sealed class HighScoreAlertService(
 
             await dispatcher.DispatchAsync(notification, ct);
             idea.AlertedAt = now;
+
+            db.FeedItems.Add(new FeedItem
+            {
+                Type = FeedItemType.TrendAlert,
+                Title = $"High-score opportunity: {idea.Title}",
+                Summary = idea.ScoreReason ?? idea.Summary ?? string.Empty,
+                Data = JsonSerializer.Serialize(new { ideaId = idea.Id, score = idea.Score }),
+                ActionType = "view-idea",
+                ActionTargetId = idea.Id,
+                Priority = FeedItemPriority.High,
+                CreatedAt = now
+            });
         }
 
         await db.SaveChangesAsync(ct);
