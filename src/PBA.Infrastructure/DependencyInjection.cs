@@ -46,6 +46,24 @@ public static class DependencyInjection
                 "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36");
         });
         services.AddScoped<IRssFeedReader, RssFeedReader>();
+
+        // Keyed source scrapers (one per IdeaSourceType). SourcePollingService dispatches by type.
+        services.Configure<HackerNewsOptions>(configuration.GetSection(HackerNewsOptions.SectionName));
+        services.Configure<GitHubScraperOptions>(configuration.GetSection(GitHubScraperOptions.SectionName));
+
+        services.AddScoped<PBA.Infrastructure.Services.Scrapers.RssScraper>();
+        services.AddKeyedScoped<ISourceScraper>(IdeaSourceType.RSS,
+            (sp, _) => sp.GetRequiredService<PBA.Infrastructure.Services.Scrapers.RssScraper>());
+        services.AddHttpClient<PBA.Infrastructure.Services.Scrapers.HackerNewsScraper>();
+        services.AddKeyedScoped<ISourceScraper>(IdeaSourceType.HackerNews,
+            (sp, _) => sp.GetRequiredService<PBA.Infrastructure.Services.Scrapers.HackerNewsScraper>());
+        services.AddHttpClient<PBA.Infrastructure.Services.Scrapers.GitHubScraper>(client =>
+        {
+            client.BaseAddress = new Uri("https://api.github.com");
+        });
+        services.AddKeyedScoped<ISourceScraper>(IdeaSourceType.GitHub,
+            (sp, _) => sp.GetRequiredService<PBA.Infrastructure.Services.Scrapers.GitHubScraper>());
+
         services.AddHostedService<SourcePollingService>();
 
         services.Configure<SidecarOptions>(configuration.GetSection(SidecarOptions.SectionName));
