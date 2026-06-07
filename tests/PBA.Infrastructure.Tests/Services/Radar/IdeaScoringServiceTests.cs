@@ -30,7 +30,7 @@ public class IdeaScoringServiceTests
             .ReturnsAsync(new IdeaAnalysis(7, "reason", "summary", "AI", new[] { "tag1" }));
 
         // Use mock scope so scope.Dispose() does not dispose the shared db instance.
-        // Follows the same pattern as RssPollingServiceTests.
+        // Follows the same pattern as SourcePollingServiceTests.
         var serviceProvider = new Mock<IServiceProvider>();
         serviceProvider.Setup(p => p.GetService(typeof(ApplicationDbContext))).Returns(db);
         serviceProvider.Setup(p => p.GetService(typeof(IIdeaAnalyzer))).Returns(analyzer.Object);
