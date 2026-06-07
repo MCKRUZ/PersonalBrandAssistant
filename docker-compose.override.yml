@@ -15,6 +15,9 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
       BlogConnector__RepoPath: /app/blog-repo
       BlogConnector__Author: Matthew Kruczek
+      # In-container `git push` to matthewkruczek-ai uses the repo-scoped WRITE deploy key
+      # mounted via ./secrets (mk_ai_deploy). known_hosts is written to /tmp (writable by APP_UID).
+      GIT_SSH_COMMAND: "ssh -i /app/secrets/mk_ai_deploy -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=/tmp/gh_known_hosts"
       ApiKey: pba-dev-write-key
       ApiKeys__ReadonlyKey: pba-dev-readonly-key
       ApiKeys__WriteKey: pba-dev-write-key
