@@ -82,6 +82,50 @@ public class CreateIdeaSourceValidatorTests
     }
 
     [Fact]
+    public void Validate_GitHubWithoutApiUrl_Fails()
+    {
+        var command = new CreateIdeaSource.Command
+        {
+            Name = "GitHub Releases",
+            Type = IdeaSourceType.GitHub,
+            ApiUrl = null,
+            PollIntervalMinutes = 30
+        };
+        var result = _validator.TestValidate(command);
+        result.ShouldHaveValidationErrorFor(x => x.ApiUrl);
+    }
+
+    [Fact]
+    public void Validate_GitHubWithApiUrl_Passes()
+    {
+        var command = new CreateIdeaSource.Command
+        {
+            Name = "GitHub Releases",
+            Type = IdeaSourceType.GitHub,
+            ApiUrl = "github:repo:dotnet/runtime",
+            PollIntervalMinutes = 30
+        };
+        var result = _validator.TestValidate(command);
+        result.ShouldNotHaveValidationErrorFor(x => x.ApiUrl);
+    }
+
+    [Fact]
+    public void Validate_HackerNewsWithoutUrls_Passes()
+    {
+        var command = new CreateIdeaSource.Command
+        {
+            Name = "HN Front Page",
+            Type = IdeaSourceType.HackerNews,
+            FeedUrl = null,
+            ApiUrl = null,
+            PollIntervalMinutes = 30
+        };
+        var result = _validator.TestValidate(command);
+        result.ShouldNotHaveValidationErrorFor(x => x.FeedUrl);
+        result.ShouldNotHaveValidationErrorFor(x => x.ApiUrl);
+    }
+
+    [Fact]
     public void Validate_PollIntervalBelow5_Fails()
     {
         var command = new CreateIdeaSource.Command
