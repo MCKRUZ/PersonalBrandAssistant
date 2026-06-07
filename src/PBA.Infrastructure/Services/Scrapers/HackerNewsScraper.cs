@@ -88,8 +88,11 @@ public sealed class HackerNewsScraper(
         return parts.Count == 0 ? null : string.Join("\n\n", parts);
     }
 
+    private static readonly System.Text.RegularExpressions.Regex HtmlTag =
+        new("<.*?>", System.Text.RegularExpressions.RegexOptions.Compiled);
+
     private static string StripHtml(string s) =>
-        System.Net.WebUtility.HtmlDecode(System.Text.RegularExpressions.Regex.Replace(s, "<.*?>", string.Empty));
+        System.Net.WebUtility.HtmlDecode(HtmlTag.Replace(s, string.Empty));
 
     private sealed class HnItem
     {
