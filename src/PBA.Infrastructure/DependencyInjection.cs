@@ -46,7 +46,7 @@ public static class DependencyInjection
                 "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36");
         });
         services.AddScoped<IRssFeedReader, RssFeedReader>();
-        services.AddHostedService<RssPollingService>();
+        services.AddHostedService<SourcePollingService>();
 
         services.Configure<SidecarOptions>(configuration.GetSection(SidecarOptions.SectionName));
         services.AddSingleton<IProcessRunner, ProcessRunner>();
