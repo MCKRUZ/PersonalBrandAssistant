@@ -16,7 +16,7 @@ namespace PBA.Infrastructure.Services;
 /// source's type, then dedups and creates Ideas. Generalizes the former RSS-only polling service.</summary>
 public class SourcePollingService(
     IServiceScopeFactory scopeFactory,
-    IOptionsMonitor<RssPollingOptions> options,
+    IOptionsMonitor<SourcePollingOptions> options,
     ILogger<SourcePollingService> logger) : BackgroundService
 {
     private const int LookbackHours = 48;

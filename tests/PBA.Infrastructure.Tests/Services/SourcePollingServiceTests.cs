@@ -16,7 +16,7 @@ namespace PBA.Infrastructure.Tests.Services;
 public class SourcePollingServiceTests
 {
     private static (SourcePollingService svc, ApplicationDbContext db) Build(
-        Dictionary<IdeaSourceType, ISourceScraper> scrapers, RssPollingOptions? opts = null)
+        Dictionary<IdeaSourceType, ISourceScraper> scrapers, SourcePollingOptions? opts = null)
     {
         var db = new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString()).Options);
@@ -32,8 +32,8 @@ public class SourcePollingServiceTests
         var factory = new Mock<IServiceScopeFactory>();
         factory.Setup(f => f.CreateScope()).Returns(scope.Object);
 
-        var monitor = new Mock<IOptionsMonitor<RssPollingOptions>>();
-        monitor.Setup(m => m.CurrentValue).Returns(opts ?? new RssPollingOptions());
+        var monitor = new Mock<IOptionsMonitor<SourcePollingOptions>>();
+        monitor.Setup(m => m.CurrentValue).Returns(opts ?? new SourcePollingOptions());
 
         return (new SourcePollingService(factory.Object, monitor.Object, NullLogger<SourcePollingService>.Instance), db);
     }
@@ -98,7 +98,7 @@ public class SourcePollingServiceTests
         throwing.Setup(s => s.FetchAsync(It.IsAny<IdeaSource>(), It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("boom"));
         var (svc, db) = Build(new() { [IdeaSourceType.HackerNews] = throwing.Object },
-            new RssPollingOptions { MaxConsecutiveFailures = 1 });
+            new SourcePollingOptions { MaxConsecutiveFailures = 1 });
         db.IdeaSources.Add(Src(IdeaSourceType.HackerNews));
         await db.SaveChangesAsync();
 

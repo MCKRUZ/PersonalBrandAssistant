@@ -36,7 +36,7 @@ public static class DependencyInjection
 
         services.AddHttpClient();
 
-        services.Configure<RssPollingOptions>(configuration.GetSection(RssPollingOptions.SectionName));
+        services.Configure<SourcePollingOptions>(configuration.GetSection(SourcePollingOptions.SectionName));
         services.AddHttpClient<RssFeedReader>(client =>
         {
             // Many feeds (blogs.windows.com, news.microsoft.com, Ars, etc.) 403 a default/bot
