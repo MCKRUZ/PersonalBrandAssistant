@@ -56,13 +56,19 @@ public sealed class GitHubScraper(
         if (kind == "repo")
         {
             var seg = target.Split('/', 2);
-            if (seg.Length != 2 || seg.Any(string.IsNullOrWhiteSpace)) return null;
+            if (seg.Length != 2 || seg.Any(s => !IsSafeSegment(s))) return null;
             return ("repo", seg[0], seg[1]);
         }
-        if (kind == "user" && !string.IsNullOrWhiteSpace(target))
+        if (kind == "user" && IsSafeSegment(target))
             return ("user", target, null);
         return null;
     }
+
+    // Guards path interpolation: a segment must be a single non-empty path component with no
+    // separators or traversal, so a crafted ApiUrl cannot hit unintended api.github.com endpoints.
+    private static bool IsSafeSegment(string s) =>
+        !string.IsNullOrWhiteSpace(s)
+        && !s.Contains('/') && !s.Contains('\\') && !s.Contains("..") && !s.Contains('@');
 
     private HttpRequestMessage Request(string path)
     {
@@ -114,7 +120,6 @@ public sealed class GitHubScraper(
 
     private sealed class GhEvent
     {
-        public string? Id { get; set; }
         public string? Type { get; set; }
         [JsonPropertyName("created_at")] public DateTimeOffset CreatedAt { get; set; }
         public GhRepo? Repo { get; set; }

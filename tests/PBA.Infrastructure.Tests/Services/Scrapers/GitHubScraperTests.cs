@@ -72,6 +72,18 @@ public class GitHubScraperTests
         Assert.Equal("https://github.com/octocat/hello", item.Url);
     }
 
+    [Theory]
+    [InlineData("github:repo:dotnet/runtime/../../users/evil/events/public")]
+    [InlineData("github:user:evil/../runtime")]
+    [InlineData("github:user:foo@bar")]
+    public async Task FetchAsync_PathTraversalInSegment_ReturnsEmptyWithoutHttpCall(string apiUrl)
+    {
+        Route(_ => "[]");
+        var scraper = Build(new GitHubScraperOptions());
+        Assert.Empty(await scraper.FetchAsync(Repo(apiUrl), DateTimeOffset.UnixEpoch, CancellationToken.None));
+        Assert.Empty(_requests);
+    }
+
     [Fact]
     public async Task FetchAsync_MalformedApiUrl_ReturnsEmpty()
     {
