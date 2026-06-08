@@ -43,4 +43,16 @@ describe('IdeasComponent', () => {
     const h1 = fixture.nativeElement.querySelector('h1') as HTMLElement;
     expect(h1.textContent?.trim()).toBe('Idea Bank');
   });
+
+  it('calls store.setSort when the sort option changes', () => {
+    const spy = spyOn(store, 'setSort');
+    component.onSortChange('score');
+    expect(spy).toHaveBeenCalledWith({ field: 'score', direction: 'desc' });
+  });
+
+  it('clears a single filter key via the chips', () => {
+    const spy = spyOn(store, 'setFilter');
+    component.onClearFilter('minScore');
+    expect(spy).toHaveBeenCalledWith({ minScore: null });
+  });
 });

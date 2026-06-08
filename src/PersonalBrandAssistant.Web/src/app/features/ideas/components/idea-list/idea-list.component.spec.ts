@@ -1,13 +1,11 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { IdeaListComponent } from './idea-list.component';
-import { IdeaStore } from '../../store/idea.store';
 import { Idea, IdeaStatus } from '../../../../models/idea.model';
 
 describe('IdeaListComponent', () => {
   let fixture: ComponentFixture<IdeaListComponent>;
   let component: IdeaListComponent;
-  let store: InstanceType<typeof IdeaStore>;
 
   const mockIdeas: Idea[] = [
     {
@@ -35,7 +33,6 @@ describe('IdeaListComponent', () => {
       providers: [provideHttpClient()],
     }).compileComponents();
 
-    store = TestBed.inject(IdeaStore);
     fixture = TestBed.createComponent(IdeaListComponent);
     component = fixture.componentInstance;
     fixture.componentRef.setInput('ideas', mockIdeas);
@@ -43,37 +40,67 @@ describe('IdeaListComponent', () => {
   });
 
   it('should render rows for each idea', () => {
-    const rows = fixture.nativeElement.querySelectorAll('[data-testid="idea-row"]');
+    const rows = fixture.nativeElement.querySelectorAll('.idea-row');
     expect(rows.length).toBe(1);
   });
 
-  it('should show empty state when no ideas', () => {
+  it('should render no rows when no ideas', () => {
     fixture.componentRef.setInput('ideas', []);
     fixture.detectChanges();
-    const empty = fixture.nativeElement.querySelector('.empty-state') as HTMLElement;
-    expect(empty).toBeTruthy();
+    const rows = fixture.nativeElement.querySelectorAll('.idea-row');
+    expect(rows.length).toBe(0);
   });
 
   it('should display idea title in row', () => {
-    const title = fixture.nativeElement.querySelector('.list-row .col-title') as HTMLElement;
+    const title = fixture.nativeElement.querySelector('.idea-row .row-title') as HTMLElement;
     expect(title.textContent?.trim()).toBe('First Idea');
   });
 
-  it('should call store.setSort on header click', () => {
-    spyOn(store, 'setSort');
-    const titleHeader = fixture.nativeElement.querySelectorAll('.sortable')[0] as HTMLElement;
-    titleHeader.click();
-    expect(store.setSort).toHaveBeenCalledWith({ field: 'title', direction: 'asc' });
+  it('should emit save event when save button clicked', () => {
+    const emitted: string[] = [];
+    component.save.subscribe((id: string) => emitted.push(id));
+    const btn = fixture.nativeElement.querySelector('[data-testid="save-btn"] button') as HTMLElement;
+    btn.click();
+    expect(emitted).toEqual(['idea-1']);
   });
 
-  it('should call store.setSort with field "score" when Score column header is clicked', () => {
-    spyOn(store, 'setSort');
-    const sortableHeaders = fixture.nativeElement.querySelectorAll('.sortable') as NodeListOf<HTMLElement>;
-    const scoreHeader = Array.from(sortableHeaders).find(
-      (el) => el.textContent?.trim().startsWith('Score')
-    );
-    expect(scoreHeader).withContext('Score sortable header must exist').toBeTruthy();
-    scoreHeader!.click();
-    expect(store.setSort).toHaveBeenCalledWith({ field: 'score', direction: 'asc' });
+  it('should emit dismiss event when dismiss button clicked', () => {
+    const emitted: string[] = [];
+    component.dismiss.subscribe((id: string) => emitted.push(id));
+    const btn = fixture.nativeElement.querySelector('[data-testid="dismiss-btn"] button') as HTMLElement;
+    btn.click();
+    expect(emitted).toEqual(['idea-1']);
+  });
+
+  it('should emit createContent event when create content button clicked', () => {
+    const emitted: string[] = [];
+    component.createContent.subscribe((id: string) => emitted.push(id));
+    const btn = fixture.nativeElement.querySelector('[data-testid="create-content-btn"] button') as HTMLElement;
+    btn.click();
+    expect(emitted).toEqual(['idea-1']);
+  });
+
+  it('shows a score badge for each scored idea row', () => {
+    fixture.componentRef.setInput('ideas', [
+      {
+        id: 'a',
+        title: 'Scored Idea',
+        sourceName: 'Feed',
+        category: 'AI',
+        summary: null,
+        thumbnailUrl: null,
+        status: IdeaStatus.New,
+        tags: [],
+        detectedAt: '2026-01-01T00:00:00Z',
+        hasSavedDetails: false,
+        description: null,
+        url: null,
+        score: 9,
+        scoreReason: 'Very relevant',
+        isDuplicate: false,
+      },
+    ]);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('app-score-badge .band-success')).toBeTruthy();
   });
 });

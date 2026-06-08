@@ -13,6 +13,10 @@ public class CreateIdeaSourceValidator : AbstractValidator<CreateIdeaSource.Comm
             .NotEmpty()
             .When(x => x.Type == IdeaSourceType.RSS)
             .WithMessage("FeedUrl is required for RSS sources");
+        RuleFor(x => x.ApiUrl)
+            .NotEmpty()
+            .When(x => x.Type == IdeaSourceType.GitHub)
+            .WithMessage("ApiUrl is required for GitHub sources (github:repo:owner/name or github:user:username)");
         RuleFor(x => x.PollIntervalMinutes)
             .InclusiveBetween(5, 1440);
     }

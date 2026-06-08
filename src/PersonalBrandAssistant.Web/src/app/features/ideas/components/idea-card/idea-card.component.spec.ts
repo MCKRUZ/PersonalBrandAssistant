@@ -48,7 +48,7 @@ describe('IdeaCardComponent', () => {
   });
 
   it('should display max 3 tags and show +N more', () => {
-    const tags = fixture.nativeElement.querySelectorAll('p-tag');
+    const tags = fixture.nativeElement.querySelectorAll('.chip');
     expect(tags.length).toBe(3);
     const more = fixture.nativeElement.querySelector('.more-tags') as HTMLElement;
     expect(more.textContent?.trim()).toBe('+1');
@@ -100,5 +100,13 @@ describe('IdeaCardComponent', () => {
     fixture.componentRef.setInput('idea', { ...mockIdea, score: null });
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('[data-testid="idea-score-badge"]')).toBeNull();
+  });
+
+  it('renders the shared score badge with the score', () => {
+    fixture.componentRef.setInput('idea', { ...mockIdea, score: 9, scoreReason: 'High relevance' });
+    fixture.detectChanges();
+    const badge = fixture.nativeElement.querySelector('app-score-badge .score-badge');
+    expect(badge?.textContent).toContain('9/10');
+    expect(badge?.classList).toContain('band-success');
   });
 });

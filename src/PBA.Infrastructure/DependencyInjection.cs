@@ -36,7 +36,7 @@ public static class DependencyInjection
 
         services.AddHttpClient();
 
-        services.Configure<RssPollingOptions>(configuration.GetSection(RssPollingOptions.SectionName));
+        services.Configure<SourcePollingOptions>(configuration.GetSection(SourcePollingOptions.SectionName));
         services.AddHttpClient<RssFeedReader>(client =>
         {
             // Many feeds (blogs.windows.com, news.microsoft.com, Ars, etc.) 403 a default/bot
@@ -46,7 +46,25 @@ public static class DependencyInjection
                 "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36");
         });
         services.AddScoped<IRssFeedReader, RssFeedReader>();
-        services.AddHostedService<RssPollingService>();
+
+        // Keyed source scrapers (one per IdeaSourceType). SourcePollingService dispatches by type.
+        services.Configure<HackerNewsOptions>(configuration.GetSection(HackerNewsOptions.SectionName));
+        services.Configure<GitHubScraperOptions>(configuration.GetSection(GitHubScraperOptions.SectionName));
+
+        services.AddScoped<PBA.Infrastructure.Services.Scrapers.RssScraper>();
+        services.AddKeyedScoped<ISourceScraper>(IdeaSourceType.RSS,
+            (sp, _) => sp.GetRequiredService<PBA.Infrastructure.Services.Scrapers.RssScraper>());
+        services.AddHttpClient<PBA.Infrastructure.Services.Scrapers.HackerNewsScraper>();
+        services.AddKeyedScoped<ISourceScraper>(IdeaSourceType.HackerNews,
+            (sp, _) => sp.GetRequiredService<PBA.Infrastructure.Services.Scrapers.HackerNewsScraper>());
+        services.AddHttpClient<PBA.Infrastructure.Services.Scrapers.GitHubScraper>(client =>
+        {
+            client.BaseAddress = new Uri("https://api.github.com");
+        });
+        services.AddKeyedScoped<ISourceScraper>(IdeaSourceType.GitHub,
+            (sp, _) => sp.GetRequiredService<PBA.Infrastructure.Services.Scrapers.GitHubScraper>());
+
+        services.AddHostedService<SourcePollingService>();
 
         services.Configure<SidecarOptions>(configuration.GetSection(SidecarOptions.SectionName));
         services.AddSingleton<IProcessRunner, ProcessRunner>();
@@ -68,6 +86,15 @@ public static class DependencyInjection
         services.AddHostedService<PBA.Infrastructure.Services.Radar.IdeaScoringService>();
         services.AddHostedService<PBA.Infrastructure.Services.Radar.IdeaClusteringService>();
         services.AddHostedService<PBA.Infrastructure.Services.Radar.DigestService>();
+
+        // AI News Radar Phase 2: external delivery (email + Discord) + instant high-score alerts.
+        services.Configure<DigestDeliveryOptions>(configuration.GetSection(DigestDeliveryOptions.SectionName));
+        services.AddScoped<IDigestDeliverySender, PBA.Infrastructure.Services.Radar.Delivery.EmailDigestSender>();
+        services.AddHttpClient<PBA.Infrastructure.Services.Radar.Delivery.DiscordDigestSender>();
+        services.AddScoped<IDigestDeliverySender>(sp =>
+            sp.GetRequiredService<PBA.Infrastructure.Services.Radar.Delivery.DiscordDigestSender>());
+        services.AddScoped<IDeliveryDispatcher, PBA.Infrastructure.Services.Radar.Delivery.DeliveryDispatcher>();
+        services.AddHostedService<PBA.Infrastructure.Services.Radar.HighScoreAlertService>();
 
         services.Configure<BlogConnectorOptions>(configuration.GetSection(BlogConnectorOptions.SectionName));
 

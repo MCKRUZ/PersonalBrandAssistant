@@ -98,6 +98,30 @@ describe('AddSourceDialogComponent', () => {
     expect(store.update).toHaveBeenCalledWith('src-1', jasmine.objectContaining({ name: 'Updated Name' }));
   });
 
+  it('should offer Hacker News and GitHub as source types', () => {
+    const values = component.typeOptions.map((o) => o.value);
+    expect(values).toContain(IdeaSourceType.HackerNews);
+    expect(values).toContain(IdeaSourceType.GitHub);
+  });
+
+  it('should show GitHub repo/user input when type is GitHub', () => {
+    fixture.componentRef.setInput('editSource', null);
+    fixture.componentRef.setInput('visible', true);
+    fixture.detectChanges();
+    component.form.get('type')?.setValue(IdeaSourceType.GitHub);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[data-testid="github-url-input"]')).toBeTruthy();
+  });
+
+  it('should show a no-URL hint when type is Hacker News', () => {
+    fixture.componentRef.setInput('editSource', null);
+    fixture.componentRef.setInput('visible', true);
+    fixture.detectChanges();
+    component.form.get('type')?.setValue(IdeaSourceType.HackerNews);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[data-testid="hackernews-hint"]')).toBeTruthy();
+  });
+
   it('should reset form on cancel', () => {
     fixture.componentRef.setInput('editSource', mockSource);
     fixture.componentRef.setInput('visible', true);

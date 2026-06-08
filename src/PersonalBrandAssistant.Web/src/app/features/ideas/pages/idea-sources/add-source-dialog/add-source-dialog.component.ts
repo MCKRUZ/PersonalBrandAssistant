@@ -53,6 +53,24 @@ import { IdeaSource, IdeaSourceType } from '../../../../../models/idea.model';
           </div>
         }
 
+        @if (form.get('type')?.value === 'GitHub') {
+          <div class="field">
+            <label for="apiUrl">Repository or User *</label>
+            <input id="apiUrl" type="text" pInputText formControlName="apiUrl"
+              placeholder="github:repo:owner/name or github:user:username"
+              [style]="{ width: '100%' }" data-testid="github-url-input" />
+            <small class="hint">Releases for a repo, or public events for a user.</small>
+          </div>
+        }
+
+        @if (form.get('type')?.value === 'HackerNews') {
+          <div class="field">
+            <small class="hint" data-testid="hackernews-hint">
+              No URL needed. Polls the Hacker News front page for top stories.
+            </small>
+          </div>
+        }
+
         <div class="field">
           <label for="category">Category</label>
           <input id="category" type="text" pInputText formControlName="category"
@@ -85,6 +103,12 @@ import { IdeaSource, IdeaSourceType } from '../../../../../models/idea.model';
         color: #8b949e;
         margin-bottom: 6px;
       }
+      .hint {
+        display: block;
+        font-size: 12px;
+        color: #8b949e;
+        margin-top: 4px;
+      }
     `,
   ],
 })
@@ -98,6 +122,8 @@ export class AddSourceDialogComponent implements OnChanges {
 
   readonly typeOptions = [
     { label: 'RSS Feed', value: IdeaSourceType.RSS },
+    { label: 'Hacker News', value: IdeaSourceType.HackerNews },
+    { label: 'GitHub', value: IdeaSourceType.GitHub },
     { label: 'API', value: IdeaSourceType.API },
     { label: 'Manual', value: IdeaSourceType.Manual },
     { label: 'AI Generated', value: IdeaSourceType.AIGenerated },

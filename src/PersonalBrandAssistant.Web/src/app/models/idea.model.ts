@@ -8,6 +8,8 @@ export enum IdeaStatus {
 export enum IdeaSourceType {
   RSS = 'RSS',
   API = 'API',
+  HackerNews = 'HackerNews',
+  GitHub = 'GitHub',
   Manual = 'Manual',
   AIGenerated = 'AIGenerated',
 }

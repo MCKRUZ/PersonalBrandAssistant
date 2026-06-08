@@ -41,7 +41,7 @@ Follow global rules in `~/.claude/rules/coding-style.md`:
 ## Nexus Intelligence
 
 *Auto-updated by Nexus — do not edit this section manually.*
-*Last sync: 2026-06-02*
+*Last sync: 2026-06-08*
 
 ### Portfolio
 | Project | Description | Tech |
@@ -51,8 +51,7 @@ Follow global rules in `~/.claude/rules/coding-style.md`:
 | project-avatar | — | — |
 | matthewkruczek-ai | **matthewkruczek.ai** — static personal brand website for Matthew Kruczek (EY M… | — |
 | claude-code-mastery | **Claude Code Mastery** — the definitive Claude Code setup and configuration sk… | — |
-| Nexus | Nexus is a local-first cross-project intelligence layer for Claude Code. | — |
-| _+34 inactive_ | — | — |
+| _+35 inactive_ | — | — |
 
 ### Project Context
 #### Deployment: Local Docker on Mac Mini
@@ -134,6 +133,7 @@ Follow global rules in `~/.claude/rules/coding-style.md`:
   > Provides direct access to source material without additional service calls; enables transparent content tracing
 
 ### Active Conflicts
+- [high] personal-brand-assistant publishes via matt-kruczek-blog-writer skill while matthewkruczek-ai maintains same skill for direct article publishing — both projects share the same skill context and editorial memory files, risking content duplication and conflicting publication status if not synchronized.
 - [medium] personal-brand-assistant uses SignalR for real-time feed notifications while jarvis-stack enforces OpenRouter API (no Anthropic models) — if personal-brand-assistant's notifications embed LLM calls, the tiered model strategy incompatibility creates maintenance friction in shared deployment.
 
 > **Cross-project rule**: Before making decisions that affect shared concerns (APIs, auth, data formats, deployment) or asking the user for server/SSH/infrastructure details, run `nexus_query` to check for existing decisions, notes, and conflicts across the portfolio.

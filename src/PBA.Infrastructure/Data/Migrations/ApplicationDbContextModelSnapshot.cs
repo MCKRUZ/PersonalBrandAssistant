@@ -338,6 +338,9 @@ namespace PBA.Infrastructure.Data.Migrations
                     b.Property<string>("AIConnections")
                         .HasColumnType("text");
 
+                    b.Property<DateTimeOffset?>("AlertedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("Category")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
@@ -400,6 +403,8 @@ namespace PBA.Infrastructure.Data.Migrations
                         .HasColumnType("character varying(2000)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("AlertedAt");
 
                     b.HasIndex("DeduplicationKey");
 

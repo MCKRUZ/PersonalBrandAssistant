@@ -5,5 +5,7 @@ public enum IdeaSourceType
     RSS,
     Twitter,
     LinkedIn,
-    API
+    API,
+    HackerNews,
+    GitHub
 }
