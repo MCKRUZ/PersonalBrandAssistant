@@ -26,5 +26,12 @@ internal static class PgVectorModelConfiguration
             .HasConversion(
                 v => v == null ? null : new Vector(v),
                 v => v == null ? null : v.ToArray());
+
+        modelBuilder.Entity<Idea>()
+            .Property(i => i.Embedding)
+            .HasColumnType($"vector({Dimensions})")
+            .HasConversion(
+                v => v == null ? null : new Vector(v),
+                v => v == null ? null : v.ToArray());
     }
 }

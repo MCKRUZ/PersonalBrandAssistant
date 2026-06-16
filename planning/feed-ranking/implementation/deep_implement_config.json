@@ -24,6 +24,10 @@
     "section-01-foundation": {
       "status": "complete",
       "commit_hash": "95589d7e4457d8aa5fb564441bfecf3a92ccbe94"
+    },
+    "section-02-brand-profile-domain": {
+      "status": "complete",
+      "commit_hash": "196eb9ba83b90114ae788c2ae336d3aea652b297"
     }
   },
   "pre_commit": {

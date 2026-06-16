@@ -25,6 +25,16 @@ public class Idea
     public DateTimeOffset? ClusteredAt { get; set; }
     public DateTimeOffset? AlertedAt { get; set; }
 
+    // Brand-anchored ranking (feed-ranking redesign) -----------------------------------------
+    public float[]? Embedding { get; set; }                          // vector(1536), null until embedded
+    public DateTimeOffset? EmbeddedAt { get; set; }
+    public IList<PillarSubScore> PillarSubScores { get; set; } = []; // jsonb, raw 0..1 per pillar (R-C3)
+    public bool? IsAntiTopic { get; set; }
+    public bool? IsAuthorityTopic { get; set; }
+    public int? ScoredProfileVersion { get; set; }                   // BrandRankingProfile.Version used (R-H3)
+    public int ScoreAttempts { get; set; }                           // sweep caps to avoid poison-item burn (R-M5)
+    // Score (existing int? 0-10) is retained as a derived display value = round(brandFit*10).
+
     public IdeaSource? IdeaSource { get; set; }
     public SavedIdea? SavedDetails { get; set; }
 }

@@ -146,3 +146,28 @@ Expected `Up`:
 - Producing `PillarSubScores`/flags via the analyzer + name→id mapping (section-05).
 - The scoring sweep that sets `ScoredProfileVersion`, increments `ScoreAttempts`, and enforces the cap (section-07).
 - `ComputeRank` consuming sub-scores/flags (section-08).
+
+---
+
+## As-built notes (implemented 2026-06-16)
+
+- **Embedding type:** `float[]?` on `Idea` (Domain pure), mapped to `vector(1536)` in
+  `PgVectorModelConfiguration.Apply` (Npgsql-only, gated by `Database.IsNpgsql()` in OnModelCreating) —
+  same pattern established in section-02.
+- **PillarSubScores (key fix):** an `IList<PillarSubScore>` (collection of a COMPLEX type) is NOT mappable
+  by the InMemory provider (unlike `List<string>` primitive collections), and section-08's ListIdeas
+  tests need sub-scores under InMemory. So it uses an explicit **System.Text.Json string ValueConverter
+  + ValueComparer** (in `IdeaConfiguration`), stored as `jsonb` on Npgsql and a string on InMemory — not
+  Npgsql dynamic JSON. The converter is the sole read/write path, so default `JsonSerializerOptions` is
+  self-consistent. Keyed by `BrandPillarId` (R-C3).
+- **Migration default (review fix):** `PillarSubScores` is `NOT NULL` so the migration adds
+  `defaultValueSql: "'[]'::jsonb"` to backfill the existing ~3,800-row `Ideas` table (a NOT NULL column
+  with no default would fail on a populated table — invisible to empty-DB tests). `ScoreAttempts` is
+  `NOT NULL DEFAULT 0` (same reason).
+- **Indexes:** added `IX_Ideas_ScoredProfileVersion`; retained `IX_Ideas_Score` (R-M2); no vector index.
+- **Migration:** `20260616151100_AddIdeaEmbeddingAndSubScores` — 6 columns + index; `Down()` drops all.
+  Verified build + 356 tests + no model drift. vector(1536) round-trip + literal jsonb type deferred to
+  section-12 Testcontainers.
+- **Files:** `PillarSubScore.cs` (new), `Idea.cs` (+6 fields), `IdeaConfiguration.cs` (jsonb converter +
+  ScoreAttempts default + ScoredProfileVersion index), `PgVectorModelConfiguration.cs` (+ Idea.Embedding),
+  migration, `IdeaRankingFieldsConfigurationTests.cs` (InMemory round-trip).
