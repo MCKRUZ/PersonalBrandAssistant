@@ -15,7 +15,4 @@ public sealed class IdeaScoringOptions
 
     /// <summary>Cheap, fast model for per-idea scoring. Defaults independent of the drafting model.</summary>
     public string Model { get; init; } = "google/gemini-2.5-flash";
-
-    /// <summary>When false, only ideas detected after service start are scored (no 3,831-item backfill).</summary>
-    public bool BackfillEnabled { get; init; } = false;
 }

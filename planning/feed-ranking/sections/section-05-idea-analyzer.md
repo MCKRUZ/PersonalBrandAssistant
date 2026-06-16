@@ -179,3 +179,23 @@ private sealed record RawPillar(string? Name, double Score, string? Reason);
 - `src/PBA.Application/Common/Models/BrandRankingProfileSnapshot.cs` (create, or reuse if 06/07 created it)
 - `src/PBA.Infrastructure/Services/Radar/IdeaAnalyzer.cs` (rewrite)
 - `tests/PBA.Infrastructure.Tests/Services/Radar/IdeaAnalyzerTests.cs` (rewrite)
+
+## As built (2026-06-16)
+
+Implemented as part of the **05+06+07 build-coupled unit** (the contract change breaks the old
+`IdeaScoringService` until 07 lands; all three committed together once the build was green).
+
+- **Temperature: path 2 chosen** (user decision). Added a `SendPromptAsync(system, user, model?,
+  temperature?, ct)` overload to `ISidecarClient` (separate overload, not an inserted param, so the
+  existing 4-arg positional callers keep binding `ct`). `OpenRouterClient` sends `"temperature"` in the
+  chat payload (omitted when null via `WhenWritingNull`, so drafting calls are byte-for-byte unchanged);
+  the CLI `SidecarClient` ignores it like it ignores `model`. Analyzer passes `ScoringTemperature = 0.1`;
+  the test asserts the passed value is in `[0, 0.2]`.
+- **`BrandRankingProfileSnapshot`** was authored here as the **full shared shape** for 05/06/07/08 (carries
+  pillar `DescriptionEmbedding`, weights, half-life, floor, multipliers — not just the analyzer's minimum)
+  with a `FromProfile(BrandRankingProfile)` factory, so 06/07/08 reuse one record.
+- Central-collapse guard uses an absolute epsilon (`1e-9`) and only fires with ≥2 pillars. Unknown pillar
+  names and zero-survivor results return null and log a warning.
+- Files: `ISidecarClient.cs`, `OpenRouterClient.cs`, `SidecarClient.cs`, `IIdeaAnalyzer.cs`,
+  `IdeaAnalysis.cs`, `BrandRankingProfileSnapshot.cs` (new), `IdeaAnalyzer.cs`, `IdeaAnalyzerTests.cs`
+  (11 tests).

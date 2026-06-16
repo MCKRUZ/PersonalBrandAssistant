@@ -28,12 +28,17 @@ public sealed class OpenRouterClient(
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
     };
 
-    public async Task<string> SendPromptAsync(string systemPrompt, string userPrompt, string? model = null, CancellationToken ct = default)
+    public Task<string> SendPromptAsync(string systemPrompt, string userPrompt, string? model = null, CancellationToken ct = default)
+        => SendPromptAsync(systemPrompt, userPrompt, model, temperature: null, ct);
+
+    public async Task<string> SendPromptAsync(
+        string systemPrompt, string userPrompt, string? model, double? temperature, CancellationToken ct = default)
     {
         var payload = new ChatRequest(
             model ?? _options.Model,
             [new ChatMessage("system", systemPrompt), new ChatMessage("user", userPrompt)],
-            _options.MaxTokens);
+            _options.MaxTokens,
+            temperature);
 
         var body = await PostJsonAsync("chat/completions", payload, ct);
 
@@ -173,7 +178,10 @@ public sealed class OpenRouterClient(
     private sealed record ChatRequest(
         [property: JsonPropertyName("model")] string Model,
         [property: JsonPropertyName("messages")] IReadOnlyList<ChatMessage> Messages,
-        [property: JsonPropertyName("max_tokens")] int MaxTokens);
+        [property: JsonPropertyName("max_tokens")] int MaxTokens,
+        // Omitted from the JSON when null (DefaultIgnoreCondition = WhenWritingNull), so existing
+        // drafting calls are byte-for-byte unchanged; only low-variance scoring sets it.
+        [property: JsonPropertyName("temperature")] double? Temperature = null);
 
     private sealed record ChatMessage(
         [property: JsonPropertyName("role")] string Role,

@@ -119,3 +119,26 @@ Constructor deps follow the existing Radar services: the EF DbContext, `ISidecar
 - `dotnet test --filter IdeaEmbeddingServiceTests` (all green)
 - 80% coverage on the new code.
 - Confirm DI registration resolves the service (it will be constructor-injected by section-07's sweep).
+
+## As built (2026-06-16)
+
+Part of the **05+06+07 build-coupled unit**.
+
+- **Shared brand-fit helper** lives in `src/PBA.Application/Common/BrandFit.cs` as pure statics:
+  `EmbeddingWeightedSum` (pre-filter) and `RenormalizedSubScore` (query-time, reused by 07/08). There is
+  exactly one implementation of each formula. `IdeaEmbeddingService.ComputeEmbeddingBrandFit(itemVec,
+  IReadOnlyList<BrandPillar>)` is the typed wrapper the section-07 sweep calls (the sweep passes
+  `profileEntity.Pillars`), delegating to `BrandFit.EmbeddingWeightedSum`.
+- **Service is a scoped collaborator** (`AddScoped<IdeaEmbeddingService>()`), constructed with
+  `ApplicationDbContext`, `ISidecarClient`, `IOptionsMonitor<EmbeddingOptions>`, `ILogger`. It is invoked
+  at the start of each scoring sweep (section-07) via `EmbedPendingAsync`, not as its own hosted service.
+- **Pillar staleness rule:** a pillar is re-embedded when its `DescriptionEmbedding` is null (section-09's
+  definition edit must null the affected pillar's vector + bump Version). No per-pillar embedded-version
+  stamp was added.
+- **Durability:** `EmbedIdeasAsync` persists after **each** successful chunk (review fix M3) so a
+  ~3,800-item backfill is resumable and never re-spends embedding tokens after a crash.
+- **R-H2:** `IsUsable` rejects zero/NaN/Infinity vectors at the persist boundary; per-chunk try/catch
+  isolates a failing batch (items stay `Embedding == null` for retry). Empty inputs are filtered before
+  `EmbedAsync` and vectors aligned by the filtered order (never positional over dropped empties).
+- Files: `BrandFit.cs` (new), `IdeaEmbeddingService.cs` (new), `IdeaEmbeddingServiceTests.cs` (8 tests),
+  DI registration. Uses `DateTimeOffset.UtcNow` (consistent with existing radar services; see review M1).

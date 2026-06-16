@@ -200,3 +200,30 @@ Per-sweep algorithm (`DedupBatchAsync`):
 - `tests/PBA.Infrastructure.Tests/Services/Radar/IdeaScoringServiceTests.cs` (rewrite)
 - `tests/PBA.Infrastructure.Tests/Services/Radar/IdeaClusteringServiceTests.cs` (rewrite → `IdeaDedupServiceTests.cs`)
 - `tests/PBA.Infrastructure.Tests/Services/Radar/IdeaClustererTests.cs` (delete)
+
+## As built (2026-06-16)
+
+Final third of the **05+06+07 build-coupled unit**; the whole unit was committed once the build was green.
+
+- **`IdeaScoringService` rewired**: each sweep calls `embedder.EmbedPendingAsync` first (so candidates see
+  fresh vectors), snapshots the active `BrandRankingProfile` ONCE (R-H3, stamps `ScoredProfileVersion`
+  from the snapshot) and `IOptionsMonitor<RankingOptions>.CurrentValue` ONCE (R-L2). Candidate query:
+  `Embedding != null && DetectedAt >= now-ScoringWindowDays && (ScoredProfileVersion == null ||
+  < snapshot.Version) && ScoreAttempts < 3`. Pre-filter via the shared helper; above-threshold items are
+  LLM-scored up to `BatchSize` ordered by descending fit (`ScoreAttempts++` before each call, analyzer-null
+  leaves it unstamped for bounded retry); below-threshold items get the embedding-only badge. Derived
+  `Score` is **two intentional sources per R-M1** (renormalized LLM brandFit above, raw embedding brandFit
+  below).
+- **`IdeaClusteringService` → `IdeaDedupService`** (renamed file + class + hosted-service registration):
+  in-memory union-find cosine grouping (R-L3-dedup, no pgvector SQL), gated on full in-window embedding
+  coverage (R-H1). Primary = highest `Score`, tie-broken deterministically on oldest `DetectedAt` then `Id`
+  (review fix H2 — no dependence on EF load order). No `ISidecarClient` use anywhere.
+- **Deletions:** `IdeaClusterer.cs`, `IIdeaClusterer.cs` (+ `ClusterInput`), `IdeaClustererTests.cs`,
+  `IdeaClusteringServiceTests.cs`. Removed `IdeaScoringOptions.BackfillEnabled`, `ClusteringOptions.MinScore`
+  + `ClusteringOptions.Model`, and the matching keys from `src/PBA.Api/appsettings.json` (deployed
+  appsettings left for section-12's R-L6 grep). `"Clustering"` section name kept (minimize cutover churn).
+- **Tests:** `IdeaScoringServiceTests.cs` rewritten (9 tests incl. a `CountingMonitor` proving R-L2
+  single-read), `IdeaDedupServiceTests.cs` new (5 tests). Build is the R-L6 guard for the removed symbols
+  (no explicit reflection test added). Uses `DateTimeOffset.UtcNow` (see review M1).
+- **Open follow-up (review L1):** no embed-attempt cap exists, so a permanently-unembeddable in-window
+  idea can wedge the dedup gate; needs an `Idea` schema field (section-03) — deferred.
