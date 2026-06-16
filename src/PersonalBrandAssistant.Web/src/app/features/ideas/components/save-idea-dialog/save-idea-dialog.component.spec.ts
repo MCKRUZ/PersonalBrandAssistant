@@ -25,7 +25,7 @@ describe('SaveIdeaDialogComponent', () => {
     url: null,
     score: null,
     scoreReason: null,
-    isDuplicate: false,
+    isDuplicate: false, rank: 0, brandFit: 0, pillarBreakdown: [], isAntiTopic: null, isAuthorityTopic: null, recencyFactor: 0, stale: false,
   };
 
   beforeEach(async () => {

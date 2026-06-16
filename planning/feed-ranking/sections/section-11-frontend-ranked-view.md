@@ -131,3 +131,21 @@ Style: big rank numerals (e.g. `font-size: 32px; font-weight: 700`), obsidian/Pr
 
 ## Out of scope
 - Backend `IdeaDto`/`ListIdeas`/`ComputeRank` → section-08. Brand Profile editor + service methods → section-10. Cutover/default-sort flip on deployed hosts → section-12.
+
+## As built (2026-06-16)
+
+- **Model:** `PillarBreakdown` + 7 ranking fields added to `Idea` (required — the backend always returns
+  them). 7 existing fixture spec files updated with defaults.
+- **Store:** `viewMode` widened to `'grid' | 'list' | 'ranked'`; added `rankedWindow`/`rankedTopN` (default
+  'today'/20); default sort `rank`; `toggleView()` → `setViewMode(mode)`.
+  **Review-hardened:** the ranked window + topN are request-time OVERLAYS applied inside `loadIdeas` only
+  when `viewMode === 'ranked'` (`{...filter, dateFrom}` + `size = rankedTopN`) — the shared `filter`/`pageSize`
+  are NEVER mutated, so grid/list round-trips are lossless. `setRankedWindow`/`setRankedTopN`/`setViewMode`
+  patch their own state + reload.
+- **View toggle:** third `ranked-toggle` button (`pi pi-sort-amount-down`).
+- **`idea-ranked` component:** numbered Top-N (`ideas.slice(0, rankedTopN())`, trusts server rank order),
+  Today/This-week toggle, per-item pillar breakdown (name + %score + reason), authority/anti/stale badges,
+  empty state, reuses `score-badge`. Wired into `ideas.component.ts` via `@else if ranked`; paginator hidden
+  in ranked mode; 'Best fit' sort option added.
+- **Tests:** store (+7 incl. round-trip), view-toggle (+2), `idea-ranked` (10). `ng build` clean; `ng test`
+  586 green.

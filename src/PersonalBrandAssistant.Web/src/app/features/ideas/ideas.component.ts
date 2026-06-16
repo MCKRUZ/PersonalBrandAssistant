@@ -11,6 +11,7 @@ import { IdeaFilterSidebarComponent } from './components/idea-filter-sidebar/ide
 import { ViewToggleComponent } from './components/view-toggle/view-toggle.component';
 import { IdeaGridComponent } from './components/idea-grid/idea-grid.component';
 import { IdeaListComponent } from './components/idea-list/idea-list.component';
+import { IdeaRankedComponent } from './components/idea-ranked/idea-ranked.component';
 import { SaveIdeaDialogComponent } from './components/save-idea-dialog/save-idea-dialog.component';
 import { SmartSuggestionsComponent } from './components/smart-suggestions/smart-suggestions.component';
 import { ActiveFilterChipsComponent } from './components/active-filter-chips/active-filter-chips.component';
@@ -33,6 +34,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
     ViewToggleComponent,
     IdeaGridComponent,
     IdeaListComponent,
+    IdeaRankedComponent,
     SaveIdeaDialogComponent,
     SmartSuggestionsComponent,
     ActiveFilterChipsComponent,
@@ -78,6 +80,12 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
               (save)="onSave($event)"
               (dismiss)="onDismiss($event)"
               (createContent)="onCreateContent($event)" />
+          } @else if (store.viewMode() === 'ranked') {
+            <app-idea-ranked
+              [ideas]="store.ideas()"
+              (save)="onSave($event)"
+              (dismiss)="onDismiss($event)"
+              (createContent)="onCreateContent($event)" />
           } @else {
             <app-idea-list
               [ideas]="store.ideas()"
@@ -86,7 +94,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
               (createContent)="onCreateContent($event)" />
           }
 
-          @if (store.totalCount() > store.pageSize()) {
+          @if (store.viewMode() !== 'ranked' && store.totalCount() > store.pageSize()) {
             <p-paginator
               [rows]="store.pageSize()"
               [totalRecords]="store.totalCount()"
@@ -204,11 +212,12 @@ export class IdeasComponent implements OnInit {
   private searchTimer: ReturnType<typeof setTimeout> | null = null;
 
   readonly sortOptions = [
+    { label: 'Best fit', value: 'rank' },
     { label: 'Newest', value: 'detectedAt' },
     { label: 'Highest score', value: 'score' },
     { label: 'Source', value: 'sourceName' },
   ];
-  sortField = 'detectedAt';
+  sortField = 'rank';
 
   ngOnInit(): void {
     this.store.loadIdeas();

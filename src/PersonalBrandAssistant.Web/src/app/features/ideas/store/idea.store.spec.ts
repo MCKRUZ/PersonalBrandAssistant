@@ -34,6 +34,13 @@ describe('IdeaStore', () => {
     score: null,
     scoreReason: null,
     isDuplicate: false,
+    rank: 0,
+    brandFit: 0,
+    pillarBreakdown: [],
+    isAntiTopic: null,
+    isAuthorityTopic: null,
+    recencyFactor: 0,
+    stale: false,
   };
 
   beforeEach(() => {
@@ -103,14 +110,61 @@ describe('IdeaStore', () => {
     expect(ideaService.list).toHaveBeenCalled();
   });
 
-  it('toggleView switches between list and grid', () => {
+  it('setViewMode switches between list, grid, and ranked', () => {
     expect(store.viewMode()).toBe('list');
 
-    store.toggleView();
+    store.setViewMode('grid');
     expect(store.viewMode()).toBe('grid');
 
-    store.toggleView();
+    store.setViewMode('ranked');
+    expect(store.viewMode()).toBe('ranked');
+
+    store.setViewMode('list');
     expect(store.viewMode()).toBe('list');
+  });
+
+  it('default sort field is rank', () => {
+    expect(store.sort().field).toBe('rank');
+  });
+
+  it('rankedTopN defaults to 20', () => {
+    expect(store.rankedTopN()).toBe(20);
+  });
+
+  it('setRankedWindow overlays a dateFrom on the request without mutating the shared filter', () => {
+    store.setViewMode('ranked');
+    ideaService.list.calls.reset();
+
+    store.setRankedWindow('week');
+
+    expect(store.rankedWindow()).toBe('week');
+    expect(store.filter().dateFrom).toBeNull(); // shared filter is NOT touched
+    const filterArg = ideaService.list.calls.mostRecent().args[0];
+    expect(filterArg.dateFrom).not.toBeNull(); // window applied to the request only
+  });
+
+  it('setRankedTopN requests N rows without mutating the shared pageSize', () => {
+    store.setViewMode('ranked');
+    ideaService.list.calls.reset();
+
+    store.setRankedTopN(50);
+
+    expect(store.rankedTopN()).toBe(50);
+    expect(store.pageSize()).toBe(20); // shared pageSize untouched
+    expect(ideaService.list.calls.mostRecent().args[2]).toBe(50); // request size = rankedTopN
+  });
+
+  it('entering then leaving ranked mode preserves the user filter and pageSize', () => {
+    store.setFilter({ dateFrom: '2026-05-01T00:00:00Z' });
+    store.setViewMode('ranked');
+    ideaService.list.calls.reset();
+
+    store.setViewMode('list'); // leave ranked
+
+    expect(store.filter().dateFrom).toBe('2026-05-01T00:00:00Z');
+    const args = ideaService.list.calls.mostRecent().args;
+    expect(args[0].dateFrom).toBe('2026-05-01T00:00:00Z'); // user's filter, not the window overlay
+    expect(args[2]).toBe(20); // user's pageSize, not rankedTopN
   });
 
   it('selectIdea updates selectedIdeaId', () => {

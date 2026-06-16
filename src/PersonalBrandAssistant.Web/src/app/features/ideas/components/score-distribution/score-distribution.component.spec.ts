@@ -5,7 +5,7 @@ import { Idea, IdeaStatus } from '../../../../models/idea.model';
 function idea(score: number | null): Idea {
   return { id: crypto.randomUUID(), title: 't', description: null, url: null, sourceName: 's',
     category: null, summary: null, thumbnailUrl: null, status: IdeaStatus.New, tags: [],
-    detectedAt: '2026-06-06', hasSavedDetails: false, score, scoreReason: null, isDuplicate: false };
+    detectedAt: '2026-06-06', hasSavedDetails: false, score, scoreReason: null, isDuplicate: false, rank: 0, brandFit: 0, pillarBreakdown: [], isAntiTopic: null, isAuthorityTopic: null, recencyFactor: 0, stale: false};
 }
 
 describe('ScoreDistributionComponent', () => {

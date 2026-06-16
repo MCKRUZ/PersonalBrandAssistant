@@ -36,4 +36,16 @@ describe('ViewToggleComponent', () => {
     fixture.detectChanges();
     expect(store.viewMode()).toBe('grid');
   });
+
+  it('renders a ranked toggle button', () => {
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('[data-testid="ranked-toggle"]')).toBeTruthy();
+  });
+
+  it('switches to ranked mode on ranked button click', () => {
+    const rankedBtn = fixture.nativeElement.querySelector('[data-testid="ranked-toggle"] button') as HTMLElement;
+    rankedBtn.click();
+    fixture.detectChanges();
+    expect(store.viewMode()).toBe('ranked');
+  });
 });
