@@ -12,12 +12,25 @@ import {
   IdeaSortState,
 } from '../../models/idea.model';
 import { PagedResult } from '../../models/pagination.model';
+import {
+  BrandRankingProfile,
+  UpdateBrandProfileRequest,
+} from '../../models/brand-profile.model';
 
 @Injectable({ providedIn: 'root' })
 export class IdeaService {
   private readonly baseUrl = '/api';
+  private readonly brandProfileUrl = `${this.baseUrl}/brand-ranking-profile`;
 
   constructor(private readonly http: HttpClient) {}
+
+  getBrandProfile(): Observable<BrandRankingProfile> {
+    return this.http.get<BrandRankingProfile>(this.brandProfileUrl);
+  }
+
+  updateBrandProfile(request: UpdateBrandProfileRequest): Observable<BrandRankingProfile> {
+    return this.http.put<BrandRankingProfile>(this.brandProfileUrl, request);
+  }
 
   list(
     filter: Partial<IdeaFilterState>,

@@ -139,3 +139,22 @@ From `src/PersonalBrandAssistant.Web/`:
 - `ng test --watch=false --browsers=ChromeHeadless` — all new/extended specs green.
 - `ng build` — the lazy route resolves.
 - Manual smoke: navigate to `brand-profile`, move a weight slider → Ideas list reloads with no dialog; edit a pillar description → "Save & re-score" enables → clicking shows the LLM-cost warning before saving.
+
+## As built (2026-06-16)
+
+- **Standalone `BrandProfileComponent`** at `features/ideas/pages/brand-profile/`, route `brand-profile`.
+  `idea.service.ts` gained `getBrandProfile()`/`updateBrandProfile()` against `/api/brand-ranking-profile`.
+  New `brand-profile.model.ts`. No store change — `loadIdeas` is already public (section-11 owns `viewMode`).
+- **No-smuggle property (review-hardened):** the auto-apply is gated on `!definitionsDiffer()`. Weight/knob
+  edits auto-apply as a weights-only PUT (built from BASELINE definitions) and reload the Ideas list — but
+  ONLY when no definition diff is staged. The moment a definition edit (text, **add/remove/reorder pillar**)
+  is pending, every change routes through the "Save & re-score" confirm (warns about LLM cost). `order` is a
+  definition field; `weight` is the only weights-only pillar field.
+- **Concurrency:** token round-tripped on every PUT; a definition-path 409 surfaces "changed elsewhere" and
+  preserves the staged edit; a weights-path 409 resyncs from the server (no blind-retry). A weights apply
+  that unexpectedly bumps the version surfaces a "re-scored" notice (defense in depth).
+- **Validation:** min-1 pillar, weight [0,1], positioning/audience non-empty, halfLife > 0, decayFloor
+  [0,1], positive multipliers; no weights-sum rule (server renormalizes). Form hidden until the profile
+  loads; a11y labels on the slider + add/remove buttons.
+- **Tests:** `idea.service.spec.ts` (+2), `brand-profile.component.spec.ts` (13, incl. gating, confirm,
+  both 409 paths, add/remove/zero-pillar). `ng build` clean; `ng test` 570 green.
