@@ -6,6 +6,16 @@ import { tapResponse } from '@ngrx/operators';
 import { IdeaService } from '../../../core/services/idea.service';
 import { Idea, IdeaFilterState, IdeaSortState } from '../../../models/idea.model';
 
+// The ranked window is a ranked-view overlay, NOT a mutation of the user's shared filter:
+// "today" = local midnight → now; "week" = the rolling last 7 days.
+function rankedWindowFrom(window: 'today' | 'week'): string {
+  const from =
+    window === 'today'
+      ? new Date(new Date().setHours(0, 0, 0, 0))
+      : new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  return from.toISOString();
+}
+
 type IdeaStoreState = {
   ideas: Idea[];
   totalCount: number;
@@ -13,7 +23,9 @@ type IdeaStoreState = {
   pageSize: number;
   filter: IdeaFilterState;
   sort: IdeaSortState;
-  viewMode: 'grid' | 'list';
+  viewMode: 'grid' | 'list' | 'ranked';
+  rankedWindow: 'today' | 'week';
+  rankedTopN: number;
   selectedIdeaId: string | null;
   loading: boolean;
   error: string | null;
@@ -34,8 +46,10 @@ const initialState: IdeaStoreState = {
     searchText: null,
     minScore: null,
   },
-  sort: { field: 'detectedAt', direction: 'desc' },
+  sort: { field: 'rank', direction: 'desc' },
   viewMode: 'list',
+  rankedWindow: 'today',
+  rankedTopN: 20,
   selectedIdeaId: null,
   loading: false,
   error: null,
@@ -55,8 +69,15 @@ export const IdeaStore = signalStore(
     const loadIdeas = rxMethod<void>(
       pipe(
         tap(() => patchState(store, { loading: true, error: null })),
-        switchMap(() =>
-          ideaService.list(store.filter(), store.page(), store.pageSize(), store.sort()).pipe(
+        switchMap(() => {
+          // In ranked mode, overlay the window dateFrom and request rankedTopN rows — WITHOUT touching the
+          // shared filter or pageSize, so switching back to grid/list restores the user's view untouched.
+          const ranked = store.viewMode() === 'ranked';
+          const filter = ranked
+            ? { ...store.filter(), dateFrom: rankedWindowFrom(store.rankedWindow()) }
+            : store.filter();
+          const size = ranked ? store.rankedTopN() : store.pageSize();
+          return ideaService.list(filter, store.page(), size, store.sort()).pipe(
             tapResponse({
               next: (result) =>
                 patchState(store, {
@@ -67,8 +88,8 @@ export const IdeaStore = signalStore(
               error: (err: Error) =>
                 patchState(store, { loading: false, error: err.message }),
             })
-          )
-        )
+          );
+        })
       )
     );
 
@@ -89,10 +110,18 @@ export const IdeaStore = signalStore(
         patchState(store, { page });
         loadIdeas();
       },
-      toggleView(): void {
-        patchState(store, {
-          viewMode: store.viewMode() === 'list' ? 'grid' : 'list',
-        });
+      setViewMode(mode: 'grid' | 'list' | 'ranked'): void {
+        // Reload so the ranked-window/topN overlay is applied on entering 'ranked' and dropped on leaving.
+        patchState(store, { viewMode: mode, page: 1 });
+        loadIdeas();
+      },
+      setRankedWindow(window: 'today' | 'week'): void {
+        patchState(store, { rankedWindow: window, page: 1 });
+        loadIdeas();
+      },
+      setRankedTopN(n: number): void {
+        patchState(store, { rankedTopN: n, page: 1 });
+        loadIdeas();
       },
       selectIdea(id: string | null): void {
         patchState(store, { selectedIdeaId: id });

@@ -13,6 +13,8 @@ using PBA.Infrastructure.Seeding;
 using PBA.Infrastructure.Security;
 using PBA.Infrastructure.Services;
 using PBA.Infrastructure.Transformers;
+using Npgsql;
+using Pgvector.EntityFrameworkCore;
 
 namespace PBA.Infrastructure;
 
@@ -25,12 +27,15 @@ public static class DependencyInjection
         var connectionString = configuration.GetConnectionString("DefaultConnection");
         var dataSourceBuilder = new Npgsql.NpgsqlDataSourceBuilder(connectionString);
         dataSourceBuilder.EnableDynamicJson();
+        dataSourceBuilder.UseVector(); // pgvector type mapping at the Npgsql data-source level
         var dataSource = dataSourceBuilder.Build();
 
         services.AddDbContext<ApplicationDbContext>(options =>
             options.UseNpgsql(
                 dataSource,
-                npgsql => npgsql.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName)));
+                npgsql => npgsql
+                    .UseVector()
+                    .MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName)));
 
         services.AddScoped<IAppDbContext>(sp => sp.GetRequiredService<ApplicationDbContext>());
 
@@ -74,17 +79,21 @@ public static class DependencyInjection
         services.AddHttpClient<ISidecarClient, OpenRouterClient>();
         services.AddHostedService<AiConnectionsService>();
 
+        // Brand-anchored feed ranking: embedding model + runtime-tunable ranking thresholds.
+        services.Configure<EmbeddingOptions>(configuration.GetSection(EmbeddingOptions.SectionName));
+        services.Configure<RankingOptions>(configuration.GetSection(RankingOptions.SectionName));
+
         // AI News Radar (Horizon-inspired): scoring -> clustering -> daily digest.
         services.Configure<IdeaScoringOptions>(configuration.GetSection(IdeaScoringOptions.SectionName));
         services.Configure<ClusteringOptions>(configuration.GetSection(ClusteringOptions.SectionName));
         services.Configure<DigestOptions>(configuration.GetSection(DigestOptions.SectionName));
 
         services.AddScoped<IIdeaAnalyzer, PBA.Infrastructure.Services.Radar.IdeaAnalyzer>();
-        services.AddScoped<IIdeaClusterer, PBA.Infrastructure.Services.Radar.IdeaClusterer>();
+        services.AddScoped<PBA.Infrastructure.Services.Radar.IdeaEmbeddingService>();
         services.AddScoped<IDigestWriter, PBA.Infrastructure.Services.Radar.DigestWriter>();
 
         services.AddHostedService<PBA.Infrastructure.Services.Radar.IdeaScoringService>();
-        services.AddHostedService<PBA.Infrastructure.Services.Radar.IdeaClusteringService>();
+        services.AddHostedService<PBA.Infrastructure.Services.Radar.IdeaDedupService>();
         services.AddHostedService<PBA.Infrastructure.Services.Radar.DigestService>();
 
         // AI News Radar Phase 2: external delivery (email + Discord) + instant high-score alerts.
@@ -106,6 +115,7 @@ public static class DependencyInjection
 
         services.AddScoped<IFeedSeedService, FeedSeedService>();
         services.AddScoped<IIdeaSourceSeedService, IdeaSourceSeedService>();
+        services.AddScoped<IBrandRankingProfileSeedService, BrandRankingProfileSeedService>();
 
         services.Configure<GoogleAnalyticsOptions>(
             configuration.GetSection(GoogleAnalyticsOptions.SectionName));

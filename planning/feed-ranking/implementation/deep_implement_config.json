@@ -1,0 +1,46 @@
+{
+  "plugin_root": "C:\\Users\\kruz7\\.claude\\plugins\\cache\\piercelamb-plugins\\deep-implement\\0.2.0",
+  "sections_dir": "C:\\Users\\kruz7\\OneDrive\\Documents\\Code Repos\\MCKRUZ\\personal-brand-assistant\\planning\\feed-ranking\\sections",
+  "target_dir": "C:\\Users\\kruz7\\OneDrive\\Documents\\Code Repos\\MCKRUZ\\personal-brand-assistant",
+  "state_dir": "C:\\Users\\kruz7\\OneDrive\\Documents\\Code Repos\\MCKRUZ\\personal-brand-assistant\\planning\\feed-ranking\\implementation",
+  "git_root": "C:\\Users\\kruz7\\OneDrive\\Documents\\Code Repos\\MCKRUZ\\personal-brand-assistant",
+  "commit_style": "conventional",
+  "test_command": "uv run pytest",
+  "sections": [
+    "section-01-foundation",
+    "section-02-brand-profile-domain",
+    "section-03-idea-entity-changes",
+    "section-04-embed-async",
+    "section-05-idea-analyzer",
+    "section-06-embedding-service",
+    "section-07-scoring-sweep-dedup",
+    "section-08-composite-rank-listideas",
+    "section-09-brand-profile-api",
+    "section-10-frontend-editor",
+    "section-11-frontend-ranked-view",
+    "section-12-cutover"
+  ],
+  "sections_state": {
+    "section-01-foundation": {
+      "status": "complete",
+      "commit_hash": "95589d7e4457d8aa5fb564441bfecf3a92ccbe94"
+    },
+    "section-02-brand-profile-domain": {
+      "status": "complete",
+      "commit_hash": "196eb9ba83b90114ae788c2ae336d3aea652b297"
+    },
+    "section-03-idea-entity-changes": {
+      "status": "complete",
+      "commit_hash": "eedf22bf581a8886a9bd06e6f1a360fa58150d3c"
+    }
+  },
+  "pre_commit": {
+    "present": false,
+    "type": "none",
+    "config_file": null,
+    "native_hook": null,
+    "may_modify_files": false,
+    "detected_formatters": []
+  },
+  "created_at": "2026-06-16T13:10:06.812073+00:00"
+}

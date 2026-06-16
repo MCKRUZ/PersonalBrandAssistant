@@ -18,10 +18,23 @@ public class ApplicationDbContext : DbContext, IAppDbContext
     public DbSet<DigestItem> DigestItems => Set<DigestItem>();
     public DbSet<PlatformCredential> PlatformCredentials => Set<PlatformCredential>();
     public DbSet<BrandProfile> BrandProfiles => Set<BrandProfile>();
+    public DbSet<BrandRankingProfile> BrandRankingProfiles => Set<BrandRankingProfile>();
+
+    public void SetOriginalValue<TEntity>(TEntity entity, string propertyName, object value)
+        where TEntity : class
+        => Entry(entity).Property(propertyName).OriginalValue = value;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
+
+        // pgvector mappings (vector extension + vector(1536) columns) only under the Npgsql provider;
+        // the InMemory test provider can't map the Vector provider type.
+        if (Database.IsNpgsql())
+        {
+            PgVectorModelConfiguration.Apply(modelBuilder);
+        }
+
         base.OnModelCreating(modelBuilder);
     }
 }

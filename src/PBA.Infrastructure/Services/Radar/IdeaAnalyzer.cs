@@ -1,5 +1,5 @@
+using System.Text;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using PBA.Application.Common.Interfaces;
@@ -8,6 +8,11 @@ using PBA.Infrastructure.Configuration;
 
 namespace PBA.Infrastructure.Services.Radar;
 
+/// <summary>
+/// Scores an idea against the active brand profile snapshot, per pillar, on the {0,.25,.5,.75,1} scale.
+/// The LLM returns pillar NAMES; identity is the <c>BrandPillarId</c> resolved from the snapshot (R-C3),
+/// so a later rename never breaks stored sub-scores. Runs at low temperature for cross-sweep stability.
+/// </summary>
 public sealed class IdeaAnalyzer(
     ISidecarClient sidecar,
     IOptions<IdeaScoringOptions> options,
@@ -15,58 +20,116 @@ public sealed class IdeaAnalyzer(
 {
     private readonly IdeaScoringOptions _options = options.Value;
 
+    // Low temperature so the same item scores consistently sweep-to-sweep (the ranking pipeline's input).
+    private const double ScoringTemperature = 0.1;
+    private const double CollapseEpsilon = 1e-9;
+
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
     };
 
     public async Task<IdeaAnalysis?> AnalyzeAsync(
-        string title, string? description, string? url, string sourceName, CancellationToken ct = default)
+        IdeaAnalysisInput input, BrandRankingProfileSnapshot profile, CancellationToken ct = default)
     {
-        var system = BuildSystemPrompt();
-        var user = BuildUserPrompt(title, description, url, sourceName);
+        var system = BuildSystemPrompt(profile);
+        var user = BuildUserPrompt(input);
 
-        var response = await sidecar.SendPromptAsync(system, user, _options.Model, ct);
+        var response = await sidecar.SendPromptAsync(system, user, _options.Model, ScoringTemperature, ct);
 
         var raw = Parse(response);
-        if (raw is null) return null;
+        if (raw?.Pillars is null)
+        {
+            logger.LogWarning("Idea analysis returned no parseable pillars for '{Title}'", input.Title);
+            return null;
+        }
 
-        var score = Math.Clamp(raw.Score, 0, 10);
-        return new IdeaAnalysis(score, raw.Reason ?? "", raw.Summary ?? "", raw.Category,
-            raw.Tags ?? []);
+        // Resolve LLM-returned names -> BrandPillarId against the snapshot (case-insensitive, trimmed —
+        // LLMs drift on casing/whitespace). Unknown names are dropped, not invented (R-C3).
+        var byName = profile.Pillars.ToDictionary(p => p.Name.Trim(), p => p, StringComparer.OrdinalIgnoreCase);
+        var mapped = new List<PillarScore>(raw.Pillars.Count);
+        foreach (var rp in raw.Pillars)
+        {
+            if (string.IsNullOrWhiteSpace(rp.Name) || !byName.TryGetValue(rp.Name.Trim(), out var pillar))
+            {
+                logger.LogWarning("Dropping unmapped pillar name '{Name}' for '{Title}'", rp.Name, input.Title);
+                continue;
+            }
+            mapped.Add(new PillarScore(pillar.Id, pillar.Name, Math.Clamp(rp.Score, 0, 1), rp.Reason));
+        }
+
+        if (mapped.Count == 0)
+        {
+            logger.LogWarning("No returned pillar mapped to the profile for '{Title}'", input.Title);
+            return null;
+        }
+
+        // Central-collapse guard (R-M5): an all-identical sub-score vector is the model refusing to
+        // discriminate; storing it would flatten brandFit. Only meaningful with >= 2 pillars.
+        if (mapped.Count >= 2 && mapped.All(p => Math.Abs(p.Score - mapped[0].Score) < CollapseEpsilon))
+        {
+            logger.LogWarning("Rejecting collapsed analysis (all {Count} pillars == {Score}) for '{Title}'",
+                mapped.Count, mapped[0].Score, input.Title);
+            return null;
+        }
+
+        return new IdeaAnalysis(mapped, raw.IsAntiTopic, raw.IsAuthorityTopic, raw.Reason ?? "");
     }
 
-    private static string BuildSystemPrompt() =>
+    private static string BuildSystemPrompt(BrandRankingProfileSnapshot p)
+    {
+        var sb = new StringBuilder();
+        sb.Append("You are a content strategist for a thought leader positioned as: ")
+          .Append(p.Positioning).Append('\n');
+        sb.Append("Primary audience: ").Append(p.AudiencePrimary).Append('\n');
+        if (!string.IsNullOrWhiteSpace(p.AudienceSecondary))
+            sb.Append("Secondary audience: ").Append(p.AudienceSecondary).Append('\n');
+
+        sb.Append("\nScore how strong a CONTENT OPPORTUNITY the item is for EACH brand pillar below, ")
+          .Append("independently. This is content-worthiness, not generic newsworthiness.\n\nPillars:\n");
+        foreach (var pillar in p.Pillars)
+            sb.Append("- ").Append(pillar.Name).Append(": ").Append(pillar.Description).Append('\n');
+
+        sb.Append("\nPer-pillar score scale:\n")
+          .Append("1.0 = a strong, ownable thought-leadership angle for this pillar\n")
+          .Append("0.75 = clearly relevant, postable for this pillar\n")
+          .Append("0.5 = tangential, would need an angle\n")
+          .Append("0.25 = weak fit\n")
+          .Append("0 = off-topic for this pillar\n");
+
+        if (p.AuthorityTopics.Count > 0)
+            sb.Append("\nAuthority topics (set isAuthorityTopic=true if the item is squarely one of these): ")
+              .Append(string.Join("; ", p.AuthorityTopics)).Append('\n');
+        if (p.AntiTopics.Count > 0)
+            sb.Append("Anti topics (set isAntiTopic=true if the item is one of these): ")
+              .Append(string.Join("; ", p.AntiTopics)).Append('\n');
+
+        sb.Append('\n').Append(FewShotAnchors).Append('\n');
+
+        sb.Append("\nScore deterministically and with low variance — the same item must score the same ")
+          .Append("way every time. Respond with ONLY a JSON object (no markdown fences, no extra text):\n")
+          .Append("""{"pillars":[{"name":"<exact pillar name>","score":0-1,"reason":"one short phrase"}],"isAntiTopic":false,"isAuthorityTopic":false,"reason":"one short sentence"}""");
+        return sb.ToString();
+    }
+
+    // Fixed, brand-agnostic exemplars that calibrate the 0..1 scale. Hardcoded and identical on every
+    // call (NOT derived from the snapshot) so the scale stays stable; the pillar names here are
+    // illustrative placeholders — always score the actual pillars listed above.
+    private const string FewShotAnchors =
         """
-        You are a content strategist for Matt Kruczek, an enterprise AI thought leader. His brand
-        covers enterprise AI adoption, agentic development, and AI strategy for a developer-to-executive
-        audience. Score how strong a CONTENT OPPORTUNITY a news item is for his brand, 0 to 10.
-
-        This is content-worthiness, NOT generic newsworthiness. A huge story he would never write about
-        scores low. A smaller story with an ownable, opinionated angle scores high.
-
-        Rubric:
-        9-10: a strong, ownable thought-leadership angle he could publish a great post on
-        7-8: clearly relevant, postable with a good take
-        5-6: tangentially relevant, would need an angle
-        3-4: weak fit
-        0-2: off-brand or not worth covering
-
-        Respond with ONLY a JSON object, no markdown fences, no extra text:
-        {"score": 0-10, "reason": "one short sentence", "summary": "one-sentence summary of the item",
-         "category": "short category or null", "tags": ["3-5", "keywords"]}
+        Calibration examples (illustrative; score the pillars listed above):
+        Example A — an item that is a strong, ownable angle for one pillar and off-topic for another:
+        {"pillars":[{"name":"Pillar One","score":1,"reason":"ownable angle"},{"name":"Pillar Two","score":0,"reason":"off-topic"}],"isAntiTopic":false,"isAuthorityTopic":true,"reason":"strong fit for pillar one"}
+        Example B — an item that is off-brand for every pillar:
+        {"pillars":[{"name":"Pillar One","score":0,"reason":"off-brand"},{"name":"Pillar Two","score":0.25,"reason":"weak tangent"}],"isAntiTopic":true,"isAuthorityTopic":false,"reason":"off-brand, anti-topic"}
         """;
 
-    private static string BuildUserPrompt(string title, string? description, string? url, string sourceName)
+    private static string BuildUserPrompt(IdeaAnalysisInput input)
     {
-        var lines = new List<string>
-        {
-            $"Title: {title}",
-            $"Source: {sourceName}"
-        };
-        if (!string.IsNullOrWhiteSpace(url)) lines.Add($"URL: {url}");
-        if (!string.IsNullOrWhiteSpace(description))
-            lines.Add($"Content: {description[..Math.Min(1000, description.Length)]}");
+        var lines = new List<string> { $"Title: {input.Title}", $"Source: {input.SourceName}" };
+        if (!string.IsNullOrWhiteSpace(input.Url)) lines.Add($"URL: {input.Url}");
+        if (!string.IsNullOrWhiteSpace(input.Description))
+            lines.Add($"Content: {input.Description[..Math.Min(1000, input.Description.Length)]}");
         return string.Join('\n', lines);
     }
 
@@ -85,6 +148,7 @@ public sealed class IdeaAnalyzer(
         }
     }
 
+    // The model still occasionally wraps output in ``` fences despite the instruction; tolerate it.
     private static string StripFences(string response)
     {
         var json = response.Trim();
@@ -97,9 +161,10 @@ public sealed class IdeaAnalyzer(
     }
 
     private sealed record Raw(
-        int Score,
-        [property: JsonPropertyName("reason")] string? Reason,
-        [property: JsonPropertyName("summary")] string? Summary,
-        [property: JsonPropertyName("category")] string? Category,
-        [property: JsonPropertyName("tags")] List<string>? Tags);
+        List<RawPillar>? Pillars,
+        bool IsAntiTopic,
+        bool IsAuthorityTopic,
+        string? Reason);
+
+    private sealed record RawPillar(string? Name, double Score, string? Reason);
 }

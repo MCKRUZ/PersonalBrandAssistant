@@ -60,6 +60,16 @@ public class SidecarClient : ISidecarClient, IDisposable
         }
     }
 
+    // The CLI backend cannot switch sampling temperature; it is ignored, like the model override.
+    public Task<string> SendPromptAsync(
+        string systemPrompt, string userPrompt, string? model, double? temperature, CancellationToken ct = default)
+        => SendPromptAsync(systemPrompt, userPrompt, model, ct);
+
+    // The CLI sidecar cannot produce embeddings; embeddings route through OpenRouterClient.
+    public Task<IReadOnlyList<float[]>> EmbedAsync(
+        IReadOnlyList<string> inputs, string? model = null, CancellationToken ct = default)
+        => throw new NotSupportedException("SidecarClient (CLI) does not support embeddings; use OpenRouterClient.");
+
     public async IAsyncEnumerable<string> StreamPromptAsync(
         Guid contentId,
         string systemPrompt,

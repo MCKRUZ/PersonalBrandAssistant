@@ -39,6 +39,22 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 
 var app = builder.Build();
 
+// Ensure the v1 active BrandRankingProfile exists (the ranker depends on it). Idempotent + race-safe;
+// guarded so a pre-migration boot logs and continues rather than crashing startup.
+using (var scope = app.Services.CreateScope())
+{
+    try
+    {
+        var seeder = scope.ServiceProvider.GetRequiredService<IBrandRankingProfileSeedService>();
+        await seeder.SeedAsync();
+    }
+    catch (Exception ex)
+    {
+        scope.ServiceProvider.GetRequiredService<ILogger<Program>>()
+            .LogWarning(ex, "BrandRankingProfile seed skipped at startup (schema may not be migrated yet).");
+    }
+}
+
 app.UseCors();
 
 app.MapGet("/api/health", () => Results.Ok(new { status = "healthy", timestamp = DateTimeOffset.UtcNow }));
@@ -51,6 +67,7 @@ app.MapPlatformEndpoints();
 app.MapFeedEndpoints();
 app.MapAnalyticsEndpoints();
 app.MapDigestEndpoints();
+app.MapBrandRankingProfileEndpoints();
 
 app.MapHub<ContentHub>("/hubs/content");
 app.MapHub<FeedHub>("/hubs/feed");
@@ -70,6 +87,13 @@ if (app.Environment.IsDevelopment())
         var count = await seedService.SeedAsync(ct);
         return Results.Ok(new { seeded = count });
     });
+
+    app.MapPost("/api/brand-ranking-profile/seed",
+        async (IBrandRankingProfileSeedService seedService, CancellationToken ct) =>
+        {
+            var count = await seedService.SeedAsync(ct);
+            return Results.Ok(new { seeded = count });
+        });
 }
 
 app.Run();

@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using PBA.Infrastructure.Data;
+using Pgvector;
 
 #nullable disable
 
@@ -20,7 +21,42 @@ namespace PBA.Infrastructure.Data.Migrations
                 .HasAnnotation("ProductVersion", "10.0.7")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
+            NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "vector");
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
+
+            modelBuilder.Entity("PBA.Domain.Entities.BrandPillar", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BrandRankingProfileId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Vector>("DescriptionEmbedding")
+                        .HasColumnType("vector(1536)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<int>("Order")
+                        .HasColumnType("integer");
+
+                    b.Property<double>("Weight")
+                        .HasColumnType("double precision");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BrandRankingProfileId");
+
+                    b.ToTable("BrandPillars", (string)null);
+                });
 
             modelBuilder.Entity("PBA.Domain.Entities.BrandProfile", b =>
                 {
@@ -73,6 +109,71 @@ namespace PBA.Infrastructure.Data.Migrations
                             UpdatedAt = new DateTimeOffset(new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Vocabulary = "[]"
                         });
+                });
+
+            modelBuilder.Entity("PBA.Domain.Entities.BrandRankingProfile", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<double>("AntiTopicMultiplier")
+                        .HasColumnType("double precision");
+
+                    b.PrimitiveCollection<string>("AntiTopics")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("AudiencePrimary")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("AudienceSecondary")
+                        .HasColumnType("text");
+
+                    b.Property<double>("AuthorityBoost")
+                        .HasColumnType("double precision");
+
+                    b.PrimitiveCollection<string>("AuthorityTopics")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<double>("DecayFloor")
+                        .HasColumnType("double precision");
+
+                    b.Property<double>("HalfLifeDays")
+                        .HasColumnType("double precision");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Positioning")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("integer");
+
+                    b.PrimitiveCollection<string>("VoiceMarkers")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<uint>("Xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IsActive")
+                        .IsUnique()
+                        .HasFilter("\"IsActive\" = true");
+
+                    b.ToTable("BrandRankingProfiles", (string)null);
                 });
 
             modelBuilder.Entity("PBA.Domain.Entities.Content", b =>
@@ -362,17 +463,43 @@ namespace PBA.Infrastructure.Data.Migrations
                     b.Property<Guid?>("DuplicateOfId")
                         .HasColumnType("uuid");
 
+                    b.Property<DateTimeOffset?>("EmbeddedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Vector>("Embedding")
+                        .HasColumnType("vector(1536)");
+
                     b.Property<Guid?>("IdeaSourceId")
                         .HasColumnType("uuid");
 
+                    b.Property<bool?>("IsAntiTopic")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool?>("IsAuthorityTopic")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("PillarSubScores")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("jsonb")
+                        .HasDefaultValueSql("'[]'::jsonb");
+
                     b.Property<int?>("Score")
                         .HasColumnType("integer");
+
+                    b.Property<int>("ScoreAttempts")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
 
                     b.Property<string>("ScoreReason")
                         .HasColumnType("text");
 
                     b.Property<DateTimeOffset?>("ScoredAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("ScoredProfileVersion")
+                        .HasColumnType("integer");
 
                     b.Property<string>("SourceName")
                         .IsRequired()
@@ -415,6 +542,8 @@ namespace PBA.Infrastructure.Data.Migrations
                     b.HasIndex("Score");
 
                     b.HasIndex("ScoredAt");
+
+                    b.HasIndex("ScoredProfileVersion");
 
                     b.ToTable("Ideas");
                 });
@@ -560,6 +689,15 @@ namespace PBA.Infrastructure.Data.Migrations
                     b.ToTable("SavedIdeas");
                 });
 
+            modelBuilder.Entity("PBA.Domain.Entities.BrandPillar", b =>
+                {
+                    b.HasOne("PBA.Domain.Entities.BrandRankingProfile", null)
+                        .WithMany("Pillars")
+                        .HasForeignKey("BrandRankingProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("PBA.Domain.Entities.Content", b =>
                 {
                     b.HasOne("PBA.Domain.Entities.Content", "ParentContent")
@@ -631,6 +769,11 @@ namespace PBA.Infrastructure.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("Idea");
+                });
+
+            modelBuilder.Entity("PBA.Domain.Entities.BrandRankingProfile", b =>
+                {
+                    b.Navigation("Pillars");
                 });
 
             modelBuilder.Entity("PBA.Domain.Entities.Content", b =>

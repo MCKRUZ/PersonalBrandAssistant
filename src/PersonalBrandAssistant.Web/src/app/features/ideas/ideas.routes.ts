@@ -13,4 +13,11 @@ export const IDEAS_ROUTES: Routes = [
         (m) => m.IdeaSourcesPageComponent
       ),
   },
+  {
+    path: 'brand-profile',
+    loadComponent: () =>
+      import('./pages/brand-profile/brand-profile.component').then(
+        (m) => m.BrandProfileComponent
+      ),
+  },
 ];

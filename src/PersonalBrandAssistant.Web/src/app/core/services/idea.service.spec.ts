@@ -96,6 +96,7 @@ describe('IdeaService', () => {
       score: null,
       scoreReason: null,
       isDuplicate: false,
+      rank: 0, brandFit: 0, pillarBreakdown: [], isAntiTopic: null, isAuthorityTopic: null, recencyFactor: 0, stale: false,
       aiConnections: null,
       savedDetails: null,
       sourceInfo: null,
@@ -222,6 +223,38 @@ describe('IdeaService', () => {
     const req = httpMock.expectOne('/api/idea-sources/refresh');
     expect(req.request.method).toBe('POST');
     req.flush(5);
+  });
+
+  it('getBrandProfile() sends GET /api/brand-ranking-profile', () => {
+    const profile = {
+      id: 'p', version: 2, positioning: 'Pos', audiencePrimary: 'Aud', audienceSecondary: null,
+      halfLifeDays: 7, decayFloor: 0.075, antiTopicMultiplier: 0.1, authorityBoost: 1.2,
+      pillars: [], authorityTopics: [], antiTopics: [], voiceMarkers: [],
+      concurrencyToken: '0', updatedAt: '2026-01-01T00:00:00Z',
+    };
+
+    service.getBrandProfile().subscribe((result) => expect(result).toEqual(profile));
+
+    const req = httpMock.expectOne('/api/brand-ranking-profile');
+    expect(req.request.method).toBe('GET');
+    req.flush(profile);
+  });
+
+  it('updateBrandProfile() sends PUT /api/brand-ranking-profile with the body incl. concurrency token', () => {
+    const body = {
+      positioning: 'Pos', audiencePrimary: 'Aud', audienceSecondary: null,
+      halfLifeDays: 7, decayFloor: 0.075, antiTopicMultiplier: 0.1, authorityBoost: 1.2,
+      pillars: [{ id: 'p1', name: 'P1', description: 'D1', weight: 0.6, order: 0 }],
+      authorityTopics: ['a'], antiTopics: ['x'], voiceMarkers: ['v'], concurrencyToken: '42',
+    };
+
+    service.updateBrandProfile(body).subscribe();
+
+    const req = httpMock.expectOne('/api/brand-ranking-profile');
+    expect(req.request.method).toBe('PUT');
+    expect(req.request.body).toEqual(body);
+    expect(req.request.body.concurrencyToken).toBe('42');
+    req.flush({ ...body, id: 'p', version: 3, updatedAt: '2026-01-01T00:00:00Z' });
   });
 
   it('propagates HTTP errors', () => {

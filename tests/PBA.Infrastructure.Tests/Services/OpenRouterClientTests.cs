@@ -35,7 +35,7 @@ public class OpenRouterClientTests
             ApiKey = "test-key",
             Model = "google/gemini-2.5-pro"
         });
-        var client = new OpenRouterClient(http, options, NullLogger<OpenRouterClient>.Instance);
+        var client = new OpenRouterClient(http, options, Options.Create(new EmbeddingOptions()), NullLogger<OpenRouterClient>.Instance);
 
         await client.SendPromptAsync("sys", "user", model: "google/gemini-2.5-flash");
 
@@ -53,7 +53,7 @@ public class OpenRouterClientTests
             ApiKey = "test-key",
             Model = "google/gemini-2.5-pro"
         });
-        var client = new OpenRouterClient(http, options, NullLogger<OpenRouterClient>.Instance);
+        var client = new OpenRouterClient(http, options, Options.Create(new EmbeddingOptions()), NullLogger<OpenRouterClient>.Instance);
 
         await client.SendPromptAsync("sys", "user");
 

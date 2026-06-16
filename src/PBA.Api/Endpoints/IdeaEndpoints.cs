@@ -30,7 +30,7 @@ public static class IdeaEndpoints
                 DateFrom = p.DateFrom,
                 DateTo = p.DateTo,
                 SearchText = p.SearchText,
-                SortBy = p.SortBy ?? "detectedat",
+                SortBy = p.SortBy ?? "rank",
                 SortDirection = p.SortDirection ?? "desc",
                 MinScore = p.MinScore,
                 IncludeDuplicates = p.IncludeDuplicates ?? false

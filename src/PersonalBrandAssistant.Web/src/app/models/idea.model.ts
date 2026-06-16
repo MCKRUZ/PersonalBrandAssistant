@@ -14,6 +14,12 @@ export enum IdeaSourceType {
   AIGenerated = 'AIGenerated',
 }
 
+export interface PillarBreakdown {
+  name: string;
+  score: number;
+  reason: string;
+}
+
 export interface Idea {
   id: string;
   title: string;
@@ -30,6 +36,15 @@ export interface Idea {
   score: number | null;
   scoreReason: string | null;
   isDuplicate: boolean;
+
+  // Brand-anchored ranking (section-08 IdeaDto), always returned by the backend.
+  rank: number;
+  brandFit: number;
+  pillarBreakdown: PillarBreakdown[];
+  isAntiTopic: boolean | null;
+  isAuthorityTopic: boolean | null;
+  recencyFactor: number;
+  stale: boolean;
 }
 
 export interface IdeaDetail extends Idea {

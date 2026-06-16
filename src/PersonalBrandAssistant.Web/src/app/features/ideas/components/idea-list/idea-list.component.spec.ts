@@ -23,7 +23,7 @@ describe('IdeaListComponent', () => {
       url: null,
       score: null,
       scoreReason: null,
-      isDuplicate: false,
+      isDuplicate: false, rank: 0, brandFit: 0, pillarBreakdown: [], isAntiTopic: null, isAuthorityTopic: null, recencyFactor: 0, stale: false,
     },
   ];
 
@@ -97,7 +97,7 @@ describe('IdeaListComponent', () => {
         url: null,
         score: 9,
         scoreReason: 'Very relevant',
-        isDuplicate: false,
+        isDuplicate: false, rank: 0, brandFit: 0, pillarBreakdown: [], isAntiTopic: null, isAuthorityTopic: null, recencyFactor: 0, stale: false,
       },
     ]);
     fixture.detectChanges();
