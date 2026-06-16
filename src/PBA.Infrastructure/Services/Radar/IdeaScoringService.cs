@@ -92,11 +92,17 @@ public sealed class IdeaScoringService(
             .Select(i => (idea: i, fit: embedder.ComputeEmbeddingBrandFit(i.Embedding!, profileEntity.Pillars)))
             .ToList();
 
-        var above = prefiltered
-            .Where(x => x.fit >= ranking.PreFilterThreshold)
-            .OrderByDescending(x => x.fit)
-            .Take(_options.BatchSize) // BatchSize bounds the LLM-scored subset
-            .ToList();
+        // The LLM scoring step is GATED (section-12): the first production run spends real tokens and is
+        // irreversible. When ScoringEnabled is false NO above-threshold item is LLM-scored — each is left
+        // unstamped (no ScoreAttempts increment, no ScoredProfileVersion) so it is reconsidered once a human
+        // enables scoring; embedding + the below-threshold embedding-only brandFit still run (cheap, reversible).
+        var above = _options.ScoringEnabled
+            ? prefiltered
+                .Where(x => x.fit >= ranking.PreFilterThreshold)
+                .OrderByDescending(x => x.fit)
+                .Take(_options.BatchSize) // BatchSize bounds the LLM-scored subset
+                .ToList()
+            : [];
         var below = prefiltered.Where(x => x.fit < ranking.PreFilterThreshold).ToList();
 
         var changed = false;

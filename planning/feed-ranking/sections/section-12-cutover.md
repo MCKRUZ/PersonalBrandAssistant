@@ -138,3 +138,28 @@ Execute per host. Do **Mac Mini (`v2-rebuild`)** first as canary, then **Furious
 - Embedding backfill complete; LLM-scoring run completed **only after manual gate flip**.
 - Default sort = rank; Ranked view + Brand Profile editor live and smoke-tested.
 - R-L6 grep clean across repo and both deployed appsettings; `IdeaClusterer.cs` + tests deleted; `BackfillEnabled` / `Clustering:MinScore` removed; `HackerNews:MinScore` untouched.
+
+## As built (2026-06-16) — CODE deliverables only
+
+The **code/test** half of cutover is done and committed; the **operational rollout** (steps 0–7, gated at
+step 4) is the human's runbook and was deliberately NOT executed (irreversible token spend + production infra).
+
+- **Scoring gate:** `IdeaScoringOptions.ScoringEnabled` (default **false**) replaces the deleted
+  `BackfillEnabled`. `IdeaScoringService` folds it into the `above` set construction — gate off ⇒ no
+  above-threshold item is LLM-scored (no `ScoreAttempts`, no `ScoredProfileVersion`, reconsidered when
+  flipped); embedding + below-threshold embedding-only brandFit still run. `appsettings.json` gains
+  `IdeaScoring:ScoringEnabled: false`.
+- **`CutoverTests`** (4 incl. a theory): (1) migrations apply cleanly + in order on real Postgres via
+  **Testcontainers** `pgvector/pgvector:pg16` — asserts the vector extension, `BrandRankingProfiles`/
+  `BrandPillars` tables, the new `Ideas` columns, and a genuinely **partial** unique index
+  (`indpred IS NOT NULL`); (2) appsettings dead-key removal + survivors (R-L6); (3) the gate behavior
+  (off ⇒ 0 LLM calls + unstamped, on ⇒ 1 + stamped). Added `Testcontainers.PostgreSql` 4.12 to the test proj.
+- **R-L6 cleanup** (BackfillEnabled / Clustering:MinScore / IdeaClusterer + tests) was already done in
+  section-07; verified clean by repo grep + Test 2. The 8 existing scoring tests now set
+  `ScoringEnabled = true` (they exercise the LLM path).
+- **Build is the 4th R-L6 guard;** `dotnet build` clean, full backend suite 844 green.
+
+### Remaining for the human (runbook, gated)
+Apply migrations on both hosts → verify seed → backfill embeddings → **flip `IdeaScoring:ScoringEnabled`
+true + restart (irreversible)** → verify read path / Ranked view → verify dedup → promote to Furious → R-L6
+grep the two deployed appsettings.

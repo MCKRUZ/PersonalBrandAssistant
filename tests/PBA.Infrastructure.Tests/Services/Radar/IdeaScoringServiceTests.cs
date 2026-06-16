@@ -98,7 +98,7 @@ public class IdeaScoringServiceTests
     [Fact]
     public async Task ScoreSweepAsync_CandidateSet_ExcludesOutOfWindowUnembeddedAndCurrentVersion()
     {
-        var (svc, db, analyzer) = Build(new IdeaScoringOptions { BatchSize = 10, ThrottleMs = 0 }, Ranking());
+        var (svc, db, analyzer) = Build(new IdeaScoringOptions { BatchSize = 10, ThrottleMs = 0, ScoringEnabled = true }, Ranking());
         db.BrandRankingProfiles.Add(Profile(version: 2));
         var valid = NewIdea(new float[] { 1, 0 });
         var old = NewIdea(new float[] { 1, 0 }, detectedAt: DateTimeOffset.UtcNow.AddDays(-40));
@@ -119,7 +119,7 @@ public class IdeaScoringServiceTests
     public async Task ScoreSweepAsync_SnapshotsRankingOptionsOnce()
     {
         var counting = new CountingMonitor<RankingOptions>(Ranking());
-        var (svc, db, _) = Build(new IdeaScoringOptions { BatchSize = 10, ThrottleMs = 0 },
+        var (svc, db, _) = Build(new IdeaScoringOptions { BatchSize = 10, ThrottleMs = 0, ScoringEnabled = true },
             new RankingOptions(), rankingMonitor: counting);
         db.BrandRankingProfiles.Add(Profile());
         db.Ideas.Add(NewIdea(new float[] { 1, 0 }));
@@ -133,7 +133,7 @@ public class IdeaScoringServiceTests
     [Fact]
     public async Task ScoreSweepAsync_AboveThreshold_StoresSubScoresFlagsVersionAndDerivedScore()
     {
-        var (svc, db, _) = Build(new IdeaScoringOptions { BatchSize = 10, ThrottleMs = 0 }, Ranking());
+        var (svc, db, _) = Build(new IdeaScoringOptions { BatchSize = 10, ThrottleMs = 0, ScoringEnabled = true }, Ranking());
         db.BrandRankingProfiles.Add(Profile(version: 2));
         db.Ideas.Add(NewIdea(new float[] { 1, 0 })); // fit = 0.6 >= 0.5
         await db.SaveChangesAsync();
@@ -155,7 +155,7 @@ public class IdeaScoringServiceTests
     [Fact]
     public async Task ScoreSweepAsync_BelowThreshold_NoLlmCall_StampsVersion_EmbeddingDerivedScore()
     {
-        var (svc, db, analyzer) = Build(new IdeaScoringOptions { BatchSize = 10, ThrottleMs = 0 }, Ranking());
+        var (svc, db, analyzer) = Build(new IdeaScoringOptions { BatchSize = 10, ThrottleMs = 0, ScoringEnabled = true }, Ranking());
         db.BrandRankingProfiles.Add(Profile(version: 2));
         db.Ideas.Add(NewIdea(new float[] { 0, 1 })); // fit = 0.4 < 0.5
         await db.SaveChangesAsync();
@@ -172,7 +172,7 @@ public class IdeaScoringServiceTests
     [Fact]
     public async Task ScoreSweepAsync_ScoreAttemptsAtCap_IsSkipped()
     {
-        var (svc, db, analyzer) = Build(new IdeaScoringOptions { BatchSize = 10, ThrottleMs = 0 }, Ranking());
+        var (svc, db, analyzer) = Build(new IdeaScoringOptions { BatchSize = 10, ThrottleMs = 0, ScoringEnabled = true }, Ranking());
         db.BrandRankingProfiles.Add(Profile());
         db.Ideas.Add(NewIdea(new float[] { 1, 0 }, attempts: 3));
         await db.SaveChangesAsync();
@@ -185,7 +185,7 @@ public class IdeaScoringServiceTests
     [Fact]
     public async Task ScoreSweepAsync_AnalyzerReturnsNull_IncrementsAttempts_NoVersionStamp()
     {
-        var (svc, db, analyzer) = Build(new IdeaScoringOptions { BatchSize = 10, ThrottleMs = 0 }, Ranking());
+        var (svc, db, analyzer) = Build(new IdeaScoringOptions { BatchSize = 10, ThrottleMs = 0, ScoringEnabled = true }, Ranking());
         analyzer.Setup(a => a.AnalyzeAsync(
                 It.IsAny<IdeaAnalysisInput>(), It.IsAny<BrandRankingProfileSnapshot>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((IdeaAnalysis?)null);
@@ -203,7 +203,7 @@ public class IdeaScoringServiceTests
     [Fact]
     public async Task ScoreSweepAsync_BatchSize_BoundsLlmScoredItems()
     {
-        var (svc, db, analyzer) = Build(new IdeaScoringOptions { BatchSize = 2, ThrottleMs = 0 }, Ranking());
+        var (svc, db, analyzer) = Build(new IdeaScoringOptions { BatchSize = 2, ThrottleMs = 0, ScoringEnabled = true }, Ranking());
         db.BrandRankingProfiles.Add(Profile(version: 2));
         for (var i = 0; i < 5; i++) db.Ideas.Add(NewIdea(new float[] { 1, 0 })); // all above threshold
         await db.SaveChangesAsync();
@@ -217,7 +217,7 @@ public class IdeaScoringServiceTests
     [Fact]
     public async Task ScoreSweepAsync_NoCandidates_NoLlmCall_NoThrow()
     {
-        var (svc, db, analyzer) = Build(new IdeaScoringOptions { BatchSize = 10, ThrottleMs = 0 }, Ranking());
+        var (svc, db, analyzer) = Build(new IdeaScoringOptions { BatchSize = 10, ThrottleMs = 0, ScoringEnabled = true }, Ranking());
         db.BrandRankingProfiles.Add(Profile());
         await db.SaveChangesAsync();
 
@@ -229,7 +229,7 @@ public class IdeaScoringServiceTests
     [Fact]
     public async Task ScoreSweepAsync_ThrottleConfigured_StillScores()
     {
-        var (svc, db, _) = Build(new IdeaScoringOptions { BatchSize = 10, ThrottleMs = 1 }, Ranking());
+        var (svc, db, _) = Build(new IdeaScoringOptions { BatchSize = 10, ThrottleMs = 1, ScoringEnabled = true }, Ranking());
         db.BrandRankingProfiles.Add(Profile(version: 2));
         db.Ideas.Add(NewIdea(new float[] { 1, 0 }));
         await db.SaveChangesAsync();
