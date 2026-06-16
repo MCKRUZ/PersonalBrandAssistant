@@ -10,6 +10,19 @@ migrations on both hosts → verify seed → backfill ~3,800 embeddings → **fl
 true + restart (IRREVERSIBLE token spend — needs explicit go-ahead)** → verify → promote to Furious →
 R-L6 grep the two deployed appsettings. Nothing else to `/deep-implement`.
 
+### ⏸ ROLLOUT PAUSED (2026-06-16) — two blockers found at step 0 (read-only SSH recon, NO changes made)
+- **Mac Mini = `192.168.50.189`** (key SSH works); the `.103` in older memory is stale/unreachable. Repo
+  `/Users/matthewkruczek/personal-brand-assistant` on `v2-rebuild` @ `5f50c71c` (behind origin). Docker over
+  SSH needs a login shell (`ssh … 'bash -lc "docker ps"'`). pba-db/api/web all running.
+- **BLOCKER 1 — no pgvector in prod:** `db` image = `postgres:17-alpine` (vanilla). `CREATE EXTENSION vector`
+  (section-01 migration) will FAIL. Must back up (`pg_dump`) then swap to a pgvector image on the same
+  `pgdata` volume (`pgvector/pgvector:pg17` matches PG17 but is glibc vs current musl → possible collation
+  REINDEX; an Alpine pgvector image or installing the extension is lower-risk). User-gated DB change.
+- **BLOCKER 2 — migration apply mechanism unknown:** NO `Database.Migrate()` anywhere in `src/` → not
+  auto-applied on API startup. Check the api Dockerfile/entrypoint on the host (or it's a manual
+  `dotnet ef database update`). Resolve before deploying.
+- Full detail + resume steps in the auto-memory `project_feed_ranking_rollout.md`.
+
 ### Section commits (this rebuild)
 01 95589d7 · 02 196eb9b · 03 eedf22b · 04 afdfdad · 05-07 27f241d (build-coupled) · 08 bba00c6 ·
 09 30c98e0 · 10 e8a3908 · 11 24583f0 · 12 9cfd92e · usage 669d5f8
