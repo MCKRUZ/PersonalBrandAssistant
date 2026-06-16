@@ -242,3 +242,36 @@ Verify the generated migration:
 - Modify `src/PBA.Infrastructure/Data/ApplicationDbContext.cs` (add DbSet)
 - Modify `src/PBA.Application/Common/Interfaces/IAppDbContext.cs` (add DbSet)
 - Create tests under `tests/PBA.Application.Tests/...` (versioning, seeder) and `tests/PBA.Infrastructure.Tests/...` (config/Testcontainers) — match the existing test project layout.
+
+---
+
+## As-built notes (implemented 2026-06-16)
+
+- **Naming:** shipped as `BrandRankingProfile` + `BrandPillar` (the existing voice `BrandProfile` is untouched), as planned.
+- **Embedding type decision (user-approved, cross-cutting):** `BrandPillar.DescriptionEmbedding` is
+  `float[]?` on the Domain entity (Domain stays free of Npgsql/pgvector). The `vector(1536)` mapping +
+  `float[]<->Pgvector.Vector` value converter live in `PgVectorModelConfiguration.Apply`, called from
+  `ApplicationDbContext.OnModelCreating` **only under `Database.IsNpgsql()`**. The InMemory test provider
+  can't map the `Vector` provider type, so it stores `float[]` natively. Section-03's `Idea.Embedding`
+  must use this same pattern (add it to `PgVectorModelConfiguration`).
+- **Concurrency (R-H3):** explicit `uint Xmin { get; private set; }` mapped via
+  `HasColumnName("xmin")/HasColumnType("xid")/ValueGeneratedOnAddOrUpdate/IsConcurrencyToken`. Verified
+  the generated **SQL** omits `xmin` from CREATE TABLE (Npgsql system column) — `has-pending-model-changes`
+  is clean. (The migration `.cs` lists it with `rowVersion:true`; that is scaffold representation, not DDL.)
+- **Single active (R-L4):** partial unique index `WHERE "IsActive" = true` — confirmed in generated SQL.
+- **Seeding (changed from plan):** Program.cs has no startup migrate/seed and the existing demo seeders
+  are dev-only. Per the binding decision, the v1 profile is seeded by a **startup hook** (scoped,
+  try/catch-guarded `IBrandRankingProfileSeedService.SeedAsync()` in `Program.cs`) — idempotent
+  (`AnyAsync(p => p.IsActive)`) and race-safe (catches only `PostgresException` unique-violation). A
+  dev-only `POST /api/brand-ranking-profile/seed` endpoint mirrors the sibling seeders for manual use.
+  No unauthenticated prod write surface. Section-12 no longer needs to POST a seed endpoint in prod.
+- **Versioning:** `RequiresVersionBump` uses ordered `SequenceEqual` for topics/voice-markers (they
+  render verbatim into the analyzer prompt). Pillars compared by `Id`; add/remove/rename bumps,
+  weight/order does not. **Section-09 must preserve pillar Ids on edit** or every edit over-bumps.
+- **Tests:** versioning (15, pure), seeder (3, InMemory), config round-trip (1, InMemory) — all green
+  (354 total Application tests). Postgres-only guarantees (partial index, xmin conflict, vector
+  round-trip) deferred to section-12 Testcontainers.
+- **Files:** `BrandRankingProfile.cs`, `BrandPillar.cs`, `BrandRankingProfileConfiguration.cs`,
+  `BrandPillarConfiguration.cs`, `PgVectorModelConfiguration.cs`, `IBrandRankingProfileSeedService.cs`,
+  `BrandRankingProfileSeedService.cs`; migration `20260616135102_AddBrandRankingProfile`; DbSet +
+  `IAppDbContext` + DI + Program.cs startup hook.

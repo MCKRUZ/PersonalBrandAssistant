@@ -115,6 +115,7 @@ public static class DependencyInjection
 
         services.AddScoped<IFeedSeedService, FeedSeedService>();
         services.AddScoped<IIdeaSourceSeedService, IdeaSourceSeedService>();
+        services.AddScoped<IBrandRankingProfileSeedService, BrandRankingProfileSeedService>();
 
         services.Configure<GoogleAnalyticsOptions>(
             configuration.GetSection(GoogleAnalyticsOptions.SectionName));

@@ -20,7 +20,12 @@
     "section-11-frontend-ranked-view",
     "section-12-cutover"
   ],
-  "sections_state": {},
+  "sections_state": {
+    "section-01-foundation": {
+      "status": "complete",
+      "commit_hash": "95589d7e4457d8aa5fb564441bfecf3a92ccbe94"
+    }
+  },
   "pre_commit": {
     "present": false,
     "type": "none",
