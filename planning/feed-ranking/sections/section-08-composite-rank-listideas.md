@@ -182,3 +182,25 @@ Do not drop the `Score` column/index. `score` sort remains a valid user option. 
 ## Verify
 
 `dotnet test` (pure + EF InMemory). Confirm default sort `rank`, descending order, filters applied, DTO breakdown populated, stale flag, `score` sort works, paging slice + total correct, and the query never references `Embedding`.
+
+## As built (2026-06-16)
+
+- **`ComputeRank` reuses `BrandFit.RenormalizedSubScore`** (the shared helper from section-06) for the
+  renormalized brandFit — no re-derived weighted sum. Pure, in `ListIdeas.cs`; `RankResult` record struct.
+- **Read path:** filters → SQL; `CountAsync`; load active `BrandRankingProfile` once → `…Snapshot`; project
+  to a private `RankRow` (display fields + ranking inputs, **never `Embedding`**, R-C1a); `ToListAsync`;
+  compute rank in memory; `ApplySort` over the DTOs; `Skip/Take` page. `PagedResult` = in-memory page slice
+  + SQL `totalCount`.
+- **Default sort flipped to `rank`** (Query default + endpoint fallback, R-M2). The `rank` sort tie-breaks on
+  `DetectedAt desc`, so with no active profile (all ranks 0) it degrades to recency order — which keeps the
+  pre-existing default-sort test passing. `score` sort + index retained.
+- **Signature note:** `ComputeRank` takes `int? scoredProfileVersion` (not the spec's `int`) — unscored ideas
+  have a null version; `Stale = version is { } v && v < profile.Version`.
+- **Review fixes:** in-memory string sorts use a fixed `StringComparer.OrdinalIgnoreCase` (deterministic
+  across server cultures); materialization comment names the real O(table) trigger (default unfiltered view).
+- **Verification gap (review C1a):** the "projection excludes the `vector(1536)` column" guarantee holds by
+  construction but is only InMemory-tested here; **section-12 Testcontainers** must confirm the generated SQL
+  on real Postgres. (EF *can* project the whole value-converted `PillarSubScores` property — the EF limit is
+  querying *into* a converted property, which this code never does.)
+- Files: `IdeaDto.cs` (+rank fields), `PillarBreakdownDto.cs` (new), `ListIdeas.cs` (rewrite),
+  `IdeaEndpoints.cs` (`?? "rank"`), `ComputeRankTests.cs` (new, 11), `ListIdeasHandlerTests.cs` (+6).

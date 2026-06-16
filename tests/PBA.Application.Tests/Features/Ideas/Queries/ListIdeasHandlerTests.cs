@@ -338,4 +338,117 @@ public class ListIdeasHandlerTests
         Assert.Contains(result.Value.Items, i => i.IsDuplicate);
         Assert.Contains(result.Value.Items, i => !i.IsDuplicate);
     }
+
+    // --- Section-08: brand-anchored rank ----------------------------------------------------------
+
+    private static readonly Guid Pillar1 = Guid.Parse("aaaaaaaa-0000-0000-0000-000000000001");
+
+    private static void AddActiveProfile(ApplicationDbContext context, int version = 1, double weight = 1.0)
+    {
+        context.BrandRankingProfiles.Add(new BrandRankingProfile
+        {
+            Version = version, IsActive = true, UpdatedAt = DateTimeOffset.UtcNow,
+            Positioning = "P", AudiencePrimary = "A",
+            HalfLifeDays = 7, DecayFloor = 0.075, AntiTopicMultiplier = 0.1, AuthorityBoost = 1.2,
+            Pillars = [new BrandPillar { Id = Pillar1, Name = "Pillar One", Description = "d", Weight = weight, Order = 0 }]
+        });
+    }
+
+    private static Idea Scored(string title, double subScore, DateTimeOffset? detectedAt = null,
+        int scoredVersion = 1, bool? anti = null, bool? authority = null) => new()
+    {
+        Title = title, SourceName = "test-source", DeduplicationKey = Guid.NewGuid().ToString(),
+        Status = IdeaStatus.New, DetectedAt = detectedAt ?? DateTimeOffset.UtcNow,
+        ScoredProfileVersion = scoredVersion, IsAntiTopic = anti, IsAuthorityTopic = authority,
+        PillarSubScores = [new PillarSubScore { PillarId = Pillar1, PillarName = "Pillar One", Score = subScore, Reason = "fits" }]
+    };
+
+    [Fact]
+    public async Task Handle_DefaultSort_IsRank_OrdersByCompositeRankDescending()
+    {
+        await using var context = CreateContext();
+        AddActiveProfile(context);
+        context.Ideas.Add(Scored("Low", 0.2));
+        context.Ideas.Add(Scored("High", 0.9));
+        context.Ideas.Add(Scored("Mid", 0.5));
+        await context.SaveChangesAsync();
+
+        var handler = new ListIdeas.Handler(context);
+        var result = await handler.Handle(new ListIdeas.Query(), CancellationToken.None); // no SortBy
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("High", result.Value!.Items[0].Title);
+        Assert.Equal("Mid", result.Value.Items[1].Title);
+        Assert.Equal("Low", result.Value.Items[2].Title);
+    }
+
+    [Fact]
+    public async Task Handle_ActiveProfile_PopulatesRankFieldsAndBreakdown()
+    {
+        await using var context = CreateContext();
+        AddActiveProfile(context);
+        context.Ideas.Add(Scored("Item", 0.8, authority: true));
+        await context.SaveChangesAsync();
+
+        var handler = new ListIdeas.Handler(context);
+        var result = await handler.Handle(new ListIdeas.Query(), CancellationToken.None);
+
+        var dto = Assert.Single(result.Value!.Items);
+        Assert.Equal(0.8, dto.BrandFit, 6);
+        Assert.True(dto.Rank > 0);
+        Assert.True(dto.RecencyFactor > 0);
+        Assert.True(dto.IsAuthorityTopic);
+        var breakdown = Assert.Single(dto.PillarBreakdown);
+        Assert.Equal("Pillar One", breakdown.Name);
+        Assert.Equal(0.8, breakdown.Score, 6);
+    }
+
+    [Fact]
+    public async Task Handle_IdeaScoredAtOlderVersion_SurfacesStale()
+    {
+        await using var context = CreateContext();
+        AddActiveProfile(context, version: 2);
+        context.Ideas.Add(Scored("Stale", 0.5, scoredVersion: 1));
+        context.Ideas.Add(Scored("Fresh", 0.5, scoredVersion: 2));
+        await context.SaveChangesAsync();
+
+        var handler = new ListIdeas.Handler(context);
+        var result = await handler.Handle(new ListIdeas.Query(), CancellationToken.None);
+
+        Assert.True(result.Value!.Items.Single(i => i.Title == "Stale").Stale);
+        Assert.False(result.Value.Items.Single(i => i.Title == "Fresh").Stale);
+    }
+
+    [Fact]
+    public async Task Handle_IdeaWithEmbedding_RanksWithoutSelectingTheVector()
+    {
+        await using var context = CreateContext();
+        AddActiveProfile(context);
+        var idea = Scored("Embedded", 0.7);
+        idea.Embedding = new float[] { 0.1f, 0.2f }; // present in the row, must NOT break the projection (R-C1a)
+        context.Ideas.Add(idea);
+        await context.SaveChangesAsync();
+
+        var handler = new ListIdeas.Handler(context);
+        var result = await handler.Handle(new ListIdeas.Query(), CancellationToken.None);
+
+        var dto = Assert.Single(result.Value!.Items);
+        Assert.Equal(0.7, dto.BrandFit, 6); // ranked fine; IdeaDto has no embedding field by construction
+    }
+
+    [Fact]
+    public async Task Handle_NoActiveProfile_RanksZero_AndFallsBackToRecencyOrder()
+    {
+        await using var context = CreateContext();
+        var now = DateTimeOffset.UtcNow;
+        context.Ideas.Add(Scored("Older", 0.9, detectedAt: now.AddDays(-2)));
+        context.Ideas.Add(Scored("Newer", 0.1, detectedAt: now));
+        await context.SaveChangesAsync();
+
+        var handler = new ListIdeas.Handler(context);
+        var result = await handler.Handle(new ListIdeas.Query(), CancellationToken.None);
+
+        Assert.All(result.Value!.Items, i => Assert.Equal(0, i.Rank));
+        Assert.Equal("Newer", result.Value.Items[0].Title); // rank-tie -> DetectedAt desc
+    }
 }

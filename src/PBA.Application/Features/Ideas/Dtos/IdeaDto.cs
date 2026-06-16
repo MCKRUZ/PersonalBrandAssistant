@@ -19,4 +19,14 @@ public record IdeaDto
     public int? Score { get; init; }
     public string? ScoreReason { get; init; }
     public bool IsDuplicate { get; init; }
+
+    // Brand-anchored composite ranking (section-08), computed at read time from stored sub-scores +
+    // the active profile. Default 0 when no active profile exists (graceful degrade).
+    public double Rank { get; init; }
+    public double BrandFit { get; init; }
+    public double RecencyFactor { get; init; }
+    public IReadOnlyList<PillarBreakdownDto> PillarBreakdown { get; init; } = [];
+    public bool? IsAntiTopic { get; init; }
+    public bool? IsAuthorityTopic { get; init; }
+    public bool Stale { get; init; }
 }
