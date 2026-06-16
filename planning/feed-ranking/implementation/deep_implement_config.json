@@ -28,6 +28,10 @@
     "section-02-brand-profile-domain": {
       "status": "complete",
       "commit_hash": "196eb9ba83b90114ae788c2ae336d3aea652b297"
+    },
+    "section-03-idea-entity-changes": {
+      "status": "complete",
+      "commit_hash": "eedf22bf581a8886a9bd06e6f1a360fa58150d3c"
     }
   },
   "pre_commit": {

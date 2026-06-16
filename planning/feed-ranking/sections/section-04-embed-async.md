@@ -142,3 +142,23 @@ Reuse the existing `JsonOptions`, `Truncate`, and the timeout/cancellation handl
 - Calling `EmbedAsync` from any background service, persisting vectors, per-batch retry/`Embedding == null` handling (section-06 `IdeaEmbeddingService`, section-07 scoring sweep).
 - The `vector(1536)` EF column/migration (sections 02, 03).
 - Live integration call to OpenRouter — tests use a fake handler only.
+
+---
+
+## As-built notes (implemented 2026-06-16)
+
+- `ISidecarClient.EmbedAsync(IReadOnlyList<string>, model?, ct)` added; implemented in `OpenRouterClient`
+  (POST `/embeddings`, `dimensions:1536`, `encoding_format:"float"`). `SidecarClient` (CLI) throws
+  `NotSupportedException`. `IOptions<EmbeddingOptions>` added to the `OpenRouterClient` ctor (DI resolves it;
+  existing `OpenRouterClientTests` updated for the new param).
+- **Result mapping (review-hardened):** results map to inputs by the response `index`, not positional zip —
+  out-of-range, duplicate, or missing indices throw (a misaligned vector would silently corrupt
+  dedup/pre-filter). Empty/whitespace inputs are dropped (never sent); **result length can be < input
+  length**, so callers must filter empties up front, never index-align against the original list.
+- **Guards (R-H2):** rejects zero vectors and wrong-dimension vectors. NaN/Infinity can't arrive via
+  standard JSON (System.Text.Json rejects it), so that guard is defense-in-depth only.
+- **DRY:** extracted `PostJsonAsync(path, payload, ct)` shared by chat + embeddings (auth/referer headers,
+  per-request timeout, error mapping).
+- **Deferred to section-06 (flagged):** retry/backoff on 429/5xx, and calling EmbedAsync in manageable
+  groups so one rate-limit blip doesn't waste a full 128-batch (EmbedAsync is all-or-nothing per call).
+- 13 OpenRouterClient tests (11 embed + 2 chat) + 340 Infrastructure tests green.

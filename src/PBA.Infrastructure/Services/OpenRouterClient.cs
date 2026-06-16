@@ -16,9 +16,11 @@ namespace PBA.Infrastructure.Services;
 public sealed class OpenRouterClient(
     HttpClient httpClient,
     IOptions<OpenRouterOptions> options,
+    IOptions<EmbeddingOptions> embeddingOptions,
     ILogger<OpenRouterClient> logger) : ISidecarClient
 {
     private readonly OpenRouterOptions _options = options.Value;
+    private readonly EmbeddingOptions _embeddingOptions = embeddingOptions.Value;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -28,15 +30,29 @@ public sealed class OpenRouterClient(
 
     public async Task<string> SendPromptAsync(string systemPrompt, string userPrompt, string? model = null, CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(_options.ApiKey))
-            throw new InvalidOperationException("OpenRouter API key is not configured.");
-
         var payload = new ChatRequest(
             model ?? _options.Model,
             [new ChatMessage("system", systemPrompt), new ChatMessage("user", userPrompt)],
             _options.MaxTokens);
 
-        using var request = new HttpRequestMessage(HttpMethod.Post, $"{_options.BaseUrl}/chat/completions")
+        var body = await PostJsonAsync("chat/completions", payload, ct);
+
+        var content = JsonSerializer.Deserialize<ChatResponse>(body, JsonOptions)
+            ?.Choices?.FirstOrDefault()?.Message?.Content;
+
+        if (string.IsNullOrWhiteSpace(content))
+            throw new InvalidOperationException($"OpenRouter returned an empty response from {_options.Model}.");
+
+        return content.Trim();
+    }
+
+    // Shared transport for chat + embeddings: auth/referer headers, per-request timeout, error mapping.
+    private async Task<string> PostJsonAsync(string path, object payload, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(_options.ApiKey))
+            throw new InvalidOperationException("OpenRouter API key is not configured.");
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"{_options.BaseUrl}/{path}")
         {
             Content = new StringContent(JsonSerializer.Serialize(payload, JsonOptions), Encoding.UTF8, "application/json")
         };
@@ -54,24 +70,90 @@ public sealed class OpenRouterClient(
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
-            throw new TimeoutException($"OpenRouter request timed out after {_options.TimeoutMs}ms");
+            throw new TimeoutException($"OpenRouter request to {path} timed out after {_options.TimeoutMs}ms");
         }
 
         var body = await response.Content.ReadAsStringAsync(ct);
 
         if (!response.IsSuccessStatusCode)
         {
-            logger.LogError("OpenRouter request failed: {Status} {Body}", response.StatusCode, Truncate(body));
-            throw new InvalidOperationException($"OpenRouter request failed ({(int)response.StatusCode})");
+            logger.LogError("OpenRouter request to {Path} failed: {Status} {Body}", path, response.StatusCode, Truncate(body));
+            throw new InvalidOperationException($"OpenRouter request to {path} failed ({(int)response.StatusCode})");
         }
 
-        var content = JsonSerializer.Deserialize<ChatResponse>(body, JsonOptions)
-            ?.Choices?.FirstOrDefault()?.Message?.Content;
+        return body;
+    }
 
-        if (string.IsNullOrWhiteSpace(content))
-            throw new InvalidOperationException($"OpenRouter returned an empty response from {_options.Model}.");
+    public async Task<IReadOnlyList<float[]>> EmbedAsync(
+        IReadOnlyList<string> inputs, string? model = null, CancellationToken ct = default)
+    {
+        // Drop empty/whitespace inputs — a meaningless vector would corrupt dedup/pre-filter (R-H2).
+        // (API-key validation happens in PostJsonAsync, so an all-empty call returns [] without it.)
+        var sanitized = inputs.Where(i => !string.IsNullOrWhiteSpace(i)).ToList();
+        if (sanitized.Count == 0)
+            return [];
 
-        return content.Trim();
+        var resolvedModel = model ?? _embeddingOptions.Model;
+        var results = new List<float[]>(sanitized.Count);
+
+        foreach (var batch in sanitized.Chunk(_embeddingOptions.BatchSize))
+        {
+            results.AddRange(await EmbedBatchAsync(batch, resolvedModel, ct));
+        }
+
+        return results;
+    }
+
+    private async Task<float[][]> EmbedBatchAsync(string[] batch, string model, CancellationToken ct)
+    {
+        var payload = new EmbeddingRequest(model, batch, "float", _embeddingOptions.Dimensions);
+        var body = await PostJsonAsync("embeddings", payload, ct);
+
+        var data = JsonSerializer.Deserialize<EmbeddingResponse>(body, JsonOptions)?.Data;
+        if (data is null || data.Count != batch.Length)
+            throw new InvalidOperationException(
+                $"OpenRouter embeddings returned {data?.Count ?? 0} vectors for {batch.Length} inputs.");
+
+        // The API does not guarantee data[] order, so map each result to its input by `index` rather
+        // than positional zip. Reject out-of-range, duplicate, or missing indices — a misaligned vector
+        // would silently feed garbage into dedup/pre-filter.
+        var ordered = new float[batch.Length][];
+        foreach (var d in data)
+        {
+            if (d.Index < 0 || d.Index >= batch.Length)
+                throw new InvalidOperationException($"OpenRouter embedding index {d.Index} out of range [0,{batch.Length}).");
+            if (ordered[d.Index] is not null)
+                throw new InvalidOperationException($"OpenRouter embeddings returned a duplicate index {d.Index}.");
+            ordered[d.Index] = ValidateVector(d.Embedding);
+        }
+
+        for (var i = 0; i < ordered.Length; i++)
+            if (ordered[i] is null)
+                throw new InvalidOperationException($"OpenRouter embeddings missing a vector for input index {i}.");
+
+        return ordered;
+    }
+
+    // Reject zero/NaN/Infinity vectors so a corrupt embedding never enters the system (R-H2);
+    // the item stays unembedded and is retried on the next sweep.
+    private float[] ValidateVector(float[]? vector)
+    {
+        if (vector is null || vector.Length != _embeddingOptions.Dimensions)
+            throw new InvalidOperationException(
+                $"OpenRouter embedding has length {vector?.Length ?? 0}, expected {_embeddingOptions.Dimensions}.");
+
+        var allZero = true;
+        foreach (var v in vector)
+        {
+            if (!float.IsFinite(v))
+                throw new InvalidOperationException("OpenRouter embedding contains a NaN/Infinity value.");
+            if (v != 0f) allZero = false;
+        }
+
+        if (allZero)
+            throw new InvalidOperationException("OpenRouter embedding is a zero vector.");
+
+        return vector;
     }
 
     // Non-incremental streaming: yields the full completion once. The UI gets the
@@ -102,4 +184,17 @@ public sealed class OpenRouterClient(
 
     private sealed record ChatChoice(
         [property: JsonPropertyName("message")] ChatMessage? Message);
+
+    private sealed record EmbeddingRequest(
+        [property: JsonPropertyName("model")] string Model,
+        [property: JsonPropertyName("input")] IReadOnlyList<string> Input,
+        [property: JsonPropertyName("encoding_format")] string EncodingFormat,
+        [property: JsonPropertyName("dimensions")] int Dimensions);
+
+    private sealed record EmbeddingResponse(
+        [property: JsonPropertyName("data")] IReadOnlyList<EmbeddingData>? Data);
+
+    private sealed record EmbeddingData(
+        [property: JsonPropertyName("index")] int Index,
+        [property: JsonPropertyName("embedding")] float[]? Embedding);
 }
