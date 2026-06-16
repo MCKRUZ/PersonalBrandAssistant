@@ -130,6 +130,23 @@ public class OpenRouterClientEmbedTests
     }
 
     [Fact]
+    public async Task EmbedAsync_InputLongerThanMax_IsTruncatedBeforeSend()
+    {
+        // A single over-long input (e.g. a full article body) exceeds the embedding model's per-input
+        // token limit and makes the provider return 0 vectors, failing the whole batch. The client must
+        // cap each input to MaxInputChars before sending so one giant idea never poisons its batch.
+        var embed = new EmbeddingOptions { MaxInputChars = 10 };
+        var handler = new ScriptedHandler((_, input) => EmbeddingsOk(input.Select((_, i) => (i, Vec(i)))));
+        var client = Client(handler, embed);
+
+        await client.EmbedAsync([new string('a', 50)]);
+
+        using var doc = JsonDocument.Parse(handler.CapturedBodies.Single());
+        var sent = doc.RootElement.GetProperty("input").EnumerateArray().Single().GetString()!;
+        Assert.Equal(10, sent.Length);
+    }
+
+    [Fact]
     public async Task EmbedAsync_AllEmptyInputs_ReturnsEmpty_NoHttpCall()
     {
         var handler = new ScriptedHandler((_, _) => throw new Xunit.Sdk.XunitException("should not call API"));
