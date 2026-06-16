@@ -188,3 +188,24 @@ Created:
 
 Modified:
 - `src/PBA.Api/Program.cs` (register `MapBrandRankingProfileEndpoints`)
+
+## As built (2026-06-16)
+
+- **Route `/api/brand-ranking-profile`** (GET active + PUT). The PUT command IS the request body; the
+  server decides the write mode via the entity's `RequiresVersionBump` (no client mode flag). Query-time
+  knobs always apply (no bump); a definition change bumps `Version` and, on a pillar description edit, nulls
+  that pillar's `DescriptionEmbedding` so section-06 re-embeds. PUT is a **full replace** (omitted
+  collections → empty).
+- **Concurrency fails CLOSED (review-hardened):** a missing/unparseable `ConcurrencyToken` → 400
+  `ValidationFailure` *before* any mutation; the xmin original value is then set unconditionally via a new
+  narrow `IAppDbContext.SetOriginalValue(entity, propertyName, value)` port (implemented in
+  `ApplicationDbContext` — EF's change-tracker is NOT exposed to the application layer). `DbUpdateConcurrencyException`
+  → `Result.Conflict` → 409.
+- **Blank `AudienceSecondary` is canonicalized to null** so a `""`-vs-`null` diff never forces a needless
+  re-score. Validator rejects empty pillar ids (R-C3) and an empty `ConcurrencyToken`; no weights-sum rule
+  (read-time renormalization, R-C2b).
+- **Concurrency at the HTTP layer:** empty-token → 400 is tested; true stale-xmin → 409 needs a real
+  Postgres and is deferred to **section-12 Testcontainers**.
+- Files: `BrandRankingProfileDto.cs` (+`BrandRankingPillarDto`, mapper), `GetActiveBrandRankingProfile.cs`,
+  `UpdateBrandRankingProfile.cs` (+validator), `BrandRankingProfileEndpoints.cs`, `IAppDbContext.cs`
+  (+`SetOriginalValue`), `ApplicationDbContext.cs`, `Program.cs`. Tests: 21 Application + 4 API.

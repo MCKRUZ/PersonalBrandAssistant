@@ -20,6 +20,10 @@ public class ApplicationDbContext : DbContext, IAppDbContext
     public DbSet<BrandProfile> BrandProfiles => Set<BrandProfile>();
     public DbSet<BrandRankingProfile> BrandRankingProfiles => Set<BrandRankingProfile>();
 
+    public void SetOriginalValue<TEntity>(TEntity entity, string propertyName, object value)
+        where TEntity : class
+        => Entry(entity).Property(propertyName).OriginalValue = value;
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
