@@ -1,8 +1,53 @@
 # Resume — Feed Ranking Redesign (deep-plan)
 
-## Status: PLAN COMPLETE (2026-06-16)
+## Status: IMPLEMENTATION IN PROGRESS — sections 01-04 SHIPPED (2026-06-16)
+Deep-plan complete (12 sections). `/deep-implement` underway. Sections 01-04 implemented, reviewed,
+committed (each with green build + tests + state recorded in `implementation/deep_implement_config.json`).
+
+**Resume with:** `/deep-implement @planning/feed-ranking/sections/` — file-based recovery resumes at
+section-05. (Windows env-var workaround below still required for the deep-implement scripts.)
+
+### Done (committed on v2-rebuild)
+- **01 foundation** (95589d7): pgvector wiring, CosineSimilarity (10 tests), Embedding/RankingOptions,
+  EnablePgVectorExtension migration. R-M4 gate PASSED live (text-embedding-3-small @ 1536).
+- **02 brand-profile-domain** (196eb9b): BrandRankingProfile+BrandPillar, EF configs, xmin concurrency,
+  partial unique index, startup seeder, AddBrandRankingProfile migration.
+- **03 idea-entity-changes** (eedf22b): Idea embedding+sub-score fields, jsonb converter,
+  AddIdeaEmbeddingAndSubScores migration (PillarSubScores defaults '[]'::jsonb for the populated table).
+- **04 embed-async** (afdfdad): ISidecarClient.EmbedAsync via OpenRouter, index-mapped results, R-H2 guards.
+
+### CRITICAL resume note — sections 05, 06, 07 are a BUILD-COUPLED UNIT
+Section-05 changes the `IIdeaAnalyzer` contract + `IdeaAnalysis` record shape, which the old
+`IdeaScoringService` consumes. That service is only rewritten in section-07. **The solution will NOT
+compile (no tests can run) until 05->06->07 all land together.** Implement them as one unit, then commit
+once the build is green. No cheap shim exists — the old single-score sweep must be fully rewritten (= §07).
+
+### Carried-forward review flags for sections 05-07
+- **§05 temperature:** `ISidecarClient.SendPromptAsync` has no temperature param. Either instruct
+  low-variance in the prompt (flag to user) or add an overload. Decide during 05.
+- **§06 (from §04 review):** EmbedAsync batches at 128 and is all-or-nothing per call + has no retry.
+  Call it in manageable groups and wrap per-group try/catch so a 429 leaves items Embedding==null for
+  retry without wasting a whole 128-batch. EmbedAsync drops empty inputs (result length may be < input
+  length) — map vectors to ideas by filtering empties up front, never by positional index.
+- **§06/§07 brand-fit helper:** expose ONE shared brand-fit weighted-sum (in §06) that §07 reuses.
+- **§09 (from §02 review):** UpdateBrandRankingProfile must preserve pillar Ids on edit or
+  RequiresVersionBump over-bumps.
+
+### Established patterns (reuse in 05-12)
+- Embeddings are `float[]` on Domain entities (Domain pure); `vector(1536)` mapping + float[]<->Vector
+  converter live in `PgVectorModelConfiguration.Apply`, gated by `Database.IsNpgsql()` in OnModelCreating.
+- Complex-type jsonb collections (e.g. PillarSubScores) need an explicit System.Text.Json converter +
+  ValueComparer (InMemory can't map them); primitive `List<string>` jsonb works natively.
+- NOT NULL columns added to the populated Ideas table need a store default (e.g. `'[]'::jsonb`, `0`).
+- Tests live in PBA.Application.Tests + PBA.Infrastructure.Tests; Postgres-only guarantees (vector
+  round-trip, partial index, xmin conflict) deferred to section-12 Testcontainers.
+- Ranking aggregate is `BrandRankingProfile` (NOT the existing voice `BrandProfile`).
+
+---
+
+## Original plan-complete note
 Deep-plan finished all steps. Research → interview → spec → plan → Opus review → integration →
-TDD plan → 12 sectioned implementation files. Ready for `/deep-implement`.
+TDD plan → 12 sectioned implementation files.
 
 ## Files (all in planning/feed-ranking/)
 - `claude-plan.md` — the blueprint. **§13 = authoritative review-integrated fixes.**
