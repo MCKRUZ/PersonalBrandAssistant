@@ -13,6 +13,8 @@ using PBA.Infrastructure.Seeding;
 using PBA.Infrastructure.Security;
 using PBA.Infrastructure.Services;
 using PBA.Infrastructure.Transformers;
+using Npgsql;
+using Pgvector.EntityFrameworkCore;
 
 namespace PBA.Infrastructure;
 
@@ -25,12 +27,15 @@ public static class DependencyInjection
         var connectionString = configuration.GetConnectionString("DefaultConnection");
         var dataSourceBuilder = new Npgsql.NpgsqlDataSourceBuilder(connectionString);
         dataSourceBuilder.EnableDynamicJson();
+        dataSourceBuilder.UseVector(); // pgvector type mapping at the Npgsql data-source level
         var dataSource = dataSourceBuilder.Build();
 
         services.AddDbContext<ApplicationDbContext>(options =>
             options.UseNpgsql(
                 dataSource,
-                npgsql => npgsql.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName)));
+                npgsql => npgsql
+                    .UseVector()
+                    .MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName)));
 
         services.AddScoped<IAppDbContext>(sp => sp.GetRequiredService<ApplicationDbContext>());
 
@@ -73,6 +78,10 @@ public static class DependencyInjection
         services.Configure<OpenRouterOptions>(configuration.GetSection(OpenRouterOptions.SectionName));
         services.AddHttpClient<ISidecarClient, OpenRouterClient>();
         services.AddHostedService<AiConnectionsService>();
+
+        // Brand-anchored feed ranking: embedding model + runtime-tunable ranking thresholds.
+        services.Configure<EmbeddingOptions>(configuration.GetSection(EmbeddingOptions.SectionName));
+        services.Configure<RankingOptions>(configuration.GetSection(RankingOptions.SectionName));
 
         // AI News Radar (Horizon-inspired): scoring -> clustering -> daily digest.
         services.Configure<IdeaScoringOptions>(configuration.GetSection(IdeaScoringOptions.SectionName));

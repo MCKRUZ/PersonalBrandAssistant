@@ -235,3 +235,35 @@ Note the two deployed hosts (Mac Mini + Furious) each have their own `appsetting
 3. The R-M4 gate result is recorded (model confirmed at 1536) — this is a hard prerequisite; if it failed, the section is blocked, not done.
 4. The `EnablePgVectorExtension` migration applies cleanly against a real Postgres (`dotnet ef database update` against a local pgvector-capable Postgres, or confirm the generated migration creates the extension). Do **not** rely on EF InMemory here — it can't run the extension SQL.
 5. `dotnet ef migrations` runs without error (design-time factory has `.UseVector()`).
+
+---
+
+## As-built notes (implemented 2026-06-16)
+
+- **R-M4 gate: PASSED (verified live).** `POST https://openrouter.ai/api/v1/embeddings` with
+  `{model: openai/text-embedding-3-small, dimensions: 1536}` → HTTP 200, response `model:
+  text-embedding-3-small`, embedding length **1536**, OpenAI-compatible `{object:"list", data:[{index,
+  embedding}], usage}` shape. The `vector(1536)` design is validated.
+- **Package:** `Pgvector.EntityFrameworkCore` **0.3.0** (pulls `Pgvector` 0.3.2). README confirms 0.3.0
+  supports EF Core 9 **and 10**; resolved cleanly against the project's Npgsql EF 10.0.1 / Npgsql 10.
+- **pgvector wiring (Npgsql 10 specifics — non-obvious, documented for later sections):**
+  - Data-source registration is `dataSourceBuilder.UseVector()` resolved via
+    `Npgsql.VectorExtensions.UseVector(INpgsqlTypeMapper)` — **requires `using Npgsql;`** (the
+    `NpgsqlDataSourceBuilder` implements `INpgsqlTypeMapper`). Pgvector 0.3.2's net6.0 lib does **not**
+    expose a `UseVector(NpgsqlDataSourceBuilder)` overload despite the README; the `INpgsqlTypeMapper`
+    extension is the working path.
+  - EF-options registration is `o.UseVector()` from `using Pgvector.EntityFrameworkCore;` (separate
+    extension). Both are required when passing a pre-built external `NpgsqlDataSource` to `UseNpgsql`.
+- **`CosineSimilarity`** lives in `src/PBA.Application/Common/VectorMath.cs`; 10 xUnit tests in
+  `tests/PBA.Application.Tests/Common/VectorMathTests.cs` (all green). Per code review, the R-H2
+  "never NaN" contract was strengthened: a NaN/Infinity in an input vector also returns 0 (final
+  `double.IsFinite` clamp), not just the zero-vector case.
+- **Migration:** `20260616133237_EnablePgVectorExtension` — extension annotation only
+  (`AlterDatabase().Annotation("Npgsql:PostgresExtension:vector", ",,")`), correct `Down()`. Real-Postgres
+  apply deferred to section-12 (Testcontainers); migration verified by inspection here.
+- **Config:** `EmbeddingOptions` + `RankingOptions` added with plan defaults; registered in DI; `Embedding`
+  and `Ranking` appsettings sections added to `src/PBA.Api/appsettings.json`.
+- **Open question resolved for sections 02/03:** the embedding property type is **`Pgvector.Vector`**
+  (mapped `[Column(TypeName="vector(1536)")] public Vector? ...`), **not** `float[]` — confirmed from the
+  pgvector-dotnet README. Sections 02/03 should use `Pgvector.Vector`, converting to `float[]` only at the
+  `CosineSimilarity` boundary (`vector.ToArray()`).
