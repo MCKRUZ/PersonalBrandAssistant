@@ -1,11 +1,36 @@
 # Resume — Feed Ranking Redesign (deep-plan)
 
-## Status: IMPLEMENTATION IN PROGRESS — sections 01-04 SHIPPED (2026-06-16)
-Deep-plan complete (12 sections). `/deep-implement` underway. Sections 01-04 implemented, reviewed,
-committed (each with green build + tests + state recorded in `implementation/deep_implement_config.json`).
+## Status: IMPLEMENTATION COMPLETE — all 12 sections SHIPPED (2026-06-16)
+Deep-plan + `/deep-implement` complete. All 12 sections implemented, reviewed, committed on `v2-rebuild`.
+**Backend 844 tests green + frontend 586 tests green.** Code review trail for every section in
+`implementation/code_review/`; usage guide at `implementation/usage.md`.
 
-**Resume with:** `/deep-implement @planning/feed-ranking/sections/` — file-based recovery resumes at
-section-05. (Windows env-var workaround below still required for the deep-implement scripts.)
+**ONLY remaining work = the manual production rollout** (section-12 runbook, gated at step 4): apply
+migrations on both hosts → verify seed → backfill ~3,800 embeddings → **flip `IdeaScoring:ScoringEnabled`
+true + restart (IRREVERSIBLE token spend — needs explicit go-ahead)** → verify → promote to Furious →
+R-L6 grep the two deployed appsettings. Nothing else to `/deep-implement`.
+
+### Section commits (this rebuild)
+01 95589d7 · 02 196eb9b · 03 eedf22b · 04 afdfdad · 05-07 27f241d (build-coupled) · 08 bba00c6 ·
+09 30c98e0 · 10 e8a3908 · 11 24583f0 · 12 9cfd92e · usage 669d5f8
+
+### Sections 05-07 (27f241d) — the build-coupled unit, now SHIPPED
+Done as one commit (05 changes the IIdeaAnalyzer contract that 07's sweep consumes; compiles only
+together). Key as-built facts the later sections depend on:
+- **`BrandRankingProfileSnapshot`** (`PBA.Application/Common/Models`) is the FULL shared shape (pillars
+  w/ id+name+desc+weight+order+DescriptionEmbedding, topics, half-life, floor, multipliers, Version) with
+  a `FromProfile(BrandRankingProfile)` factory. **Section-08 ComputeRank consumes this.**
+- **`BrandFit`** (`PBA.Application/Common`) holds the only two brand-fit formulas: `EmbeddingWeightedSum`
+  (pre-filter) and `RenormalizedSubScore(subScoresByPillarId, (Id,Weight)[])` (query-time). **Section-08
+  must reuse `RenormalizedSubScore`, not re-derive it.**
+- Derived `Score` is display-only (R-M1): renormalized LLM brandFit above threshold, raw embedding brandFit
+  below. Authoritative ranking = `PillarSubScores` + section-08 `ComputeRank`.
+- `ISidecarClient` gained a `SendPromptAsync(...,double? temperature,...)` overload (path 2); analyzer @ 0.1.
+- Temperature, snapshot-once (R-H3/R-L2), ScoreAttempts cap=3 (R-M5), dedup gated (R-H1) + deterministic
+  primary all in place. Services use `DateTimeOffset.UtcNow` (consistent w/ existing radar services).
+- **Open follow-up (review L1):** no embed-attempt cap → a permanently-unembeddable in-window idea can
+  wedge the dedup gate; needs an `Idea` schema field. Deferred.
+- Review trail: `implementation/code_review/section-05-07-{review,interview,diff}.md`.
 
 ### Done (committed on v2-rebuild)
 - **01 foundation** (95589d7): pgvector wiring, CosineSimilarity (10 tests), Embedding/RankingOptions,
