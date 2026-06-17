@@ -1,28 +1,25 @@
--- Ensure the Microsoft-owned RSS sources exist and are flagged for the "Microsoft" daily brief.
+-- Ensure Microsoft-owned RSS sources are flagged for the "Microsoft" daily brief.
 --
 -- WHY THIS EXISTS: IdeaSource seeding only runs via POST /api/idea-sources/seed (Development only), so on
 -- the production Mac Mini host these rows are managed by hand. The Microsoft brief filters on the
--- IsMicrosoftSource flag (NOT on Category, which stays topical: Azure/Cloud, .NET/C#, etc.).
+-- IsMicrosoftSource flag (NOT on Category, which stays topical: Azure/Cloud, .NET/C#, Security, etc.).
 --
--- Run AFTER the AddIsMicrosoftSource migration (the flag column must exist). Idempotent: sets the flag on
--- existing sources (matched case-insensitively on FeedUrl) and inserts any that are missing.
+-- The flag is set by DOMAIN, not a hardcoded feed list: any source on a Microsoft-owned host
+-- (*.microsoft.com or github.blog) is Microsoft. This catches the full set (Azure, .NET, M365, Security,
+-- PowerShell, TypeScript, Semantic Kernel, DevBlogs, Research, GitHub blog, ...) including feeds imported
+-- outside the seed service. The ^-anchor prevents matching lookalikes like notmicrosoft.com, and github.blog
+-- (Microsoft's blog) is included while github.com/<third-party> repos are not.
 --
--- Apply on the Mac Mini, e.g.:
+-- Run AFTER the AddIsMicrosoftSource migration. Idempotent. Apply on the Mac Mini, e.g.:
 --   docker exec -i pba-db psql -U pba -d personal_brand_assistant -v ON_ERROR_STOP=1 < scripts/seed-microsoft-sources.sql
 
--- 1) Flag any already-present Microsoft sources (they may carry topical categories like Azure/Cloud).
+-- 1) Flag every source on a Microsoft-owned domain.
 UPDATE "IdeaSources" SET "IsMicrosoftSource" = TRUE
-WHERE lower("FeedUrl") IN (
-    'https://blogs.microsoft.com/feed/',
-    'https://azure.microsoft.com/en-us/blog/feed/',
-    'https://devblogs.microsoft.com/feed/',
-    'https://devblogs.microsoft.com/dotnet/feed/',
-    'https://devblogs.microsoft.com/visualstudio/feed/',
-    'https://www.microsoft.com/en-us/research/feed/',
-    'https://github.blog/feed/'
-);
+WHERE "FeedUrl" ~* '^https?://([a-z0-9-]+\.)*microsoft\.com/'
+   OR "FeedUrl" ~* '^https?://([a-z0-9-]+\.)*github\.blog/';
 
--- 2) Insert any that are missing, flagged and with a sensible topical category.
+-- 2) Insert the canonical Microsoft feeds if missing (for hosts without the News Hub source set),
+--    flagged and with a sensible topical category.
 INSERT INTO "IdeaSources"
     ("Id", "Name", "Type", "FeedUrl", "ApiUrl", "Category", "IsMicrosoftSource",
      "PollIntervalMinutes", "IsEnabled", "LastPolledAt", "LastSuccessAt", "LastError", "ConsecutiveFailures")
