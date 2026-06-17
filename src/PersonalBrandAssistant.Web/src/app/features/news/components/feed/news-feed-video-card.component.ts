@@ -1,5 +1,4 @@
-import { Component, inject, input, output, computed, signal, ViewEncapsulation } from '@angular/core';
-import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
+import { Component, input, output, computed, signal, ViewEncapsulation } from '@angular/core';
 import { marked } from 'marked';
 import { RelativeTimePipe } from '../../../../shared/pipes/relative-time.pipe';
 import { NewsFeedItem, CATEGORY_COLORS, CATEGORY_ICONS } from '../../models/news.model';
@@ -287,8 +286,6 @@ import { NewsFeedItem, CATEGORY_COLORS, CATEGORY_ICONS } from '../../models/news
   `,
 })
 export class NewsFeedVideoCardComponent {
-  private readonly sanitizer = inject(DomSanitizer);
-
   item = input.required<NewsFeedItem>();
   bookmarked = output<void>();
   dismissed = output<void>();
@@ -297,11 +294,12 @@ export class NewsFeedVideoCardComponent {
   readonly showSummary = signal(false);
   readonly categoryColor = computed(() => CATEGORY_COLORS[this.item().sourceCategory] ?? '#6b7280');
   readonly categoryIcon = computed(() => CATEGORY_ICONS[this.item().sourceCategory] ?? 'pi pi-th-large');
-  readonly renderedSummary = computed((): SafeHtml => {
+  // Return parsed-markdown HTML as a plain string so Angular's [innerHTML] sanitizer strips scripts
+  // and inline event handlers (summaries are LLM-generated — untrusted) while keeping formatting.
+  readonly renderedSummary = computed((): string => {
     const md = this.item().summary;
     if (!md) return '';
-    const html = marked.parse(md, { async: false }) as string;
-    return this.sanitizer.bypassSecurityTrustHtml(html);
+    return marked.parse(md, { async: false }) as string;
   });
 
   toggleSummary() {
