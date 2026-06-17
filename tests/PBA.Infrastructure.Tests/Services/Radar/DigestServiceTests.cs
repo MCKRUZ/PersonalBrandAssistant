@@ -49,6 +49,23 @@ public class DigestServiceTests
         ScoredAt = DateTimeOffset.UtcNow, Summary = "summary", DuplicateOfId = dupOf
     };
 
+    // A scored idea attached to a source tagged for the Microsoft brief.
+    private static Idea MicrosoftScored(int score)
+    {
+        var source = new IdeaSource { Name = "Azure Blog", Category = "Microsoft", FeedUrl = "https://x/feed" };
+        var idea = Scored(score);
+        idea.IdeaSourceId = source.Id;
+        idea.IdeaSource = source;
+        return idea;
+    }
+
+    // Default writer copy covering the first two ranks; extra ranks fall back to empty whyItMatters.
+    private static void SetupWriter(Mock<IDigestWriter> writer) =>
+        writer.Setup(w => w.WriteAsync(It.IsAny<IReadOnlyList<DigestInput>>(), It.IsAny<DigestKind>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((IReadOnlyList<DigestInput> inp, DigestKind kind, CancellationToken _) =>
+                new DigestCopy($"{kind} Brief", "Intro",
+                    inp.Select(i => new DigestItemCopy(i.Index, $"Why {i.Index}")).ToList()));
+
     [Fact]
     public async Task GenerateDigestAsync_TopScoredPrimaries_CreatesDigestItemsAndFeedAlert()
     {
@@ -56,17 +73,11 @@ public class DigestServiceTests
         var a = Scored(9); var b = Scored(7);
         db.Ideas.AddRange(a, b);
         await db.SaveChangesAsync();
-
-        writer.Setup(w => w.WriteAsync(It.IsAny<IReadOnlyList<DigestInput>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new DigestCopy("Brief", "Intro", new List<DigestItemCopy>
-            {
-                new(0, "Why A"), new(1, "Why B")
-            }));
+        SetupWriter(writer);
 
         await svc.GenerateDigestAsync(DateTimeOffset.UtcNow, CancellationToken.None);
 
-        var digest = db.Digests.Include(d => d.Items).Single();
-        Assert.Equal("Brief", digest.Title);
+        var digest = db.Digests.Include(d => d.Items).Single(d => d.Kind == DigestKind.Main);
         Assert.Equal(2, digest.Items.Count);
         Assert.Equal(1, digest.Items.Single(i => i.IdeaId == a.Id).Rank); // highest score ranked 1
         Assert.Equal(2, digest.Items.Single(i => i.IdeaId == b.Id).Rank);
@@ -79,13 +90,12 @@ public class DigestServiceTests
         var (svc, db, writer, dispatcher) = Build(new DigestOptions { TopN = 8, LookbackHours = 24 });
         db.Ideas.AddRange(Scored(9), Scored(7));
         await db.SaveChangesAsync();
-        writer.Setup(w => w.WriteAsync(It.IsAny<IReadOnlyList<DigestInput>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new DigestCopy("Brief", "Intro", new List<DigestItemCopy> { new(0, "Why A"), new(1, "Why B") }));
+        SetupWriter(writer);
 
         await svc.GenerateDigestAsync(DateTimeOffset.UtcNow, CancellationToken.None);
 
         dispatcher.Verify(d => d.DispatchAsync(
-            It.Is<DeliveryNotification>(n => n.Kind == DeliveryKind.Digest && n.Title == "Brief" && n.Items.Count == 2),
+            It.Is<DeliveryNotification>(n => n.Kind == DeliveryKind.Digest && n.Items.Count == 2),
             It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -110,8 +120,8 @@ public class DigestServiceTests
         await db.SaveChangesAsync();
 
         DigestInput[]? captured = null;
-        writer.Setup(w => w.WriteAsync(It.IsAny<IReadOnlyList<DigestInput>>(), It.IsAny<CancellationToken>()))
-            .Callback<IReadOnlyList<DigestInput>, CancellationToken>((inp, _) => captured = inp.ToArray())
+        writer.Setup(w => w.WriteAsync(It.IsAny<IReadOnlyList<DigestInput>>(), It.IsAny<DigestKind>(), It.IsAny<CancellationToken>()))
+            .Callback<IReadOnlyList<DigestInput>, DigestKind, CancellationToken>((inp, _, _) => captured = inp.ToArray())
             .ReturnsAsync(new DigestCopy("t", "i", new List<DigestItemCopy> { new(0, "w") }));
 
         await svc.GenerateDigestAsync(DateTimeOffset.UtcNow, CancellationToken.None);
@@ -130,7 +140,8 @@ public class DigestServiceTests
 
         await svc.GenerateDigestAsync(DateTimeOffset.UtcNow, CancellationToken.None);
 
-        writer.Verify(w => w.WriteAsync(It.IsAny<IReadOnlyList<DigestInput>>(), It.IsAny<CancellationToken>()), Times.Never);
+        // Main is guarded by the existing row; no Microsoft-source ideas, so that pass produces nothing.
+        writer.Verify(w => w.WriteAsync(It.IsAny<IReadOnlyList<DigestInput>>(), It.IsAny<DigestKind>(), It.IsAny<CancellationToken>()), Times.Never);
         Assert.Single(db.Digests);
     }
 
@@ -140,7 +151,7 @@ public class DigestServiceTests
         var (svc, db, writer, _) = Build(new DigestOptions());
         await svc.GenerateDigestAsync(DateTimeOffset.UtcNow, CancellationToken.None);
         Assert.Empty(db.Digests);
-        writer.Verify(w => w.WriteAsync(It.IsAny<IReadOnlyList<DigestInput>>(), It.IsAny<CancellationToken>()), Times.Never);
+        writer.Verify(w => w.WriteAsync(It.IsAny<IReadOnlyList<DigestInput>>(), It.IsAny<DigestKind>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -152,21 +163,68 @@ public class DigestServiceTests
         await db.SaveChangesAsync();
 
         // Writer only returns copy for index 0 — index 1 is absent
-        writer.Setup(w => w.WriteAsync(It.IsAny<IReadOnlyList<DigestInput>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new DigestCopy("Brief", "Intro", new List<DigestItemCopy>
-            {
-                new(0, "Why A")
-            }));
+        writer.Setup(w => w.WriteAsync(It.IsAny<IReadOnlyList<DigestInput>>(), It.IsAny<DigestKind>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new DigestCopy("Brief", "Intro", new List<DigestItemCopy> { new(0, "Why A") }));
 
         var exception = await Record.ExceptionAsync(() =>
             svc.GenerateDigestAsync(DateTimeOffset.UtcNow, CancellationToken.None));
 
         Assert.Null(exception);
 
-        var digest = db.Digests.Include(d => d.Items).Single();
+        var digest = db.Digests.Include(d => d.Items).Single(d => d.Kind == DigestKind.Main);
         Assert.Equal(2, digest.Items.Count);
 
         var rank2Item = digest.Items.Single(i => i.Rank == 2);
         Assert.Equal(string.Empty, rank2Item.WhyItMatters);
+    }
+
+    [Fact]
+    public async Task GenerateDigestAsync_MicrosoftSourceItems_CreatesMicrosoftDigestWithOnlyThoseItems()
+    {
+        var (svc, db, writer, _) = Build(new DigestOptions { TopN = 8, LookbackHours = 24 });
+        var ms = MicrosoftScored(9);
+        var general = Scored(8); // higher-ranked-looking but not Microsoft-sourced
+        db.Ideas.AddRange(ms, general);
+        await db.SaveChangesAsync();
+        SetupWriter(writer);
+
+        await svc.GenerateDigestAsync(DateTimeOffset.UtcNow, CancellationToken.None);
+
+        var msDigest = db.Digests.Include(d => d.Items).Single(d => d.Kind == DigestKind.Microsoft);
+        Assert.Equal(DigestKind.Microsoft, msDigest.Kind);
+        var item = Assert.Single(msDigest.Items);
+        Assert.Equal(ms.Id, item.IdeaId); // the general idea is excluded from the Microsoft brief
+
+        var mainDigest = db.Digests.Include(d => d.Items).Single(d => d.Kind == DigestKind.Main);
+        Assert.Equal(2, mainDigest.Items.Count); // Main still includes everything
+    }
+
+    [Fact]
+    public async Task GenerateDigestAsync_NoMicrosoftItems_DoesNotCreateMicrosoftDigest()
+    {
+        var (svc, db, writer, _) = Build(new DigestOptions { TopN = 8, LookbackHours = 24 });
+        db.Ideas.AddRange(Scored(9), Scored(7));
+        await db.SaveChangesAsync();
+        SetupWriter(writer);
+
+        await svc.GenerateDigestAsync(DateTimeOffset.UtcNow, CancellationToken.None);
+
+        Assert.DoesNotContain(db.Digests, d => d.Kind == DigestKind.Microsoft);
+    }
+
+    [Fact]
+    public async Task GenerateDigestAsync_MicrosoftBrief_DoesNotDispatchOrAddFeedItem()
+    {
+        var (svc, db, writer, dispatcher) = Build(new DigestOptions { TopN = 8, LookbackHours = 24 });
+        db.Ideas.Add(MicrosoftScored(9)); // ONLY a Microsoft item — Main and Microsoft both build from it
+        await db.SaveChangesAsync();
+        SetupWriter(writer);
+
+        await svc.GenerateDigestAsync(DateTimeOffset.UtcNow, CancellationToken.None);
+
+        // Both briefs exist, but delivery + feed notification fire once (Main only).
+        Assert.Equal(2, db.Digests.Count());
+        dispatcher.Verify(d => d.DispatchAsync(It.IsAny<DeliveryNotification>(), It.IsAny<CancellationToken>()), Times.Once);
+        Assert.Single(db.FeedItems.Where(f => f.Type == FeedItemType.SystemNotification));
     }
 }

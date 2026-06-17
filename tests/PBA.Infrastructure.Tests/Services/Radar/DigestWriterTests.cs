@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
 using PBA.Application.Common.Interfaces;
+using PBA.Domain.Enums;
 using PBA.Infrastructure.Configuration;
 using PBA.Infrastructure.Services.Radar;
 using Xunit;
@@ -66,5 +67,22 @@ public class DigestWriterTests
     {
         var writer = Build("nope", out _);
         Assert.Null(await writer.WriteAsync(Items()));
+    }
+
+    [Theory]
+    [InlineData(DigestKind.Main, "AI news brief")]
+    [InlineData(DigestKind.Microsoft, "Microsoft-ecosystem brief")]
+    public async Task WriteAsync_SelectsSystemPromptForKind(DigestKind kind, string expectedPhrase)
+    {
+        var writer = Build("""{"title":"t","intro":"i","items":[]}""", out var sidecar);
+        string? capturedSystem = null;
+        sidecar.Setup(s => s.SendPromptAsync(
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .Callback<string, string, string?, CancellationToken>((system, _, _, _) => capturedSystem = system)
+            .ReturnsAsync("""{"title":"t","intro":"i","items":[]}""");
+
+        await writer.WriteAsync(Items(), kind);
+
+        Assert.Contains(expectedPhrase, capturedSystem);
     }
 }

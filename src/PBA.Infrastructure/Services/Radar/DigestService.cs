@@ -46,15 +46,30 @@ public sealed class DigestService(
     {
         using var scope = scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-
-        // Guard: one digest per calendar day (UTC)
         var date = DateOnly.FromDateTime(now.UtcDateTime);
-        if (await db.Digests.AnyAsync(d => d.Date == date, ct))
+
+        // Generate both briefs for the day. Microsoft only delivers in-app (no email/Discord push) and
+        // is skipped when no Microsoft-source items exist yet.
+        foreach (var kind in new[] { DigestKind.Main, DigestKind.Microsoft })
+            await GenerateForKindAsync(scope, db, date, now, kind, ct);
+    }
+
+    private async Task GenerateForKindAsync(
+        IServiceScope scope, ApplicationDbContext db, DateOnly date, DateTimeOffset now, DigestKind kind, CancellationToken ct)
+    {
+        // Guard: one digest per (calendar day UTC, kind)
+        if (await db.Digests.AnyAsync(d => d.Date == date && d.Kind == kind, ct))
             return;
 
         var since = now.AddHours(-_options.LookbackHours);
-        var top = await db.Ideas
-            .Where(i => i.ScoredAt != null && i.Score != null && i.DuplicateOfId == null && i.DetectedAt >= since)
+        var query = db.Ideas
+            .Where(i => i.ScoredAt != null && i.Score != null && i.DuplicateOfId == null && i.DetectedAt >= since);
+
+        // "Pure Microsoft" = items whose source is tagged Microsoft (set in IdeaSourceSeedService).
+        if (kind == DigestKind.Microsoft)
+            query = query.Where(i => i.IdeaSource != null && i.IdeaSource.Category == "Microsoft");
+
+        var top = await query
             .OrderByDescending(i => i.Score)
             .Take(_options.TopN)
             .ToListAsync(ct);
@@ -68,12 +83,13 @@ public sealed class DigestService(
             .Select((idea, idx) => new DigestInput(idx, idea.Title, idea.Summary ?? string.Empty, idea.Score ?? 0, idea.Url))
             .ToList();
 
-        var copy = await writer.WriteAsync(inputs, ct);
+        var copy = await writer.WriteAsync(inputs, kind, ct);
         if (copy is null) return;
 
         var digest = new Digest
         {
             Date = date,
+            Kind = kind,
             Title = copy.Title,
             Intro = copy.Intro,
             ItemCount = top.Count,
@@ -95,18 +111,25 @@ public sealed class DigestService(
 
         db.Digests.Add(digest);
 
-        db.FeedItems.Add(new FeedItem
+        // In-app feed notification + external delivery are for the Main brief only; the Microsoft brief
+        // is surfaced beside it on the Daily Brief page, so a second ping would just be noise.
+        if (kind == DigestKind.Main)
         {
-            Type = FeedItemType.SystemNotification,
-            Title = copy.Title,
-            Summary = copy.Intro.Length > 280 ? copy.Intro[..280] : copy.Intro,
-            Data = JsonSerializer.Serialize(new { digestId = digest.Id }),
-            Priority = FeedItemPriority.Normal,
-            CreatedAt = now
-        });
+            db.FeedItems.Add(new FeedItem
+            {
+                Type = FeedItemType.SystemNotification,
+                Title = copy.Title,
+                Summary = copy.Intro.Length > 280 ? copy.Intro[..280] : copy.Intro,
+                Data = JsonSerializer.Serialize(new { digestId = digest.Id }),
+                Priority = FeedItemPriority.Normal,
+                CreatedAt = now
+            });
+        }
 
         await db.SaveChangesAsync(ct);
-        logger.LogInformation("Generated digest {Date} with {Count} items", date, top.Count);
+        logger.LogInformation("Generated {Kind} digest {Date} with {Count} items", kind, date, top.Count);
+
+        if (kind != DigestKind.Main) return;
 
         var dispatcher = scope.ServiceProvider.GetRequiredService<IDeliveryDispatcher>();
         var deliveryItems = digest.Items

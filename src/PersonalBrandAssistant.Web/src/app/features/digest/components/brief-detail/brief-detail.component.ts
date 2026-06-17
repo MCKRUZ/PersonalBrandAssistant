@@ -48,7 +48,7 @@ import { ScoreBadgeComponent } from '../../../../shared/score-badge/score-badge.
     } @else {
       <div class="empty" data-testid="brief-empty">
         <i class="pi pi-inbox"></i>
-        <p>No brief selected yet.</p>
+        <p>{{ emptyMessage() }}</p>
       </div>
     }
   `,
@@ -80,6 +80,7 @@ import { ScoreBadgeComponent } from '../../../../shared/score-badge/score-badge.
 })
 export class BriefDetailComponent {
   readonly digest = input.required<Digest | null>();
+  readonly emptyMessage = input('No brief selected yet.');
   readonly hero = computed(() => this.digest()?.items.find((i) => i.rank === 1) ?? null);
   readonly rest = computed(() => (this.digest()?.items ?? []).filter((i) => i.rank !== 1));
 }

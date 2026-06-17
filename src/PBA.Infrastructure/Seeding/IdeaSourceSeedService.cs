@@ -29,6 +29,17 @@ public sealed class IdeaSourceSeedService(IAppDbContext db) : IIdeaSourceSeedSer
         ("TLDR Fintech", "https://tldr.tech/api/rss/fintech", "Fintech"),
         ("TLDR Data", "https://tldr.tech/api/rss/data", "Data"),
         ("TLDR IT", "https://tldr.tech/api/rss/it", "IT"),
+
+        // Microsoft-owned sources — Category "Microsoft" is the marker the Microsoft brief filters on
+        // (DigestService selects ideas whose IdeaSource.Category == "Microsoft"). All verified to return
+        // valid RSS; the feed reader sends a Chrome UA so the Akamai-fronted corporate blogs don't 403.
+        ("Microsoft Blog", "https://blogs.microsoft.com/feed/", "Microsoft"),
+        ("Azure Blog", "https://azure.microsoft.com/en-us/blog/feed/", "Microsoft"),
+        ("Microsoft Dev Blogs", "https://devblogs.microsoft.com/feed/", "Microsoft"),
+        (".NET Blog", "https://devblogs.microsoft.com/dotnet/feed/", "Microsoft"),
+        ("Visual Studio Blog", "https://devblogs.microsoft.com/visualstudio/feed/", "Microsoft"),
+        ("Microsoft Research", "https://www.microsoft.com/en-us/research/feed/", "Microsoft"),
+        ("GitHub Blog", "https://github.blog/feed/", "Microsoft"),
     ];
 
     public async Task<int> SeedAsync(CancellationToken cancellationToken = default)

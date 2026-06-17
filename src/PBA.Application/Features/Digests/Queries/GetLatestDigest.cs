@@ -4,12 +4,13 @@ using Microsoft.EntityFrameworkCore;
 using PBA.Application.Common.Interfaces;
 using PBA.Application.Features.Digests.Dtos;
 using PBA.Domain.Common;
+using PBA.Domain.Enums;
 
 namespace PBA.Application.Features.Digests.Queries;
 
 public static class GetLatestDigest
 {
-    public record Query : IRequest<Result<DigestDto>>;
+    public record Query(DigestKind Kind = DigestKind.Main) : IRequest<Result<DigestDto>>;
 
     public sealed class Handler(IAppDbContext db) : IRequestHandler<Query, Result<DigestDto>>
     {
@@ -19,6 +20,7 @@ public static class GetLatestDigest
                 .AsNoTracking()
                 .Include(d => d.Items)
                     .ThenInclude(i => i.Idea)
+                .Where(d => d.Kind == request.Kind)
                 .OrderByDescending(d => d.Date)
                 .FirstOrDefaultAsync(ct);
 

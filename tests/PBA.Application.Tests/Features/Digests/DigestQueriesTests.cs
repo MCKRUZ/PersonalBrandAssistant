@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using PBA.Application.Features.Digests.Queries;
 using PBA.Domain.Entities;
+using PBA.Domain.Enums;
 using PBA.Infrastructure.Data;
 using Xunit;
 
@@ -55,5 +56,66 @@ public class DigestQueriesTests
         var handler = new GetDigest.Handler(db);
         var result = await handler.Handle(new GetDigest.Query(Guid.NewGuid()), default);
         Assert.False(result.IsSuccess);
+    }
+
+    [Fact]
+    public async Task GetLatestDigest_MicrosoftKind_ReturnsMicrosoftBriefNotMain()
+    {
+        using var db = NewDb();
+        var date = new DateOnly(2026, 6, 4);
+        db.Digests.AddRange(
+            new Digest { Date = date, Kind = DigestKind.Main, Title = "Main", Intro = "i", CreatedAt = DateTimeOffset.UtcNow },
+            new Digest { Date = date, Kind = DigestKind.Microsoft, Title = "MS", Intro = "i", CreatedAt = DateTimeOffset.UtcNow });
+        await db.SaveChangesAsync();
+
+        var result = await new GetLatestDigest.Handler(db).Handle(new GetLatestDigest.Query(DigestKind.Microsoft), default);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("MS", result.Value!.Title);
+    }
+
+    [Fact]
+    public async Task ListDigests_ExcludesMicrosoftBriefs()
+    {
+        using var db = NewDb();
+        var date = new DateOnly(2026, 6, 4);
+        db.Digests.AddRange(
+            new Digest { Date = date, Kind = DigestKind.Main, Title = "Main", Intro = "i", CreatedAt = DateTimeOffset.UtcNow },
+            new Digest { Date = date, Kind = DigestKind.Microsoft, Title = "MS", Intro = "i", CreatedAt = DateTimeOffset.UtcNow });
+        await db.SaveChangesAsync();
+
+        var result = await new ListDigests.Handler(db).Handle(new ListDigests.Query(), default);
+
+        Assert.Single(result.Value!);
+        Assert.Equal("Main", result.Value![0].Title);
+    }
+
+    [Fact]
+    public async Task GetDigestByDate_ReturnsRequestedDateAndKind()
+    {
+        using var db = NewDb();
+        var date = new DateOnly(2026, 6, 4);
+        db.Digests.AddRange(
+            new Digest { Date = date, Kind = DigestKind.Main, Title = "Main", Intro = "i", CreatedAt = DateTimeOffset.UtcNow },
+            new Digest { Date = date, Kind = DigestKind.Microsoft, Title = "MS", Intro = "i", CreatedAt = DateTimeOffset.UtcNow });
+        await db.SaveChangesAsync();
+
+        var result = await new GetDigestByDate.Handler(db).Handle(new GetDigestByDate.Query(date, DigestKind.Microsoft), default);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("MS", result.Value!.Title);
+    }
+
+    [Fact]
+    public async Task GetDigestByDate_MissingKindForDate_ReturnsFailure()
+    {
+        using var db = NewDb();
+        var date = new DateOnly(2026, 6, 4);
+        db.Digests.Add(new Digest { Date = date, Kind = DigestKind.Main, Title = "Main", Intro = "i", CreatedAt = DateTimeOffset.UtcNow });
+        await db.SaveChangesAsync();
+
+        var result = await new GetDigestByDate.Handler(db).Handle(new GetDigestByDate.Query(date, DigestKind.Microsoft), default);
+
+        Assert.False(result.IsSuccess); // no Microsoft brief that day
     }
 }
