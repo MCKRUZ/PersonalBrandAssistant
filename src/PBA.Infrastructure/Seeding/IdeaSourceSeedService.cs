@@ -29,17 +29,20 @@ public sealed class IdeaSourceSeedService(IAppDbContext db) : IIdeaSourceSeedSer
         ("TLDR Fintech", "https://tldr.tech/api/rss/fintech", "Fintech"),
         ("TLDR Data", "https://tldr.tech/api/rss/data", "Data"),
         ("TLDR IT", "https://tldr.tech/api/rss/it", "IT"),
+    ];
 
-        // Microsoft-owned sources — Category "Microsoft" is the marker the Microsoft brief filters on
-        // (DigestService selects ideas whose IdeaSource.Category == "Microsoft"). All verified to return
-        // valid RSS; the feed reader sends a Chrome UA so the Akamai-fronted corporate blogs don't 403.
+    // Microsoft-owned sources. Category stays topical; IsMicrosoftSource (set below) is what the Microsoft
+    // brief filters on. All verified to return valid RSS; the feed reader sends a Chrome UA so the
+    // Akamai-fronted corporate blogs don't 403.
+    private static readonly (string Name, string FeedUrl, string Category)[] MicrosoftFeeds =
+    [
         ("Microsoft Blog", "https://blogs.microsoft.com/feed/", "Microsoft"),
-        ("Azure Blog", "https://azure.microsoft.com/en-us/blog/feed/", "Microsoft"),
-        ("Microsoft Dev Blogs", "https://devblogs.microsoft.com/feed/", "Microsoft"),
-        (".NET Blog", "https://devblogs.microsoft.com/dotnet/feed/", "Microsoft"),
-        ("Visual Studio Blog", "https://devblogs.microsoft.com/visualstudio/feed/", "Microsoft"),
+        ("Azure Blog", "https://azure.microsoft.com/en-us/blog/feed/", "Azure/Cloud"),
+        ("Microsoft DevBlogs", "https://devblogs.microsoft.com/feed/", "Microsoft"),
+        (".NET Blog", "https://devblogs.microsoft.com/dotnet/feed/", ".NET/C#"),
+        ("Visual Studio Blog", "https://devblogs.microsoft.com/visualstudio/feed/", ".NET/C#"),
         ("Microsoft Research", "https://www.microsoft.com/en-us/research/feed/", "Microsoft"),
-        ("GitHub Blog", "https://github.blog/feed/", "Microsoft"),
+        ("GitHub Blog", "https://github.blog/feed/", "DevOps"),
     ];
 
     public async Task<int> SeedAsync(CancellationToken cancellationToken = default)
@@ -52,22 +55,29 @@ public sealed class IdeaSourceSeedService(IAppDbContext db) : IIdeaSourceSeedSer
         var existingSet = new HashSet<string>(existingUrls, StringComparer.OrdinalIgnoreCase);
         var added = 0;
 
-        foreach (var (name, feedUrl, category) in Feeds)
+        void AddMissing((string Name, string FeedUrl, string Category)[] feeds, bool isMicrosoft)
         {
-            if (existingSet.Contains(feedUrl))
-                continue;
-
-            db.IdeaSources.Add(new IdeaSource
+            foreach (var (name, feedUrl, category) in feeds)
             {
-                Name = name,
-                Type = IdeaSourceType.RSS,
-                FeedUrl = feedUrl,
-                Category = category,
-                PollIntervalMinutes = 60,
-                IsEnabled = true,
-            });
-            added++;
+                if (existingSet.Contains(feedUrl))
+                    continue;
+
+                db.IdeaSources.Add(new IdeaSource
+                {
+                    Name = name,
+                    Type = IdeaSourceType.RSS,
+                    FeedUrl = feedUrl,
+                    Category = category,
+                    IsMicrosoftSource = isMicrosoft,
+                    PollIntervalMinutes = 60,
+                    IsEnabled = true,
+                });
+                added++;
+            }
         }
+
+        AddMissing(Feeds, isMicrosoft: false);
+        AddMissing(MicrosoftFeeds, isMicrosoft: true);
 
         if (added > 0)
             await db.SaveChangesAsync(cancellationToken);

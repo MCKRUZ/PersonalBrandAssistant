@@ -65,9 +65,9 @@ public sealed class DigestService(
         var query = db.Ideas
             .Where(i => i.ScoredAt != null && i.Score != null && i.DuplicateOfId == null && i.DetectedAt >= since);
 
-        // "Pure Microsoft" = items whose source is tagged Microsoft (set in IdeaSourceSeedService).
+        // "Pure Microsoft" = items from a Microsoft-owned source (flag, not topical category).
         if (kind == DigestKind.Microsoft)
-            query = query.Where(i => i.IdeaSource != null && i.IdeaSource.Category == "Microsoft");
+            query = query.Where(i => i.IdeaSource != null && i.IdeaSource.IsMicrosoftSource);
 
         var top = await query
             .OrderByDescending(i => i.Score)

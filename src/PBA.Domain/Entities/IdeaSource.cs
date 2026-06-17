@@ -10,6 +10,11 @@ public class IdeaSource
     public string? FeedUrl { get; set; }
     public string? ApiUrl { get; set; }
     public string Category { get; set; } = string.Empty;
+
+    /// <summary>True if this source is Microsoft-owned (Azure, .NET, GitHub, MS blogs/research). Drives the
+    /// Microsoft daily brief independently of <see cref="Category"/>, which stays topical (Azure/Cloud, .NET/C#).</summary>
+    public bool IsMicrosoftSource { get; set; }
+
     public int PollIntervalMinutes { get; set; } = 30;
     public bool IsEnabled { get; set; } = true;
     public DateTimeOffset? LastPolledAt { get; set; }

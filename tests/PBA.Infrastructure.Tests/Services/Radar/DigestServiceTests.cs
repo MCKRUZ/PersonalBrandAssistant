@@ -49,10 +49,10 @@ public class DigestServiceTests
         ScoredAt = DateTimeOffset.UtcNow, Summary = "summary", DuplicateOfId = dupOf
     };
 
-    // A scored idea attached to a source tagged for the Microsoft brief.
+    // A scored idea attached to a Microsoft-owned source. Category stays topical; the flag drives the brief.
     private static Idea MicrosoftScored(int score)
     {
-        var source = new IdeaSource { Name = "Azure Blog", Category = "Microsoft", FeedUrl = "https://x/feed" };
+        var source = new IdeaSource { Name = "Azure Blog", Category = "Azure/Cloud", IsMicrosoftSource = true, FeedUrl = "https://x/feed" };
         var idea = Scored(score);
         idea.IdeaSourceId = source.Id;
         idea.IdeaSource = source;
