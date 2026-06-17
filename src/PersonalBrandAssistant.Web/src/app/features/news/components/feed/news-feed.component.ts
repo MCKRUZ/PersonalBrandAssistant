@@ -19,15 +19,15 @@ import { CATEGORY_COLORS, CATEGORY_ICONS, CategoryGroup, SOURCE_COLORS, SOURCE_I
       <app-news-feed-filters style="flex: 1;" />
       <div class="view-toggle" role="group" aria-label="Feed view">
         <p-button
-          icon="pi pi-objects-column" size="small"
-          [severity]="store.rankedView() ? 'secondary' : 'primary'" [text]="store.rankedView()"
-          pTooltip="Grouped by category" (onClick)="store.setRankedView(false)"
+          label="Grouped" icon="pi pi-th-large" size="small"
+          [outlined]="store.rankedView()"
+          pTooltip="Group by category" (onClick)="store.setRankedView(false)"
           data-testid="grouped-toggle"
         />
         <p-button
-          icon="pi pi-sort-amount-down" size="small"
-          [severity]="store.rankedView() ? 'primary' : 'secondary'" [text]="!store.rankedView()"
-          pTooltip="Ranked by brand fit" (onClick)="store.setRankedView(true)"
+          label="Ranked" icon="pi pi-sort-amount-down" size="small"
+          [outlined]="!store.rankedView()"
+          pTooltip="Sort by brand fit" (onClick)="store.setRankedView(true)"
           data-testid="ranked-toggle"
         />
       </div>
