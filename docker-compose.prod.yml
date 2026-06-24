@@ -42,6 +42,9 @@ services:
       PlatformIntegrations__YouTube__CallbackUrl: http://localhost:4201/platforms/youtube/callback
       GoogleAnalytics__CredentialsPath: /app/secrets/google-analytics-sa.json
       Encryption__Key: ${Encryption__Key}
+      # Shared secret for the /api/external surface (consumed by project-avatar). Must match
+      # the avatar's Pba__ApiKey. Fails closed (all 401) when unset.
+      ExternalApi__ApiKey: ${EXTERNAL_API_KEY}
       # Drafting engine (OpenRouter, OpenAI-compatible).
       OpenRouter__ApiKey: ${OPENROUTER_API_KEY}
       OpenRouter__Model: ${OPENROUTER_MODEL:-google/gemini-2.5-pro}
