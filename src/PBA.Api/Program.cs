@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
 using Hangfire;
 using Hangfire.PostgreSql;
+using PBA.Api.Authentication;
 using PBA.Api.Endpoints;
 using PBA.Api.Hubs;
 using PBA.Api.Services;
@@ -12,6 +13,9 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddApplicationDependencies();
 builder.Services.AddInfrastructureDependencies(builder.Configuration);
+
+builder.Services.Configure<ExternalApiOptions>(
+    builder.Configuration.GetSection(ExternalApiOptions.SectionName));
 
 builder.Services.AddCors(options =>
 {
@@ -68,6 +72,7 @@ app.MapFeedEndpoints();
 app.MapAnalyticsEndpoints();
 app.MapDigestEndpoints();
 app.MapBrandRankingProfileEndpoints();
+app.MapExternalEndpoints();
 
 app.MapHub<ContentHub>("/hubs/content");
 app.MapHub<FeedHub>("/hubs/feed");
