@@ -17,9 +17,21 @@ describe('DigestService', () => {
 
   afterEach(() => httpMock.verify());
 
-  it('fetches the latest digest', () => {
+  it('fetches the latest digest with the kind param', () => {
+    service.getLatest('microsoft').subscribe();
+    const req = httpMock.expectOne(r => r.url === '/api/digests/latest' && r.params.get('kind') === 'microsoft');
+    expect(req.request.method).toBe('GET');
+    req.flush({ id: '1', date: '2026-06-05', title: 't', intro: 'i', itemCount: 0, createdAt: '', items: [] });
+  });
+
+  it('defaults getLatest to the main kind', () => {
     service.getLatest().subscribe();
-    const req = httpMock.expectOne('/api/digests/latest');
+    httpMock.expectOne(r => r.url === '/api/digests/latest' && r.params.get('kind') === 'main').flush(null);
+  });
+
+  it('fetches a digest by date and kind', () => {
+    service.getByDate('2026-06-05', 'microsoft').subscribe();
+    const req = httpMock.expectOne(r => r.url === '/api/digests/by-date/2026-06-05' && r.params.get('kind') === 'microsoft');
     expect(req.request.method).toBe('GET');
     req.flush({ id: '1', date: '2026-06-05', title: 't', intro: 'i', itemCount: 0, createdAt: '', items: [] });
   });

@@ -1,3 +1,5 @@
+export type DigestKind = 'main' | 'microsoft';
+
 export interface DigestItem {
   ideaId: string;
   rank: number;

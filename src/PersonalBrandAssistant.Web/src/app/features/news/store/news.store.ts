@@ -42,6 +42,7 @@ interface NewsState {
   readonly collapsedSources: ReadonlySet<string>;
   readonly filters: NewsFeedFilters;
   readonly groupMode: GroupMode;
+  readonly rankedView: boolean;
   readonly loading: boolean;
   readonly refreshing: boolean;
   readonly lastRefreshDelta: number;
@@ -58,6 +59,7 @@ const initialState: NewsState = {
     showSavedOnly: false,
   },
   groupMode: 'category' as GroupMode,
+  rankedView: false,
   loading: false,
   refreshing: false,
   lastRefreshDelta: 0,
@@ -100,6 +102,15 @@ export const NewsStore = signalStore(
     return {
       allItems,
       filteredItems,
+      // Flat, brand-rank-ordered view of the same filtered feed (highest rank first; recency breaks ties).
+      // Unscored items (rank 0) naturally sink to the bottom and float up as the scoring sweep completes.
+      rankedItems: computed(() =>
+        [...filteredItems()].sort(
+          (a, b) =>
+            b.rank - a.rank ||
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        )
+      ),
       groupedByCategory: computed(() => {
         const items = filteredItems();
         const grouped = new Map<string, NewsFeedItem[]>();
@@ -265,6 +276,10 @@ export const NewsStore = signalStore(
     toggleGroupMode() {
       const next: GroupMode = store.groupMode() === 'category' ? 'source' : 'category';
       patchState(store, { groupMode: next, collapsedCategories: new Set<string>(), collapsedSources: new Set<string>() });
+    },
+
+    setRankedView(rankedView: boolean) {
+      patchState(store, { rankedView });
     },
   }))
 );

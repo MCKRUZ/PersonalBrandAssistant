@@ -1,6 +1,9 @@
 services:
   db:
-    image: postgres:17-alpine
+    # pgvector/pgvector:pg17 (Debian/glibc) — feed-ranking needs the `vector` extension,
+    # which vanilla postgres:17-alpine cannot provide. Migrated via logical pg_dump → fresh
+    # volume restore (no in-place musl→glibc collation drift). See planning/feed-ranking/section-12.
+    image: pgvector/pgvector:pg17
     container_name: pba-db
     environment:
       POSTGRES_USER: ${POSTGRES_USER}

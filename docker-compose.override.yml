@@ -43,6 +43,9 @@ services:
       # Drafting engine: OpenRouter (OpenAI-compatible). Model switchable via OPENROUTER_MODEL.
       OpenRouter__ApiKey: ${OPENROUTER_API_KEY}
       OpenRouter__Model: ${OPENROUTER_MODEL:-google/gemini-2.5-pro}
+      # Feed-ranking LLM scoring gate (section-12). Default false (no token spend); set
+      # IDEA_SCORING_ENABLED=true in a host's .env to enable per-host. Irreversible once on.
+      IdeaScoring__ScoringEnabled: ${IDEA_SCORING_ENABLED:-false}
       # Hero image generation via self-hosted ComfyUI (disabled until BaseUrl + workflow JSON supplied)
       ComfyUi__Enabled: ${COMFYUI_ENABLED:-false}
       ComfyUi__BaseUrl: ${COMFYUI_BASE_URL:-http://localhost:8188}

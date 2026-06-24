@@ -6,22 +6,39 @@ import { NewsStore } from '../../store/news.store';
 import { NewsFeedFiltersComponent } from './news-feed-filters.component';
 import { NewsFeedItemComponent } from './news-feed-item.component';
 import { NewsFeedVideoCardComponent } from './news-feed-video-card.component';
+import { ScoreBadgeComponent } from '../../../../shared/score-badge/score-badge.component';
 import { CATEGORY_COLORS, CATEGORY_ICONS, CategoryGroup, SOURCE_COLORS, SOURCE_ICONS, GroupMode } from '../../models/news.model';
 
 @Component({
   selector: 'app-news-feed',
   standalone: true,
   encapsulation: ViewEncapsulation.None,
-  imports: [ButtonModule, SkeletonModule, Tooltip, NewsFeedFiltersComponent, NewsFeedItemComponent, NewsFeedVideoCardComponent],
+  imports: [ButtonModule, SkeletonModule, Tooltip, NewsFeedFiltersComponent, NewsFeedItemComponent, NewsFeedVideoCardComponent, ScoreBadgeComponent],
   template: `
     <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.25rem;">
       <app-news-feed-filters style="flex: 1;" />
-      <p-button
-        [icon]="allCollapsed() ? 'pi pi-angle-double-down' : 'pi pi-angle-double-up'"
-        [text]="true" size="small"
-        [pTooltip]="allCollapsed() ? 'Expand all' : 'Collapse all'"
-        (onClick)="toggleAllCollapse()"
-      />
+      <div class="view-toggle" role="group" aria-label="Feed view">
+        <p-button
+          label="Grouped" icon="pi pi-th-large" size="small"
+          [outlined]="store.rankedView()"
+          pTooltip="Group by category" (onClick)="store.setRankedView(false)"
+          data-testid="grouped-toggle"
+        />
+        <p-button
+          label="Ranked" icon="pi pi-sort-amount-down" size="small"
+          [outlined]="!store.rankedView()"
+          pTooltip="Sort by brand fit" (onClick)="store.setRankedView(true)"
+          data-testid="ranked-toggle"
+        />
+      </div>
+      @if (!store.rankedView()) {
+        <p-button
+          [icon]="allCollapsed() ? 'pi pi-angle-double-down' : 'pi pi-angle-double-up'"
+          [text]="true" size="small"
+          [pTooltip]="allCollapsed() ? 'Expand all' : 'Collapse all'"
+          (onClick)="toggleAllCollapse()"
+        />
+      }
       <p-button
         icon="pi pi-refresh" label="Refresh" [text]="true" size="small"
         [loading]="store.refreshing()" (onClick)="store.refresh(undefined)"
@@ -34,6 +51,37 @@ import { CATEGORY_COLORS, CATEGORY_ICONS, CategoryGroup, SOURCE_COLORS, SOURCE_I
           <p-skeleton height="100px" borderRadius="12px" />
         }
       </div>
+    } @else if (store.rankedView()) {
+      @if (store.rankedItems().length === 0) {
+        <div class="ranked-feed__empty" data-testid="ranked-empty">No articles match your filters.</div>
+      } @else {
+        <ol class="ranked-feed">
+          @for (item of store.rankedItems(); track item.id; let i = $index) {
+            <li class="ranked-feed__row" data-testid="ranked-row">
+              <div class="ranked-feed__lead">
+                <span class="ranked-feed__numeral">{{ i + 1 }}</span>
+                <app-score-badge [score]="item.score ?? 0" />
+                @if (item.stale) { <span class="ranked-feed__stale">Stale</span> }
+              </div>
+              <div class="ranked-feed__card">
+                @if (item.thumbnailUrl) {
+                  <app-news-feed-video-card
+                    [item]="item"
+                    (bookmarked)="store.toggleSaved(item.id)"
+                    (dismissed)="store.dismiss(item.id)"
+                  />
+                } @else {
+                  <app-news-feed-item
+                    [item]="item"
+                    (bookmarked)="store.toggleSaved(item.id)"
+                    (dismissed)="store.dismiss(item.id)"
+                  />
+                }
+              </div>
+            </li>
+          }
+        </ol>
+      }
     } @else if (groups().length === 0) {
       <div style="
         border: 1px dashed rgba(139,92,246,0.2); border-radius: 16px;
@@ -149,6 +197,27 @@ import { CATEGORY_COLORS, CATEGORY_ICONS, CategoryGroup, SOURCE_COLORS, SOURCE_I
     }
   `,
   styles: `
+    .view-toggle { display: flex; gap: 4px; }
+
+    .ranked-feed { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.75rem; }
+    .ranked-feed__row { display: flex; gap: 0.75rem; align-items: flex-start; }
+    .ranked-feed__lead {
+      display: flex; flex-direction: column; align-items: center; gap: 0.4rem;
+      min-width: 40px; padding-top: 0.25rem;
+    }
+    .ranked-feed__numeral {
+      font-size: 1.25rem; font-weight: 700; line-height: 1;
+      color: var(--brand-primary, #8b5cf6);
+    }
+    .ranked-feed__stale {
+      font-size: 0.55rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+      padding: 0.1rem 0.35rem; border-radius: 999px;
+      background: color-mix(in srgb, var(--score-warning, #f59e0b) 18%, transparent);
+      color: var(--score-warning, #f59e0b);
+    }
+    .ranked-feed__card { flex: 1; min-width: 0; }
+    .ranked-feed__empty { padding: 3rem; text-align: center; color: rgba(255, 255, 255, 0.4); }
+
     .category-section__header {
       display: flex;
       align-items: center;

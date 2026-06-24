@@ -1,0 +1,58 @@
+# Production overlay for the Mac Mini deployment.
+#
+# Run with the base file, NOT the dev override:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+# On the Mac Mini this is pinned via COMPOSE_FILE in .env, so a bare
+# `docker compose up -d` (and reboots) always uses base + prod.
+#
+# vs docker-compose.override.yml (local dev): web is the real nginx build (not
+# ng serve), the API runs in Production, no source mounts, no dev-only ports.
+services:
+  web:
+    build:
+      context: src/PersonalBrandAssistant.Web
+      dockerfile: Dockerfile          # nginx multi-stage prod build (serves SPA + proxies /api, /hubs)
+    ports:
+      - "4201:80"                     # Tailscale serve routes / -> localhost:4201
+
+  api:
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      # Blog publishing: in-container `git push` to the matthewkruczek-ai repo.
+      BlogConnector__RepoPath: /app/blog-repo
+      BlogConnector__Author: Matthew Kruczek
+      GIT_SSH_COMMAND: "ssh -i /app/secrets/mk_ai_deploy -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=/tmp/gh_known_hosts"
+      # Multi-platform publishing (binds LinkedInOptions "Publishing:LinkedIn").
+      Publishing__LinkedIn__Enabled: "true"
+      Publishing__LinkedIn__ClientId: ${LINKEDIN_CLIENT_ID:-}
+      Publishing__LinkedIn__ClientSecret: ${LINKEDIN_CLIENT_SECRET:-}
+      Publishing__LinkedIn__RedirectUri: ${LINKEDIN_REDIRECT_URI:-http://localhost:5001/api/auth/linkedin/callback}
+      PlatformIntegrations__Reddit__ClientId: ${REDDIT_CLIENT_ID:-}
+      PlatformIntegrations__Reddit__ClientSecret: ${REDDIT_CLIENT_SECRET:-}
+      PlatformIntegrations__Reddit__Username: ${REDDIT_USERNAME:-}
+      PlatformIntegrations__Reddit__Password: ${REDDIT_PASSWORD:-}
+      PlatformIntegrations__Reddit__UserAgent: ${REDDIT_USER_AGENT:-pba/1.0}
+      PlatformIntegrations__LinkedIn__ClientId: ${LINKEDIN_CLIENT_ID:-}
+      PlatformIntegrations__LinkedIn__ClientSecret: ${LINKEDIN_CLIENT_SECRET:-}
+      # OAuth callback URLs: preserved from prior config. Updating to the Tailscale
+      # host requires registering matching redirect URIs in each platform's app first.
+      PlatformIntegrations__Twitter__CallbackUrl: http://localhost:4201/platforms/twitter/callback
+      PlatformIntegrations__LinkedIn__CallbackUrl: http://localhost:4201/platforms/linkedin/callback
+      PlatformIntegrations__Instagram__CallbackUrl: http://localhost:4201/platforms/instagram/callback
+      PlatformIntegrations__YouTube__CallbackUrl: http://localhost:4201/platforms/youtube/callback
+      GoogleAnalytics__CredentialsPath: /app/secrets/google-analytics-sa.json
+      Encryption__Key: ${Encryption__Key}
+      # Drafting engine (OpenRouter, OpenAI-compatible).
+      OpenRouter__ApiKey: ${OPENROUTER_API_KEY}
+      OpenRouter__Model: ${OPENROUTER_MODEL:-google/gemini-2.5-pro}
+      # Hero image generation via self-hosted ComfyUI.
+      ComfyUi__Enabled: ${COMFYUI_ENABLED:-false}
+      ComfyUi__BaseUrl: ${COMFYUI_BASE_URL:-http://localhost:8188}
+      ComfyUi__WorkflowPath: ${COMFYUI_WORKFLOW_PATH:-/app/secrets/comfyui-workflow.json}
+      ComfyUi__PromptNodeId: ${COMFYUI_PROMPT_NODE_ID:-}
+      ComfyUi__OutputDirectory: ${COMFYUI_OUTPUT_DIR:-/app/assets/blog-images}
+      # Feed-ranking LLM scoring gate (section-12). Irreversible token spend when true.
+      IdeaScoring__ScoringEnabled: ${IDEA_SCORING_ENABLED:-false}
+    volumes:
+      - ./secrets:/app/secrets:ro
+      - ${BLOG_REPO_PATH:-./blog-repo}:/app/blog-repo:rw

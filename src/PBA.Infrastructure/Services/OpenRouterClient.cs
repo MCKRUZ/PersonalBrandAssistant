@@ -94,7 +94,12 @@ public sealed class OpenRouterClient(
     {
         // Drop empty/whitespace inputs — a meaningless vector would corrupt dedup/pre-filter (R-H2).
         // (API-key validation happens in PostJsonAsync, so an all-empty call returns [] without it.)
-        var sanitized = inputs.Where(i => !string.IsNullOrWhiteSpace(i)).ToList();
+        // Cap each input to MaxInputChars: one over-long input exceeds the model's per-input token limit
+        // and makes the provider return 0 vectors for the whole batch, leaving every co-batched idea null.
+        var sanitized = inputs
+            .Where(i => !string.IsNullOrWhiteSpace(i))
+            .Select(TruncateInput)
+            .ToList();
         if (sanitized.Count == 0)
             return [];
 
@@ -107,6 +112,15 @@ public sealed class OpenRouterClient(
         }
 
         return results;
+    }
+
+    private string TruncateInput(string s)
+    {
+        var max = _embeddingOptions.MaxInputChars;
+        if (max <= 0 || s.Length <= max) return s;
+        // Don't cut through a surrogate pair — a lone surrogate is invalid UTF-16 and breaks JSON encoding.
+        var end = char.IsHighSurrogate(s[max - 1]) ? max - 1 : max;
+        return s[..end];
     }
 
     private async Task<float[][]> EmbedBatchAsync(string[] batch, string model, CancellationToken ct)

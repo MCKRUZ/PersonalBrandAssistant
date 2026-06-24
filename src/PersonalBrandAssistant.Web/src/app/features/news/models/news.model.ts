@@ -16,6 +16,11 @@ export interface NewsFeedItem {
   readonly saved: boolean;
   readonly summary?: string;
   readonly tags: readonly string[];
+  // Brand-anchored ranking (section-08 IdeaDto), carried through so the feed can offer a Ranked view.
+  readonly rank: number;
+  readonly brandFit: number;
+  readonly score: number | null;
+  readonly stale: boolean;
 }
 
 export function ideaToFeedItem(idea: Idea): NewsFeedItem {
@@ -34,6 +39,10 @@ export function ideaToFeedItem(idea: Idea): NewsFeedItem {
     saved: idea.status === IdeaStatus.Saved,
     summary: idea.summary ?? undefined,
     tags: idea.tags,
+    rank: idea.rank,
+    brandFit: idea.brandFit,
+    score: idea.score,
+    stale: idea.stale,
   };
 }
 

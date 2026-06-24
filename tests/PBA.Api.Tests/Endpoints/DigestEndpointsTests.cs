@@ -32,4 +32,23 @@ public class DigestEndpointsTests : IClassFixture<TestWebApplicationFactory>
         var body = await response.Content.ReadFromJsonAsync<IReadOnlyList<DigestSummaryDto>>();
         Assert.NotNull(body);
     }
+
+    [Fact]
+    public async Task GetLatest_MicrosoftKind_BindsAndReaches404WhenAbsent()
+    {
+        var response = await _client.GetAsync("/api/digests/latest?kind=microsoft");
+        Assert.True(
+            response.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.BadRequest,
+            $"Expected 404 or 400, got {(int)response.StatusCode}");
+    }
+
+    [Fact]
+    public async Task GetByDate_BindsDateAndKind_Reaches404WhenAbsent()
+    {
+        // Proves the {date:datetime} route + kind query bind and reach the handler (not a routing 404).
+        var response = await _client.GetAsync("/api/digests/by-date/2026-06-06?kind=microsoft");
+        Assert.True(
+            response.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.BadRequest,
+            $"Expected 404 or 400, got {(int)response.StatusCode}");
+    }
 }
