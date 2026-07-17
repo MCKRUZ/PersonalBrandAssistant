@@ -137,6 +137,9 @@ public static class DependencyInjection
         services.Configure<SubstackOptions>(configuration.GetSection(SubstackOptions.SectionName));
         services.Configure<LinkedInOptions>(configuration.GetSection(LinkedInOptions.SectionName));
         services.Configure<TwitterOptions>(configuration.GetSection(TwitterOptions.SectionName));
+        services.Configure<YouTubeOAuthOptions>(configuration.GetSection(YouTubeOAuthOptions.SectionName));
+        services.Configure<InstagramOAuthOptions>(configuration.GetSection(InstagramOAuthOptions.SectionName));
+        services.Configure<TikTokOAuthOptions>(configuration.GetSection(TikTokOAuthOptions.SectionName));
         services.Configure<TransformerOptions>(configuration.GetSection(TransformerOptions.SectionName));
         services.Configure<ComfyUiOptions>(configuration.GetSection(ComfyUiOptions.SectionName));
 
@@ -147,6 +150,9 @@ public static class DependencyInjection
         // Keyed OAuth providers (resolved by the OAuthService coordinator)
         services.AddKeyedScoped<IOAuthProvider, LinkedInOAuthProvider>(Platform.LinkedIn);
         services.AddKeyedScoped<IOAuthProvider, TwitterOAuthProvider>(Platform.Twitter);
+        services.AddKeyedScoped<IOAuthProvider, YouTubeOAuthProvider>(Platform.YouTube);
+        services.AddKeyedScoped<IOAuthProvider, InstagramOAuthProvider>(Platform.Instagram);
+        services.AddKeyedScoped<IOAuthProvider, TikTokOAuthProvider>(Platform.TikTok);
 
         // Content transformation
         services.AddScoped<IContentTransformer, ContentTransformer>();

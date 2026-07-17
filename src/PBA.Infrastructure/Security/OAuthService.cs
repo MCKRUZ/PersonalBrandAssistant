@@ -21,7 +21,7 @@ public sealed class OAuthService(
     private static readonly ConcurrentDictionary<string, OAuthStateEntry> StateStore = new();
     private const int MaxPendingStates = 1000;
 
-    public Task<string> GetAuthorizationUrlAsync(Platform platform, CancellationToken ct)
+    public Task<string> GetAuthorizationUrlAsync(Platform platform, CredentialPurpose purpose, CancellationToken ct)
     {
         CleanExpiredStates();
 
@@ -32,7 +32,7 @@ public sealed class OAuthService(
         var state = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
         var authorization = provider.BuildAuthorization(state);
 
-        StateStore[state] = new OAuthStateEntry(platform, authorization.Additions.CodeVerifier);
+        StateStore[state] = new OAuthStateEntry(platform, authorization.Additions.CodeVerifier, purpose);
 
         return Task.FromResult(authorization.Url);
     }
@@ -46,12 +46,15 @@ public sealed class OAuthService(
         var provider = ResolveProvider(platform);
         var tokenResult = await provider.ExchangeCodeAsync(code, stateEntry, ct);
 
+        // Find/create by (Platform, Purpose): an Analytics flow must not overwrite the Publishing credential
+        // (and vice versa). The purpose is the one captured at authorize time and carried in the state entry.
+        var purpose = stateEntry.Purpose;
         var credential = await db.PlatformCredentials
-            .FirstOrDefaultAsync(c => c.Platform == platform, ct);
+            .FirstOrDefaultAsync(c => c.Platform == platform && c.Purpose == purpose, ct);
 
         if (credential is null)
         {
-            credential = new PlatformCredential { Platform = platform };
+            credential = new PlatformCredential { Platform = platform, Purpose = purpose };
             db.PlatformCredentials.Add(credential);
         }
 
@@ -89,13 +92,15 @@ public sealed class OAuthService(
 
         if (!refreshResult.IsSuccess)
         {
+            // Coordinator (publishing path) preserves deactivate-on-any-failure. The poller (section-05)
+            // implements revoked-only deactivation by reading refreshResult.FailureReason directly.
             credential.IsActive = false;
             credential.UpdatedAt = DateTimeOffset.UtcNow;
             await db.SaveChangesAsync(ct);
-            return Result<string>.Fail([.. refreshResult.Errors]);
+            return Result<string>.Fail(refreshResult.Error ?? "Token refresh failed");
         }
 
-        var tokens = refreshResult.Value!;
+        var tokens = refreshResult.Tokens!;
         credential.EncryptedAccessToken = encryptor.Encrypt(tokens.AccessToken);
         credential.AccessTokenExpiresAt = DateTimeOffset.UtcNow.AddSeconds(tokens.ExpiresIn);
 

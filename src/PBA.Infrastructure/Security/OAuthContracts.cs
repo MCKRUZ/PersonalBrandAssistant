@@ -15,10 +15,33 @@ public sealed record OAuthTokenResult(
     int? RefreshTokenExpiresIn,
     string Scopes);
 
-// RefreshAsync failure classification. Section-03 adds full revoked-vs-transient mapping per provider;
-// LinkedIn/Twitter in this section preserve today's behavior (any non-success refresh deactivates).
+// RefreshAsync failure classification. The poller (section-05) deactivates a credential only on Revoked,
+// never on Transient (network / 5xx / 429).
 public enum RefreshFailureReason
 {
     Revoked,
     Transient
+}
+
+// Provider refresh outcome. The domain Result<T> can't carry a RefreshFailureReason, so refresh uses this
+// dedicated envelope: success carries the rotated tokens; failure carries the reason the poller keys on.
+public sealed record OAuthRefreshResult
+{
+    public bool IsSuccess { get; }
+    public OAuthTokenResult? Tokens { get; }
+    public RefreshFailureReason? FailureReason { get; }
+    public string? Error { get; }
+
+    private OAuthRefreshResult(bool isSuccess, OAuthTokenResult? tokens, RefreshFailureReason? reason, string? error)
+    {
+        IsSuccess = isSuccess;
+        Tokens = tokens;
+        FailureReason = reason;
+        Error = error;
+    }
+
+    public static OAuthRefreshResult Success(OAuthTokenResult tokens) => new(true, tokens, null, null);
+
+    public static OAuthRefreshResult Fail(RefreshFailureReason reason, string error) =>
+        new(false, null, reason, error);
 }

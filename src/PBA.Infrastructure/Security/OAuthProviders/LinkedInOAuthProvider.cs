@@ -3,7 +3,6 @@ using System.Web;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using PBA.Application.Common.Interfaces;
-using PBA.Domain.Common;
 using PBA.Domain.Entities;
 using PBA.Domain.Enums;
 using PBA.Infrastructure.Configuration;
@@ -72,7 +71,7 @@ public sealed class LinkedInOAuthProvider(
             Scopes: Scope);
     }
 
-    public async Task<Result<OAuthTokenResult>> RefreshAsync(PlatformCredential credential, CancellationToken ct)
+    public async Task<OAuthRefreshResult> RefreshAsync(PlatformCredential credential, CancellationToken ct)
     {
         var li = options.Value;
         var refreshToken = encryptor.Decrypt(credential.EncryptedRefreshToken!);
@@ -98,13 +97,15 @@ public sealed class LinkedInOAuthProvider(
             var errorBody = await response.Content.ReadAsStringAsync(ct);
             logger.LogWarning("Token refresh failed for {Platform}: {Status} {Body}",
                 Platform, response.StatusCode, errorBody);
-            return Result<OAuthTokenResult>.Fail($"Token refresh failed: {response.StatusCode}");
+            // LinkedIn has no distinct revoked-vs-transient signal wired here; default to Transient.
+            return OAuthRefreshResult.Fail(RefreshFailureReason.Transient,
+                $"Token refresh failed: {response.StatusCode}");
         }
 
         var json = await response.Content.ReadAsStringAsync(ct);
         var tokenData = JsonSerializer.Deserialize<JsonElement>(json);
 
-        return Result<OAuthTokenResult>.Success(new OAuthTokenResult(
+        return OAuthRefreshResult.Success(new OAuthTokenResult(
             AccessToken: tokenData.GetProperty("access_token").GetString()!,
             RefreshToken: tokenData.TryGetProperty("refresh_token", out var newRefreshProp)
                 ? newRefreshProp.GetString() : null,

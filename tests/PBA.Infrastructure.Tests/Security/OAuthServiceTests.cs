@@ -94,7 +94,7 @@ public class OAuthServiceTests : IDisposable
     public async Task GetAuthorizationUrl_LinkedIn_ReturnsCorrectUrlWithScopes()
     {
         var service = CreateService();
-        var url = await service.GetAuthorizationUrlAsync(Platform.LinkedIn, CancellationToken.None);
+        var url = await service.GetAuthorizationUrlAsync(Platform.LinkedIn, CredentialPurpose.Publishing, CancellationToken.None);
 
         Assert.StartsWith("https://www.linkedin.com/oauth/v2/authorization", url);
         var query = HttpUtility.ParseQueryString(new Uri(url).Query);
@@ -108,7 +108,7 @@ public class OAuthServiceTests : IDisposable
     public async Task GetAuthorizationUrl_Twitter_IncludesPKCECodeChallenge()
     {
         var service = CreateService();
-        var url = await service.GetAuthorizationUrlAsync(Platform.Twitter, CancellationToken.None);
+        var url = await service.GetAuthorizationUrlAsync(Platform.Twitter, CredentialPurpose.Publishing, CancellationToken.None);
 
         Assert.StartsWith("https://twitter.com/i/oauth2/authorize", url);
         Assert.Contains("code_challenge=", url);
@@ -119,7 +119,7 @@ public class OAuthServiceTests : IDisposable
     public async Task GetAuthorizationUrl_IncludesStateParameter()
     {
         var service = CreateService();
-        var url = await service.GetAuthorizationUrlAsync(Platform.LinkedIn, CancellationToken.None);
+        var url = await service.GetAuthorizationUrlAsync(Platform.LinkedIn, CredentialPurpose.Publishing, CancellationToken.None);
 
         var uri = new Uri(url);
         var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
@@ -133,7 +133,7 @@ public class OAuthServiceTests : IDisposable
     public async Task ExchangeCodeAsync_LinkedIn_StoresEncryptedTokens()
     {
         var service = CreateService();
-        var authUrl = await service.GetAuthorizationUrlAsync(Platform.LinkedIn, CancellationToken.None);
+        var authUrl = await service.GetAuthorizationUrlAsync(Platform.LinkedIn, CredentialPurpose.Publishing, CancellationToken.None);
         var state = System.Web.HttpUtility.ParseQueryString(new Uri(authUrl).Query)["state"]!;
 
         SetupHttpResponse(JsonSerializer.Serialize(new
@@ -159,7 +159,7 @@ public class OAuthServiceTests : IDisposable
     public async Task ExchangeCodeAsync_Twitter_UsesCodeVerifierForPKCE()
     {
         var service = CreateService();
-        var authUrl = await service.GetAuthorizationUrlAsync(Platform.Twitter, CancellationToken.None);
+        var authUrl = await service.GetAuthorizationUrlAsync(Platform.Twitter, CredentialPurpose.Publishing, CancellationToken.None);
         var state = HttpUtility.ParseQueryString(new Uri(authUrl).Query)["state"]!;
 
         string? capturedBody = null;
@@ -285,7 +285,7 @@ public class OAuthServiceTests : IDisposable
         var service = CreateService();
 
         await Assert.ThrowsAsync<NotSupportedException>(() =>
-            service.GetAuthorizationUrlAsync(Platform.Blog, CancellationToken.None));
+            service.GetAuthorizationUrlAsync(Platform.Blog, CredentialPurpose.Publishing, CancellationToken.None));
     }
 
     [Fact]
@@ -294,7 +294,7 @@ public class OAuthServiceTests : IDisposable
         var service = CreateService();
 
         // Keyed resolution: the coordinator delegates URL construction to the LinkedIn provider.
-        var url = await service.GetAuthorizationUrlAsync(Platform.LinkedIn, CancellationToken.None);
+        var url = await service.GetAuthorizationUrlAsync(Platform.LinkedIn, CredentialPurpose.Publishing, CancellationToken.None);
         Assert.StartsWith("https://www.linkedin.com/oauth/v2/authorization", url);
 
         // State persisted by the coordinator: a follow-up exchange with that state succeeds.
@@ -314,7 +314,7 @@ public class OAuthServiceTests : IDisposable
     public async Task OAuthService_PersistsTwitterCodeVerifier_FromProviderStateAdditions()
     {
         var service = CreateService();
-        var authUrl = await service.GetAuthorizationUrlAsync(Platform.Twitter, CancellationToken.None);
+        var authUrl = await service.GetAuthorizationUrlAsync(Platform.Twitter, CredentialPurpose.Publishing, CancellationToken.None);
         var state = HttpUtility.ParseQueryString(new Uri(authUrl).Query)["state"]!;
 
         string? capturedBody = null;
@@ -351,7 +351,7 @@ public class OAuthServiceTests : IDisposable
 
         // Obtain a valid state (LinkedIn), then exchange against an unregistered platform: the state
         // check passes, provider resolution returns null, and the coordinator throws NotSupported.
-        var url = await service.GetAuthorizationUrlAsync(Platform.LinkedIn, CancellationToken.None);
+        var url = await service.GetAuthorizationUrlAsync(Platform.LinkedIn, CredentialPurpose.Publishing, CancellationToken.None);
         var state = HttpUtility.ParseQueryString(new Uri(url).Query)["state"]!;
 
         await Assert.ThrowsAsync<NotSupportedException>(() =>
@@ -364,7 +364,7 @@ public class OAuthServiceTests : IDisposable
         // Purpose does not exist yet (section-02). This asserts the current default behavior: an exchanged
         // credential is stored active with the platform's publishing scope, exactly as today.
         var service = CreateService();
-        var authUrl = await service.GetAuthorizationUrlAsync(Platform.LinkedIn, CancellationToken.None);
+        var authUrl = await service.GetAuthorizationUrlAsync(Platform.LinkedIn, CredentialPurpose.Publishing, CancellationToken.None);
         var state = HttpUtility.ParseQueryString(new Uri(authUrl).Query)["state"]!;
 
         SetupHttpResponse(JsonSerializer.Serialize(new
@@ -378,6 +378,51 @@ public class OAuthServiceTests : IDisposable
 
         Assert.True(credential.IsActive);
         Assert.Equal("openid profile w_member_social", credential.Scopes);
+        Assert.Equal(CredentialPurpose.Publishing, credential.Purpose);
+    }
+
+    [Fact]
+    public async Task OAuthService_ExchangeCode_AnalyticsPurposeFromState_StampsCredentialAnalytics()
+    {
+        var service = CreateService();
+
+        // Purpose captured at authorize time flows through OAuth state to the callback's exchange.
+        var authUrl = await service.GetAuthorizationUrlAsync(Platform.LinkedIn, CredentialPurpose.Analytics, CancellationToken.None);
+        var state = HttpUtility.ParseQueryString(new Uri(authUrl).Query)["state"]!;
+        SetupHttpResponse(JsonSerializer.Serialize(new
+        {
+            access_token = "li-access-token", refresh_token = "li-refresh-token", expires_in = 5184000
+        }));
+
+        var credential = await service.ExchangeCodeAsync(Platform.LinkedIn, "auth-code", state, CancellationToken.None);
+
+        Assert.Equal(CredentialPurpose.Analytics, credential.Purpose);
+    }
+
+    [Fact]
+    public async Task OAuthService_ExchangeCode_PublishingAndAnalyticsSamePlatform_CreateDistinctCredentials()
+    {
+        var service = CreateService();
+        SetupHttpResponse(JsonSerializer.Serialize(new
+        {
+            access_token = "li-access-token", refresh_token = "li-refresh-token", expires_in = 5184000
+        }));
+
+        var pubUrl = await service.GetAuthorizationUrlAsync(Platform.LinkedIn, CredentialPurpose.Publishing, CancellationToken.None);
+        var pubState = HttpUtility.ParseQueryString(new Uri(pubUrl).Query)["state"]!;
+        await service.ExchangeCodeAsync(Platform.LinkedIn, "code", pubState, CancellationToken.None);
+
+        var anaUrl = await service.GetAuthorizationUrlAsync(Platform.LinkedIn, CredentialPurpose.Analytics, CancellationToken.None);
+        var anaState = HttpUtility.ParseQueryString(new Uri(anaUrl).Query)["state"]!;
+        await service.ExchangeCodeAsync(Platform.LinkedIn, "code", anaState, CancellationToken.None);
+
+        // Find/create is keyed on (Platform, Purpose): the Analytics exchange must NOT overwrite the
+        // Publishing credential. Without that, only one row would exist.
+        var creds = await _dbContext.PlatformCredentials
+            .Where(c => c.Platform == Platform.LinkedIn).ToListAsync();
+        Assert.Equal(2, creds.Count);
+        Assert.Contains(creds, c => c.Purpose == CredentialPurpose.Publishing);
+        Assert.Contains(creds, c => c.Purpose == CredentialPurpose.Analytics);
     }
 
     public void Dispose()

@@ -146,9 +146,9 @@ public class LinkedInOAuthProviderTests : IDisposable
         var result = await provider.RefreshAsync(credential, CancellationToken.None);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal("new-access-token", result.Value!.AccessToken);
-        Assert.Equal("new-refresh-token", result.Value.RefreshToken);
-        Assert.Equal(5184000, result.Value.ExpiresIn);
+        Assert.Equal("new-access-token", result.Tokens!.AccessToken);
+        Assert.Equal("new-refresh-token", result.Tokens.RefreshToken);
+        Assert.Equal(5184000, result.Tokens.ExpiresIn);
 
         var body = capture.Body();
         Assert.Contains("grant_type=refresh_token", body);

@@ -15,9 +15,10 @@ public interface IOAuthProvider
 
     Task<OAuthTokenResult> ExchangeCodeAsync(string code, OAuthStateEntry state, CancellationToken ct);
 
-    // Takes the full credential (not a bare refresh-token string) so future providers with no separate
-    // refresh token can implement their own refresh. Returns plaintext tokens for the coordinator to encrypt.
-    Task<Result<OAuthTokenResult>> RefreshAsync(PlatformCredential credential, CancellationToken ct);
+    // Takes the full credential (not a bare refresh-token string) so providers with no separate refresh
+    // token (e.g. Instagram) can implement their own refresh. Returns plaintext tokens for the coordinator
+    // to encrypt on success, or a Revoked/Transient reason on failure (the poller keys on that reason).
+    Task<OAuthRefreshResult> RefreshAsync(PlatformCredential credential, CancellationToken ct);
 
     // Provider-specific proactive refresh window. Declared for the poller (section-05); LinkedIn/Twitter
     // mirror the effective window their connectors use today.

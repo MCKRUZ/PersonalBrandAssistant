@@ -186,3 +186,37 @@ Run `dotnet test`. Gate for this section:
 - No poller (section-05 consumes these providers' `NeedsRefresh` / `RefreshAsync` / `RefreshFailureReason`).
 - No frontend connect/reconnect UI (section-07 links to `/api/auth/{platform}/authorize?purpose=analytics`).
 - No Google Cloud / Meta / TikTok console setup (section-08 runbook). These providers go green against mocks with no real credentials.
+
+---
+
+## Implementation Outcome (as built)
+
+Implemented as planned. Build clean; all mock-based tests green (no real credentials needed). 57 Security tests + 15 API OAuth tests pass; full API (93) + full non-Docker Infrastructure (410) suites green — no regressions.
+
+### Files created
+- Options: `src/PBA.Infrastructure/Configuration/{YouTube,Instagram,TikTok}OAuthOptions.cs`
+- Providers: `src/PBA.Infrastructure/Security/OAuthProviders/{YouTube,Instagram,TikTok}OAuthProvider.cs`
+- Tests: `tests/PBA.Infrastructure.Tests/Security/OAuthProviders/{YouTube,Instagram,TikTok}OAuthProviderTests.cs`
+
+### Files modified
+- `OAuthContracts.cs` (added `OAuthRefreshResult`), `IOAuthProvider.cs`, `OAuthStateEntry.cs`, `OAuthService.cs`
+- `LinkedInOAuthProvider.cs` / `TwitterOAuthProvider.cs` (RefreshAsync return type)
+- `DependencyInjection.cs`, `IOAuthService.cs`, `OAuthEndpoints.cs`, `appsettings.json`
+- Tests: `OAuthServiceTests.cs`, `LinkedIn/TwitterOAuthProviderTests.cs`, `TestWebApplicationFactory.cs`, `OAuthEndpointsTests.cs`
+
+### Contract evolution (deferred here by section-01's scope note — NOT scope creep)
+1. **`IOAuthProvider.RefreshAsync` now returns `Task<OAuthRefreshResult>`** (was `Task<Result<OAuthTokenResult>>`). `OAuthRefreshResult` carries `RefreshFailureReason` (Revoked/Transient) on failure — the domain `Result<T>` can't, and section-05's poller keys deactivation on it. LinkedIn/Twitter providers, the coordinator, and their tests were updated; LinkedIn/Twitter map any non-success to Transient (no distinct signal wired). Publishing connectors are unaffected (they consume the coordinator's `Result<string>`).
+2. **`CredentialPurpose` threads authorize→state→exchange:** `IOAuthService.GetAuthorizationUrlAsync` gained a `purpose` param; `OAuthStateEntry` gained `Purpose`; the coordinator's `ExchangeCodeAsync` finds/creates by `(Platform, Purpose)` (an Analytics flow can't overwrite a Publishing credential). Default (no `?purpose`) stays Publishing.
+
+### Review fixes applied (see `implementation/code_review/section-03-interview.md`)
+- **HIGH:** `?purpose=analytics` is now constrained to `{YouTube, Instagram, TikTok}` (400 otherwise). Closes a data-loss hazard: a LinkedIn/Twitter Analytics credential could otherwise shadow the Publishing one in the connectors' `Platform`-only lookups.
+- **MEDIUM:** all three providers' RefreshAsync success path is now guarded (malformed/missing-field 200 → Transient, never throws).
+- **MEDIUM:** added per-provider SAFETY-direction tests (non-revoked error → Transient) so the poller never deactivates a valid credential; split Instagram's revoked test to isolate code=190.
+- **LOW:** `TryParsePurpose` accepts only the literal `publishing`/`analytics` (numeric strings rejected); `IsMetaRevoked` tolerates string-encoded codes.
+
+### Known constraints for section-05 (the poller)
+- **MUST call `provider.RefreshAsync` directly**, never `IOAuthService.RefreshTokenAsync` — the coordinator's "null refresh token → deactivate" branch would wrongly deactivate Instagram (which has no refresh token by design).
+- **Backstop recommended:** each provider recognizes only the plan-specified revoked signal; a genuine revocation surfacing an unlisted code maps to Transient → infinite retry. The poller should bound consecutive Transient failures (alert/deactivate after N over a long window).
+
+### Docker
+This section needs no DB — all tests are mock-based and ran fully in this session. (The section-02 real-DB tests remain Docker-gated.)

@@ -151,7 +151,7 @@ public class TwitterOAuthProviderTests : IDisposable
         var result = await provider.RefreshAsync(credential, CancellationToken.None);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal("new-access-token", result.Value!.AccessToken);
+        Assert.Equal("new-access-token", result.Tokens!.AccessToken);
 
         var body = capture.Body();
         Assert.Contains("grant_type=refresh_token", body);
