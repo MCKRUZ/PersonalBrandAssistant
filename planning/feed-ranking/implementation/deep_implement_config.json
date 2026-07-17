@@ -32,6 +32,42 @@
     "section-03-idea-entity-changes": {
       "status": "complete",
       "commit_hash": "eedf22bf581a8886a9bd06e6f1a360fa58150d3c"
+    },
+    "section-04-embed-async": {
+      "status": "complete",
+      "commit_hash": "afdfdad0f5eac2d825fc5d68afd2e01ef22e37ed"
+    },
+    "section-05-idea-analyzer": {
+      "status": "complete",
+      "commit_hash": "27f241d4290f8b50eaadaf3ad657089f8399609c"
+    },
+    "section-06-embedding-service": {
+      "status": "complete",
+      "commit_hash": "27f241d4290f8b50eaadaf3ad657089f8399609c"
+    },
+    "section-07-scoring-sweep-dedup": {
+      "status": "complete",
+      "commit_hash": "27f241d4290f8b50eaadaf3ad657089f8399609c"
+    },
+    "section-08-composite-rank-listideas": {
+      "status": "complete",
+      "commit_hash": "bba00c610a87fe7ec676b957549804900ceed64f"
+    },
+    "section-09-brand-profile-api": {
+      "status": "complete",
+      "commit_hash": "30c98e01c880d186d16aae5c161374344c647730"
+    },
+    "section-10-frontend-editor": {
+      "status": "complete",
+      "commit_hash": "e8a3908dfcc2ceed340df6e0ad34f7f255b6ee3b"
+    },
+    "section-11-frontend-ranked-view": {
+      "status": "complete",
+      "commit_hash": "24583f04f3a82f3d1593245985211599f973f82b"
+    },
+    "section-12-cutover": {
+      "status": "complete",
+      "commit_hash": "9cfd92e718efcb54ad30684b92e242c7489c3bd6"
     }
   },
   "pre_commit": {
