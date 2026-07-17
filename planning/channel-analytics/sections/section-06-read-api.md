@@ -217,3 +217,31 @@ app.MapChannelAnalyticsEndpoints();
 - `TestFactory_DoesNotStartChannelMetricPollingService` green (poller stripped from the test host).
 - `dotnet test` green overall (no regression in existing Website analytics tests).
 - `GET /api/analytics/overview`, `/api/analytics/channel/{platform}`, `/api/analytics/youtube/deep` reachable and mapping `Result` -> HTTP via `ToApiResult()`; the existing `/api/analytics/website` + `/health` unchanged.
+
+---
+
+## Implementation Outcome (as built)
+
+Implemented as planned, with one deliberate deviation and one HIGH review fix. Build clean; 18 handler + 8 endpoint tests green; full API (103) + Application (417) suites green; full solution builds.
+
+### Files created
+- DTOs: `src/PBA.Application/Features/ChannelAnalytics/Dtos/ChannelAnalyticsDtos.cs`
+- Shared read helper: `src/PBA.Application/Features/ChannelAnalytics/ChannelAnalyticsReadHelper.cs`
+- Queries: `Queries/{GetChannelAnalytics, GetAnalyticsOverview, GetYouTubeDeepAnalytics}.cs`
+- Endpoints: `src/PBA.Api/Endpoints/ChannelAnalyticsEndpoints.cs`
+- Token abstraction (H1 fix): `src/PBA.Application/Common/Interfaces/IAnalyticsTokenProvider.cs` + `src/PBA.Infrastructure/Security/AnalyticsTokenProvider.cs`
+- Tests: `tests/PBA.Application.Tests/Features/ChannelAnalytics/*` (3) + `tests/PBA.Api.Tests/Endpoints/ChannelAnalyticsEndpointsTests.cs`
+
+### Files modified
+- `src/PBA.Api/Program.cs` (`MapChannelAnalyticsEndpoints`), `src/PBA.Infrastructure/DependencyInjection.cs` (register `IAnalyticsTokenProvider`), `tests/PBA.Api.Tests/TestWebApplicationFactory.cs` (strip the poller — M4 isolation).
+
+### Deviation from plan
+- **Deep path resolves `IYouTubeApiClient` + `IAnalyticsTokenProvider`, not the keyed `IChannelAnalyticsService`.** Section-04 put the YouTube deep path on `IYouTubeApiClient.RunAnalyticsReportAsync` + `YouTubeDeepAnalyticsMapper` (the `IChannelAnalyticsService` only has `PollAsync`). The handler runs 4 reports (day + traffic-source + geography + demographics), maps each, wraps in `Result` (never throws).
+
+### Review fixes applied (see `implementation/code_review/section-06-interview.md`)
+- **HIGH (H1):** the live deep path now refreshes the YouTube access token on demand via a new Application-layer `IAnalyticsTokenProvider` (the stored token expires ~1h after the daily poll; without this the tab would fail most of the day). It also DRYs the poller's refresh mechanics behind a reusable seam.
+- **MEDIUM (M1):** `ResolveStatusAsync` prefers the active credential (a reconnect can leave a stale inactive row).
+- Closed test gaps: negative deltas, engagement `total_interactions` precedence, engagement null branches (no interactions / zero denominator).
+
+### Before prod — smoke test
+The live deep path (`AnalyticsTokenProvider` refresh + `YouTubeApiClient` reports) exercises real Google APIs; verify with a real YouTube analytics token (the report dimensions/metrics — day, insightTrafficSourceType, country, ageGroup — and the mapper's DIMENSION/METRIC column typing).

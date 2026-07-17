@@ -164,6 +164,9 @@ public static class DependencyInjection
         services.AddSingleton<ITokenEncryptor, TokenEncryptor>();
         services.AddScoped<IOAuthService, OAuthService>();
 
+        // On-demand token freshness for the live analytics read path.
+        services.AddScoped<IAnalyticsTokenProvider, AnalyticsTokenProvider>();
+
         // Keyed OAuth providers (resolved by the OAuthService coordinator)
         services.AddKeyedScoped<IOAuthProvider, LinkedInOAuthProvider>(Platform.LinkedIn);
         services.AddKeyedScoped<IOAuthProvider, TwitterOAuthProvider>(Platform.Twitter);

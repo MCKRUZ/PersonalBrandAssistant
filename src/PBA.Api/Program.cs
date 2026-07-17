@@ -70,6 +70,7 @@ app.MapOAuthEndpoints();
 app.MapPlatformEndpoints();
 app.MapFeedEndpoints();
 app.MapAnalyticsEndpoints();
+app.MapChannelAnalyticsEndpoints();
 app.MapDigestEndpoints();
 app.MapBrandRankingProfileEndpoints();
 app.MapExternalEndpoints();

@@ -32,7 +32,9 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>
                     d.ServiceType.FullName?.Contains("Hangfire") == true ||
                     d.ImplementationType?.FullName?.Contains("Hangfire") == true ||
                     d.ImplementationFactory?.Method.DeclaringType?.FullName?.Contains("Hangfire") == true ||
-                    d.ImplementationType?.FullName?.Contains("ScheduledPublishReconciler") == true)
+                    d.ImplementationType?.FullName?.Contains("ScheduledPublishReconciler") == true ||
+                    // Poller must not start / hit external APIs during integration tests (M4 isolation).
+                    d.ImplementationType?.FullName?.Contains("ChannelMetricPollingService") == true)
                 .ToList();
 
             foreach (var d in descriptorsToRemove)
