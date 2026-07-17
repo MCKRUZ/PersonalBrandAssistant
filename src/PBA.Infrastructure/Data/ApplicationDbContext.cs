@@ -19,6 +19,7 @@ public class ApplicationDbContext : DbContext, IAppDbContext
     public DbSet<PlatformCredential> PlatformCredentials => Set<PlatformCredential>();
     public DbSet<BrandProfile> BrandProfiles => Set<BrandProfile>();
     public DbSet<BrandRankingProfile> BrandRankingProfiles => Set<BrandRankingProfile>();
+    public DbSet<ChannelMetricSnapshot> ChannelMetricSnapshots => Set<ChannelMetricSnapshot>();
 
     public void SetOriginalValue<TEntity>(TEntity entity, string propertyName, object value)
         where TEntity : class

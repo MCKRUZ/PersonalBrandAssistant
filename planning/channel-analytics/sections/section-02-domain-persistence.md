@@ -294,3 +294,38 @@ Use the exact quoted-identifier / DDL EF emits in the migration's `Up` so the sc
 - Read queries that compute deltas/KPIs/trends -> section-06.
 
 Do not build any of these here — this section only lands the types, config, DbSets, migration, and SQL script.
+
+---
+
+## Implementation Outcome (as built)
+
+Implemented as planned. Build clean; all invariants land and converge across entity / EF config / migration / idempotent script (reviewer-verified).
+
+### Files created
+- `src/PBA.Domain/Enums/CredentialPurpose.cs`, `src/PBA.Domain/Enums/SnapshotScope.cs`
+- `src/PBA.Domain/Entities/ChannelMetricSnapshot.cs`
+- `src/PBA.Infrastructure/Data/Configurations/ChannelMetricSnapshotConfiguration.cs`
+- `src/PBA.Infrastructure/Data/Migrations/20260717191429_AddChannelAnalytics.cs` (+ `.Designer.cs`) and updated `ApplicationDbContextModelSnapshot.cs`
+- `scripts/migrate-add-channel-analytics.sql` (idempotent, MigrationId `20260717191429_AddChannelAnalytics`, ProductVersion `10.0.7`)
+- `tests/PBA.Infrastructure.Tests/Data/ChannelAnalyticsModelTests.cs` (InMemory-runnable)
+- `tests/PBA.Infrastructure.Tests/Data/ChannelAnalyticsPersistenceTests.cs` (real-DB, Testcontainers)
+
+### Files modified
+- `src/PBA.Domain/Enums/Platform.cs` — appended `Instagram = 7`, `TikTok = 8`.
+- `src/PBA.Domain/Entities/PlatformCredential.cs` — added `Purpose` init-only (default Publishing).
+- `src/PBA.Infrastructure/Data/Configurations/PlatformCredentialConfiguration.cs` — replaced single-column unique index with composite `(Platform, Purpose)` filtered unique index; added `Purpose` int conversion.
+- `src/PBA.Infrastructure/Data/ApplicationDbContext.cs` + `src/PBA.Application/Common/Interfaces/IAppDbContext.cs` — added `ChannelMetricSnapshots` DbSet. (`ApplicationDbContext` is the only `IAppDbContext` implementer — no test doubles to update.)
+
+### Deviations / notes
+- **SQL script uses `character varying(128)`/`(500)` not `text`** — the plan's step-11 prose said `text NOT NULL`, but the plan also instructs "use the exact DDL EF emits." EF emitted `character varying(128)` (from `HasMaxLength`), so the script matches the migration. Right call, not a divergence.
+- **`Purpose` has a persistent DB `DEFAULT 0`** (model declares no default) — required to add a NOT NULL column to existing rows; matches the `AddIsMicrosoftSource` precedent.
+- **Real-DB test isolation** relies on disjoint Platform/date keys (no per-test cleanup) — intentional to avoid tripling container cost. **Convention for future real-DB tests: pick fresh Platform/date keys** so they don't collide with these.
+
+### Review fixes applied (see `implementation/code_review/section-02-interview.md`)
+- Added stability-guard tests for `CredentialPurpose` and `SnapshotScope` (persisted + index-critical, same risk class as `Platform`).
+- Added a comment on `metricsComparer` documenting its key-order sensitivity and why it's acceptable.
+- Added `ChannelMetricSnapshotConfiguration_UniqueIndex_AllowsAccountAndVideoRows_SamePlatformDate` (positive coexistence — proves `Scope` discriminates).
+
+### Tests
+- InMemory-runnable: **6 passing** in `ChannelAnalyticsModelTests` (enum stability x3, sentinel, Purpose default, jsonb round-trip). Full Infrastructure suite minus Docker tests: **386 passing**, no regressions from the enum/Purpose additions. Full solution builds clean.
+- **Docker-gated (written, unverified this session — no Docker):** 5 real-DB tests in `ChannelAnalyticsPersistenceTests` (2 credential-index + 2 snapshot-index-reject + 1 coexistence + jsonb) and `ChannelAnalyticsMigrationTests.Migration_AddChannelAnalytics_AppliesAndReverts_OnCleanDb`. Reviewer confirmed they are written correctly (mirror the existing `CutoverTests` Testcontainers pattern) and would pass on real Postgres. **Run before prod apply.** Same environmental status as the pre-existing `CutoverTests`.

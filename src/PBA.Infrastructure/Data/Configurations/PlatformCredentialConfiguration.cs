@@ -16,9 +16,15 @@ public class PlatformCredentialConfiguration : IEntityTypeConfiguration<Platform
         builder.Property(c => c.EncryptedIntegrationToken).HasMaxLength(4000);
         builder.Property(c => c.Scopes).HasMaxLength(1000);
 
+        builder.Property(c => c.Purpose)
+            .HasConversion<int>();
+
         builder.HasIndex(c => new { c.Platform, c.IsActive });
 
-        builder.HasIndex(c => c.Platform)
+        // One active credential per (Platform, Purpose): a Publishing token and an Analytics token can
+        // coexist for the same platform, but never two active credentials of the same purpose. Replaces
+        // the old single-column unique index on Platform alone.
+        builder.HasIndex(c => new { c.Platform, c.Purpose })
             .IsUnique()
             .HasFilter("\"IsActive\" = true");
     }

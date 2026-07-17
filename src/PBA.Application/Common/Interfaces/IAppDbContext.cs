@@ -16,6 +16,7 @@ public interface IAppDbContext
     DbSet<FeedItem> FeedItems { get; }
     DbSet<Digest> Digests { get; }
     DbSet<DigestItem> DigestItems { get; }
+    DbSet<ChannelMetricSnapshot> ChannelMetricSnapshots { get; }
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 
     /// <summary>Sets the change-tracker ORIGINAL value of a tracked entity's property — used to seed an
