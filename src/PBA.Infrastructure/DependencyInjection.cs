@@ -124,6 +124,20 @@ public static class DependencyInjection
         services.AddSingleton<ISearchConsoleClient, PBA.Infrastructure.Services.Analytics.SearchConsoleClient>();
         services.AddScoped<IGoogleAnalyticsService, PBA.Infrastructure.Services.Analytics.GoogleAnalyticsService>();
 
+        // Channel analytics thin clients (SDK/HTTP seams) + keyed per-platform facades.
+        services.AddScoped<IYouTubeApiClient, PBA.Infrastructure.Services.Analytics.YouTubeApiClient>();
+        services.AddHttpClient<IInstagramGraphClient, PBA.Infrastructure.Services.Analytics.InstagramGraphClient>(
+            client => client.BaseAddress = new Uri("https://graph.instagram.com/"));
+        services.AddHttpClient<ITikTokDisplayClient, PBA.Infrastructure.Services.Analytics.TikTokDisplayClient>(
+            client => client.BaseAddress = new Uri("https://open.tiktokapis.com/"));
+
+        services.AddKeyedScoped<IChannelAnalyticsService,
+            PBA.Infrastructure.Services.Analytics.YouTubeAnalyticsService>(Platform.YouTube);
+        services.AddKeyedScoped<IChannelAnalyticsService,
+            PBA.Infrastructure.Services.Analytics.InstagramAnalyticsService>(Platform.Instagram);
+        services.AddKeyedScoped<IChannelAnalyticsService,
+            PBA.Infrastructure.Services.Analytics.TikTokAnalyticsService>(Platform.TikTok);
+
         return services;
     }
 

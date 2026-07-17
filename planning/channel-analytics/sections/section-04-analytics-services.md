@@ -178,3 +178,33 @@ Key assertions to encode WHY:
 - No DB writes and no live network in any test.
 - Metric bags contain integer-only values with the canonical key names above.
 - YouTube deep-path client method exists and maps canned Analytics v2 rows (query/DTO wiring deferred to section-06).
+
+---
+
+## Implementation Outcome (as built)
+
+Implemented as planned. Build clean; 35 analytics tests green (19 facade/mapper/DI + 4 review-fix + existing GA4). Full non-Docker Infrastructure suite 433 green; full solution builds.
+
+### Design interpretation (faithful to plan intent)
+The thin-client seams (`IYouTubeApiClient`, `IInstagramGraphClient`, `ITikTokDisplayClient`) map ~1:1 to individual API calls; the **orchestration** (uploads-playlist paging, ≤50 videos.list batching, N-cap, IG canonical metric lists, TikTok cursor loop) lives in the **facades**, so the plan's key logic is unit-testable by mocking the seams. The client implementations (`YouTubeApiClient` = Google SDK; `InstagramGraphClient`/`TikTokDisplayClient` = HttpClient) are **untested seams by design**.
+
+### Files created
+- Interfaces/value objects: `src/PBA.Application/Common/Interfaces/{ChannelPollResult, IChannelAnalyticsService, IYouTubeApiClient, IInstagramGraphClient, ITikTokDisplayClient}.cs`
+- Deep-path: `src/PBA.Application/Features/Analytics/Dtos/YouTubeDeepAnalyticsSeries.cs`, `src/PBA.Application/Features/Analytics/YouTubeDeepAnalyticsMapper.cs`
+- Facades + clients: `src/PBA.Infrastructure/Services/Analytics/{YouTube,Instagram,TikTok}AnalyticsService.cs` + `{YouTubeApiClient, InstagramGraphClient, TikTokDisplayClient}.cs`
+- Tests: `tests/PBA.Infrastructure.Tests/Services/Analytics/{YouTube,Instagram,TikTok}AnalyticsServiceTests.cs`, `YouTubeDeepAnalyticsMapperTests.cs`, `InstagramGraphClientTests.cs`, `AnalyticsServicesDiTests.cs`
+
+### Files modified
+- `src/PBA.Infrastructure/PBA.Infrastructure.csproj` — added `Google.Apis.YouTube.v3` (1.75.0.4207) + `Google.Apis.YouTubeAnalytics.v2` (1.74.0.3106).
+- `src/PBA.Infrastructure/DependencyInjection.cs` — three keyed `IChannelAnalyticsService` + thin-client registrations (IG/TikTok as typed HttpClients with BaseAddress).
+
+### Notes / deviations
+- **SDK name collision:** my facade `YouTubeAnalyticsService` collides with the SDK's `Google.Apis.YouTubeAnalytics.v2.YouTubeAnalyticsService`; resolved with a namespace alias in `YouTubeApiClient`.
+- **Facades decrypt** `credential.EncryptedAccessToken` via injected `ITokenEncryptor` (the poller ensures freshness; the facade decrypts at use).
+- **Deep-path mapper generalized** (review fix #2) to label by the report's DIMENSION column, not a hardcoded `day`, so section-06 can feed it traffic-source/geography/demographics variants.
+
+### Review fixes applied (see `implementation/code_review/section-04-interview.md`)
+Added YouTube multi-page paging test, generalized + tested the deep mapper for non-day dimensions, real IG client-level tests (deprecation-drop + media parse), max-page guards on both paging loops, exact-key-count assertion, and moved the IG token to the `Authorization` header.
+
+### Before prod — untested-seam smoke test (real credentials)
+Confirm: IG media-insights response shape (`values[]` vs `total_value`) and the graph.instagram.com version-less path; TikTok error-in-200-body handling; YouTube SDK field mappings (subscriber/view/like counts, uploads playlist id). No DB writes and no live network occur in any test.
