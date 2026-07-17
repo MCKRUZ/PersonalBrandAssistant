@@ -189,3 +189,39 @@ Keep `services.AddScoped<IOAuthService, OAuthService>();` and the existing `Conf
 4. Diff review confirms: authorize URLs, exchange requests, and refresh requests are identical on the wire to pre-refactor. This is a pure restructuring — **zero behavior change**.
 
 Only after this gate is green should section-03 (new providers) build on the abstraction.
+
+---
+
+## Implementation Outcome (as built)
+
+Implemented as planned with zero behavior change on the wire (verified by the reviewer against the deleted code, path by path). Gate is green.
+
+### Files created
+- `src/PBA.Infrastructure/Security/IOAuthProvider.cs` — the abstraction (Platform, BuildAuthorization, ExchangeCodeAsync, RefreshAsync, NeedsRefresh).
+- `src/PBA.Infrastructure/Security/OAuthContracts.cs` — `AuthorizationRequest`, `OAuthStateAdditions`, `OAuthTokenResult`, `RefreshFailureReason`.
+- `src/PBA.Infrastructure/Security/OAuthStateEntry.cs` — promoted from the private record inside OAuthService (10-min TTL kept in the record).
+- `src/PBA.Infrastructure/Security/OAuthProviders/LinkedInOAuthProvider.cs`
+- `src/PBA.Infrastructure/Security/OAuthProviders/TwitterOAuthProvider.cs`
+- `tests/PBA.Infrastructure.Tests/Security/OAuthProviders/LinkedInOAuthProviderTests.cs`
+- `tests/PBA.Infrastructure.Tests/Security/OAuthProviders/TwitterOAuthProviderTests.cs`
+- `tests/PBA.Infrastructure.Tests/Security/OAuthProviderMapTests.cs`
+
+### Files modified
+- `src/PBA.Infrastructure/Security/OAuthService.cs` — rewritten as a thin coordinator. New ctor: `(IServiceProvider, ITokenEncryptor, IAppDbContext, ILogger<OAuthService>)`. Resolves keyed providers via `IServiceProvider.GetKeyedService<IOAuthProvider>(platform)`; keeps StateStore, MaxPendingStates, CleanExpiredStates, credential upsert, encryption. Public `IOAuthService` signatures unchanged.
+- `src/PBA.Infrastructure/DependencyInjection.cs` — added `AddKeyedScoped<IOAuthProvider, LinkedInOAuthProvider>(Platform.LinkedIn)` + Twitter; added `using PBA.Infrastructure.Security.OAuthProviders;`.
+- `tests/PBA.Infrastructure.Tests/Security/OAuthServiceTests.cs` — `CreateService()` now builds a real `ServiceProvider` with the two keyed providers to match the new coordinator ctor. Added coordinator boundary tests.
+
+### Deviations from plan
+- **Coordinator ctor no longer takes options/httpClientFactory** — those moved to the providers, as designed. This is the one signature change (internal only; `IOAuthService` is unchanged).
+- **`RefreshFailureReason` declared but not yet wired** — kept per the plan's explicit forward-declaration for section-03/05 (documented decision in `implementation/code_review/section-01-interview.md`, finding #4). Not pure YAGNI, but plan-directed.
+- **`OAuthProviderMapTests`** mirrors the two keyed registrations rather than invoking the full `AddInfrastructureDependencies` (which needs live DB/config). Asserts the concrete types resolve per platform and an unregistered platform resolves to `null`.
+- **Refresh rotation** uses `RefreshToken is not null` at the coordinator (vs original `TryGetProperty` presence). Strictly safer; only differs on a `"refresh_token": null` payload that never occurs.
+
+### Review fixes applied (see `implementation/code_review/section-01-interview.md`)
+- Added ordered-key-sequence assertions to both provider `BuildAuthorization` tests (guards the hard param-ordering constraint).
+- Added `RefreshTokenAsync_Twitter_RoutesThroughProviderAndReEncryptsRotatedToken` (coordinator Twitter refresh + rotated-token re-encrypt, previously covered only for LinkedIn).
+
+### Tests
+- `tests/PBA.Infrastructure.Tests` Security suite: **31 passing** (coordinator + LinkedIn provider + Twitter provider + DI map).
+- `tests/PBA.Api.Tests` OAuth endpoint tests: **8 passing** (unchanged, confirms endpoint layer intact).
+- Full Infrastructure suite: 384 passing; the single failure `CutoverTests.Migrations_ApplyCleanly_OnRealPostgres` is environmental (needs a Docker `pgvector/pgvector:pg16` Testcontainer) and unrelated to this change (no migrations/entities/DbContext touched).

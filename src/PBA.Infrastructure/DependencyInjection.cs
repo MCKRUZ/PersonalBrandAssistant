@@ -11,6 +11,7 @@ using PBA.Infrastructure.Data;
 using PBA.Infrastructure.Publishing;
 using PBA.Infrastructure.Seeding;
 using PBA.Infrastructure.Security;
+using PBA.Infrastructure.Security.OAuthProviders;
 using PBA.Infrastructure.Services;
 using PBA.Infrastructure.Transformers;
 using Npgsql;
@@ -142,6 +143,10 @@ public static class DependencyInjection
         // Security
         services.AddSingleton<ITokenEncryptor, TokenEncryptor>();
         services.AddScoped<IOAuthService, OAuthService>();
+
+        // Keyed OAuth providers (resolved by the OAuthService coordinator)
+        services.AddKeyedScoped<IOAuthProvider, LinkedInOAuthProvider>(Platform.LinkedIn);
+        services.AddKeyedScoped<IOAuthProvider, TwitterOAuthProvider>(Platform.Twitter);
 
         // Content transformation
         services.AddScoped<IContentTransformer, ContentTransformer>();

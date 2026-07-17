@@ -3,7 +3,9 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using System.Web;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
 using Moq.Protected;
@@ -12,6 +14,7 @@ using PBA.Domain.Enums;
 using PBA.Infrastructure.Configuration;
 using PBA.Infrastructure.Data;
 using PBA.Infrastructure.Security;
+using PBA.Infrastructure.Security.OAuthProviders;
 using Xunit;
 
 namespace PBA.Infrastructure.Tests.Security;
@@ -59,13 +62,21 @@ public class OAuthServiceTests : IDisposable
         _httpClientFactory = factoryMock.Object;
     }
 
-    private OAuthService CreateService() => new(
-        _httpClientFactory,
-        _encryptor.Object,
-        _dbContext,
-        Options.Create(_linkedInOptions),
-        Options.Create(_twitterOptions),
-        _logger.Object);
+    private OAuthService CreateService()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton(_httpClientFactory);
+        services.AddSingleton(_encryptor.Object);
+        services.AddSingleton(Options.Create(_linkedInOptions));
+        services.AddSingleton(Options.Create(_twitterOptions));
+        services.AddSingleton<ILogger<LinkedInOAuthProvider>>(NullLogger<LinkedInOAuthProvider>.Instance);
+        services.AddSingleton<ILogger<TwitterOAuthProvider>>(NullLogger<TwitterOAuthProvider>.Instance);
+        services.AddKeyedScoped<IOAuthProvider, LinkedInOAuthProvider>(Platform.LinkedIn);
+        services.AddKeyedScoped<IOAuthProvider, TwitterOAuthProvider>(Platform.Twitter);
+        var provider = services.BuildServiceProvider();
+
+        return new OAuthService(provider, _encryptor.Object, _dbContext, _logger.Object);
+    }
 
     private void SetupHttpResponse(string responseJson, HttpStatusCode status = HttpStatusCode.OK)
     {
@@ -215,6 +226,38 @@ public class OAuthServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task RefreshTokenAsync_Twitter_RoutesThroughProviderAndReEncryptsRotatedToken()
+    {
+        var service = CreateService();
+        var credential = new Domain.Entities.PlatformCredential
+        {
+            Platform = Platform.Twitter,
+            EncryptedAccessToken = "encrypted:old-access",
+            EncryptedRefreshToken = "encrypted:old-refresh",
+            AccessTokenExpiresAt = DateTimeOffset.UtcNow.AddMinutes(-5),
+            IsActive = true
+        };
+        _dbContext.PlatformCredentials.Add(credential);
+        await _dbContext.SaveChangesAsync();
+
+        SetupHttpResponse(JsonSerializer.Serialize(new
+        {
+            access_token = "tw-new-access",
+            refresh_token = "tw-new-refresh",
+            expires_in = 7200
+        }));
+
+        var result = await service.RefreshTokenAsync(credential, CancellationToken.None);
+
+        // Keyed resolution to the Twitter provider, then coordinator re-encrypts BOTH the new access
+        // token and the rotated refresh token — the highest-traffic path.
+        Assert.True(result.IsSuccess);
+        Assert.Equal("tw-new-access", result.Value);
+        _encryptor.Verify(e => e.Encrypt("tw-new-access"), Times.Once);
+        _encryptor.Verify(e => e.Encrypt("tw-new-refresh"), Times.Once);
+    }
+
+    [Fact]
     public async Task RefreshTokenAsync_ExpiredRefreshToken_ReturnsEmptyAndDeactivates()
     {
         var service = CreateService();
@@ -243,6 +286,98 @@ public class OAuthServiceTests : IDisposable
 
         await Assert.ThrowsAsync<NotSupportedException>(() =>
             service.GetAuthorizationUrlAsync(Platform.Blog, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task OAuthService_GetAuthorizationUrl_ResolvesKeyedProviderAndPersistsStateAdditions()
+    {
+        var service = CreateService();
+
+        // Keyed resolution: the coordinator delegates URL construction to the LinkedIn provider.
+        var url = await service.GetAuthorizationUrlAsync(Platform.LinkedIn, CancellationToken.None);
+        Assert.StartsWith("https://www.linkedin.com/oauth/v2/authorization", url);
+
+        // State persisted by the coordinator: a follow-up exchange with that state succeeds.
+        var state = HttpUtility.ParseQueryString(new Uri(url).Query)["state"]!;
+        SetupHttpResponse(JsonSerializer.Serialize(new
+        {
+            access_token = "li-access-token",
+            refresh_token = "li-refresh-token",
+            expires_in = 5184000
+        }));
+
+        var credential = await service.ExchangeCodeAsync(Platform.LinkedIn, "auth-code", state, CancellationToken.None);
+        Assert.Equal(Platform.LinkedIn, credential.Platform);
+    }
+
+    [Fact]
+    public async Task OAuthService_PersistsTwitterCodeVerifier_FromProviderStateAdditions()
+    {
+        var service = CreateService();
+        var authUrl = await service.GetAuthorizationUrlAsync(Platform.Twitter, CancellationToken.None);
+        var state = HttpUtility.ParseQueryString(new Uri(authUrl).Query)["state"]!;
+
+        string? capturedBody = null;
+        _httpHandler.Protected()
+            .Setup<Task<HttpResponseMessage>>("SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .Returns<HttpRequestMessage, CancellationToken>(async (req, _) =>
+            {
+                capturedBody = await req.Content!.ReadAsStringAsync();
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(JsonSerializer.Serialize(new
+                    {
+                        access_token = "tw-access-token",
+                        refresh_token = "tw-refresh-token",
+                        expires_in = 7200
+                    }), System.Text.Encoding.UTF8, "application/json")
+                };
+            });
+
+        await service.ExchangeCodeAsync(Platform.Twitter, "auth-code", state, CancellationToken.None);
+
+        // The verifier the Twitter provider generated in BuildAuthorization must have been persisted
+        // by the coordinator and threaded back into the exchange — proving no leak of provider logic.
+        Assert.NotNull(capturedBody);
+        Assert.Contains("code_verifier=", capturedBody);
+    }
+
+    [Fact]
+    public async Task OAuthService_ExchangeCode_UnknownPlatform_ReturnsNotSupported()
+    {
+        var service = CreateService();
+
+        // Obtain a valid state (LinkedIn), then exchange against an unregistered platform: the state
+        // check passes, provider resolution returns null, and the coordinator throws NotSupported.
+        var url = await service.GetAuthorizationUrlAsync(Platform.LinkedIn, CancellationToken.None);
+        var state = HttpUtility.ParseQueryString(new Uri(url).Query)["state"]!;
+
+        await Assert.ThrowsAsync<NotSupportedException>(() =>
+            service.ExchangeCodeAsync(Platform.Blog, "code", state, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task OAuthService_ExchangeCode_DefaultsPurposeToPublishing()
+    {
+        // Purpose does not exist yet (section-02). This asserts the current default behavior: an exchanged
+        // credential is stored active with the platform's publishing scope, exactly as today.
+        var service = CreateService();
+        var authUrl = await service.GetAuthorizationUrlAsync(Platform.LinkedIn, CancellationToken.None);
+        var state = HttpUtility.ParseQueryString(new Uri(authUrl).Query)["state"]!;
+
+        SetupHttpResponse(JsonSerializer.Serialize(new
+        {
+            access_token = "li-access-token",
+            refresh_token = "li-refresh-token",
+            expires_in = 5184000
+        }));
+
+        var credential = await service.ExchangeCodeAsync(Platform.LinkedIn, "auth-code", state, CancellationToken.None);
+
+        Assert.True(credential.IsActive);
+        Assert.Equal("openid profile w_member_social", credential.Scopes);
     }
 
     public void Dispose()
