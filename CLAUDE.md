@@ -41,7 +41,7 @@ Follow global rules in `~/.claude/rules/coding-style.md`:
 ## Nexus Intelligence
 
 *Auto-updated by Nexus — do not edit this section manually.*
-*Last sync: 2026-06-08*
+*Last sync: 2026-07-17*
 
 ### Portfolio
 | Project | Description | Tech |
@@ -50,18 +50,18 @@ Follow global rules in `~/.claude/rules/coding-style.md`:
 | **personal-brand-assistant** (this) | — | — |
 | project-avatar | — | — |
 | matthewkruczek-ai | **matthewkruczek.ai** — static personal brand website for Matthew Kruczek (EY M… | — |
-| claude-code-mastery | **Claude Code Mastery** — the definitive Claude Code setup and configuration sk… | — |
-| _+35 inactive_ | — | — |
+| _+37 inactive_ | — | — |
 
 ### Project Context
 #### Deployment: Local Docker on Mac Mini
 ## PBA Deployment
 
-- **Host:** Mac Mini (192.168.50.103)
-- **Runtime:** Docker Compose
-- **Branch deployed:** v2-rebuild
-- **Platform:** Apple Silico…
+- **Host:** Mac Mini (192.168.50.104) — ⚠ DHCP IP churns (was .189 → .103 → .104, 2026-06-27); hostname `Matthews-Mini`. Prefer th…
 *Tags: deployment, docker, mac-mini, infrastructure, tailscale*
+
+#### PBA External API for project-avatar
+PBA exposes a key-guarded external API for trusted server-to-server consumers (project-avatar / Sage). Shipped on branch v2-rebuild (commit 9b74308, …
+*Tags: api, integration, project-avatar, pba, external-api, api-key, mac-mini*
 
 #### Deployment: Local Docker on Furious
 ## PBA Deployment
@@ -84,10 +84,20 @@ Follow global rules in `~/.claude/rules/coding-style.md`:
 #### Mac Mini SSH & Infrastructure
 ## Mac Mini (PRIMARY — Sage lives here)
 
-- **Host:** 192.168.50.103
-- **SSH:** `ssh matthewkruczek@192.168.50.103`
-- **Platform:** Apple Silicon (arm…
+- **Host:** 192.168.50.104
+- **SSH:** `ssh matthewkruczek@192.168.50.104`
+- **Hostname:** `Matthews-Mini` (u…
 *Tags: infrastructure, ssh, mac-mini, deployment, neo4j, docker, pba*
+
+#### Langfuse Observability Keys (project-avatar)
+## Langfuse for project-avatar
+
+project-avatar reuses the **shared bablyon Langfuse keys** stored in Nexus config (`~/.nexus/config.json` → `langfuse…
+*Tags: langfuse, observability, credentials, mac-mini, infrastructure, project-avatar*
+
+#### System AI Discord Bot Token
+Discord bot token for the **system-ai** persona (the Dungeon Crawler Carl System AI, deployed as Matt's alternate assistant alongside Sage on the Mac…
+*Tags: credentials, discord, discord-token, system-ai, mac-mini, deployment*
 
 #### Civitai API Key
 ## Civitai API Key
@@ -104,22 +114,6 @@ Follow global rules in `~/.claude/rules/coding-style.md`:
 **API:** `http://127.0.0.1:…
 *Tags: voicebox, tts, voice-clone, jennifer-garner, sage-voice, api, furious*
 
-### Context from ai-video-producer
-#### Bifrost MCP Gateway — Docker Setup & Credentials
-## Bifrost MCP Gateway (Docker on Mac Mini)
-
-**Host:** Mac Mini (192.168.50.189)
-**Path:** ~/bifrost/
-**Container:** bifrost (from maximhq/bifrost:la…
-*Tags: bifrost, mcp, docker, credentials, mac-mini, infrastructure*
-
-#### Qwen3-Omni-30B-A3B — Local vLLM Server on Furious
-## Qwen3-Omni-30B-A3B on Furious
-
-**Host:** Furious (local Windows 11, RTX 5090 32GB)
-**Runtime:** Docker CE 29.5.0 in WSL Ubuntu (not Docker Desktop…
-*Tags: qwen3-omni, vllm, furious, local-llm, multimodal, docker, gpu, infrastructure*
-
 ### Recorded Decisions
 - **[workflow]** Use git commit trails with structured review documentation for each section
   > Workflow creates section-specific code review interview files and commits with detailed messages documenting review findings and architectural decisions
@@ -127,12 +121,10 @@ Follow global rules in `~/.claude/rules/coding-style.md`:
   > Enables continuation of long-running projects across multiple Claude sessions by maintaining human-readable status and next steps
 - **[integration]** Integrate FreshRSS for content aggregation
   > Enables RSS feed integration capabilities within the idea bank feature
-- **[security]** Enforce hostname validation via `allowedHosts` config in Angular dev server
-  > Prevent host header injection attacks; required when exposing dev server through external URLs like Tailscale Funnel
-- **[security]** Include article URLs in IdeaDto API response for clickable content
-  > Provides direct access to source material without additional service calls; enables transparent content tracing
 
 ### Active Conflicts
+- [medium] personal-brand-assistant routes DraftContent to OpenRouter (default) but matthewkruczek-ai's APIM policy enforces Anthropic Claude v2 gating — if these projects share blog publishing infrastructure, the routing abstraction (ISidecarClient) must be extended to support separate Anthropic-gated and OpenRouter-gated backends.
+- [high] jarvis-stack explicitly replaces Claude CLI with OpenRouter API (Gemini + GPT only, no Anthropic models), directly contradicting personal-brand-assistant's strategy to use headless Claude Code with CLAUDE_CODE_OAUTH_TOKEN subscription auth — if these projects share a monorepo or common CI/CD, the LLM routing strategy must be reconciled.
 - [high] personal-brand-assistant publishes via matt-kruczek-blog-writer skill while matthewkruczek-ai maintains same skill for direct article publishing — both projects share the same skill context and editorial memory files, risking content duplication and conflicting publication status if not synchronized.
 - [medium] personal-brand-assistant uses SignalR for real-time feed notifications while jarvis-stack enforces OpenRouter API (no Anthropic models) — if personal-brand-assistant's notifications embed LLM calls, the tiered model strategy incompatibility creates maintenance friction in shared deployment.
 

@@ -29,7 +29,7 @@ public static class CreateIdea
                 i => i.DeduplicationKey == deduplicationKey, cancellationToken);
 
             if (exists)
-                return Result<Guid>.Fail("An idea with the same URL or title already exists");
+                return Result<Guid>.Conflict("An idea with the same URL or title already exists");
 
             var idea = new Idea
             {
