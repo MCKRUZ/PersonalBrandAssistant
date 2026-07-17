@@ -180,3 +180,29 @@ services.AddHostedService<ChannelMetricPollingService>();
 - 80% coverage minimum on the new poller class.
 
 Mirror pattern paths: `src/PBA.Infrastructure/Services/Radar/DigestService.cs` and its test `tests/PBA.Infrastructure.Tests/Services/Radar/DigestServiceTests.cs`.
+
+---
+
+## Implementation Outcome (as built)
+
+Implemented as planned, with two deliberate, reviewer-validated deviations. Build clean; 13 poller tests green; full non-Docker Infrastructure suite 448 green; full solution builds.
+
+### Files created / modified
+- **Create** `src/PBA.Infrastructure/Services/Analytics/ChannelMetricPollingService.cs`, `src/PBA.Infrastructure/Configuration/ChannelAnalyticsOptions.cs`, `tests/PBA.Infrastructure.Tests/Services/Analytics/ChannelMetricPollingServiceTests.cs`
+- **Modify** `src/PBA.Infrastructure/DependencyInjection.cs` (Configure + AddHostedService), `src/PBA.Api/appsettings.json` (`ChannelAnalytics` section, gates false)
+
+### Deliberate deviations (both validated by review)
+1. **Refresh via `provider.RefreshAsync` directly, NOT `IOAuthService.RefreshTokenAsync`.** Section-03 evolved the contract: the coordinator returns `Result<string>` (no `RefreshFailureReason`) and has a "null refresh token → deactivate" short-circuit that would wrongly deactivate Instagram (no refresh token). The poller calls the keyed provider directly, reads `OAuthRefreshResult.FailureReason` for revoked-only deactivation, and persists the refreshed tokens itself (re-encrypt access + rotated refresh, set expiry). This is exactly what section-03's interview doc reserved for section-05.
+2. **No explicit DB transaction.** Video rows are written first (SaveChanges), then the Account row LAST (SaveChanges) as the completion sentinel; stale video rows are cleared first in a separate SaveChanges. This self-heals a crash between writes (next run re-polls, clears, rewrites — no duplicates) and is portable to the InMemory test provider. Reviewer confirmed the crash-safety invariant holds and that splitting delete/insert into separate SaveChanges correctly avoids the EF/Postgres insert-before-delete unique-key hazard.
+
+### Review fixes applied (see `implementation/code_review/section-05-interview.md`)
+- **HIGH:** dedup video rows by `VideoId` before the cap (a duplicate would violate the unique index → permanent per-platform snapshot failure on Postgres). Tested.
+- **HIGH:** added a two-run self-heal test exercising the stale-clear branch (was untested).
+- **MEDIUM:** strengthened the host-local date test with a conditional non-UTC assertion.
+
+### Decisions (documented)
+- **Hourly retry, not "retry tomorrow":** the poller mirrors `DigestService` — a platform without a completion sentinel is re-attempted each hourly tick until it succeeds or the day ends (same-day recovery, ≥1h spacing). Supersedes the plan's imprecise "retry tomorrow" wording.
+- **One active analytics cred per platform** is enforced by section-02's `(Platform, Purpose)` filtered unique index, so the poller's platform+date guard is sufficient.
+
+### Gate status
+Poller is **code-complete but dormant** — per-platform gates ship `false` in `appsettings.json`. It stays inert until a real analytics token exists and the gate is flipped. Section-06's endpoint tests must strip `ChannelMetricPollingService` from the test host (per §"Test-host isolation").

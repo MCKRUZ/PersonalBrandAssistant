@@ -93,9 +93,12 @@ public static class DependencyInjection
         services.AddScoped<PBA.Infrastructure.Services.Radar.IdeaEmbeddingService>();
         services.AddScoped<IDigestWriter, PBA.Infrastructure.Services.Radar.DigestWriter>();
 
+        services.Configure<ChannelAnalyticsOptions>(configuration.GetSection(ChannelAnalyticsOptions.SectionName));
+
         services.AddHostedService<PBA.Infrastructure.Services.Radar.IdeaScoringService>();
         services.AddHostedService<PBA.Infrastructure.Services.Radar.IdeaDedupService>();
         services.AddHostedService<PBA.Infrastructure.Services.Radar.DigestService>();
+        services.AddHostedService<PBA.Infrastructure.Services.Analytics.ChannelMetricPollingService>();
 
         // AI News Radar Phase 2: external delivery (email + Discord) + instant high-score alerts.
         services.Configure<DigestDeliveryOptions>(configuration.GetSection(DigestDeliveryOptions.SectionName));
