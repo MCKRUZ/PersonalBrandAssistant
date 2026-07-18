@@ -78,4 +78,29 @@ public class InstagramGraphClientTests
         Assert.Equal(900, item.Metrics["views"]);
         Assert.Equal(40, item.Metrics["likes"]);
     }
+
+    // Regression: the media insights endpoint rejects "saves" (400) and names the metric "saved", whereas the
+    // account endpoint and our canonical bag use "saves". The client must request "saved" and normalize back.
+    [Fact]
+    public async Task GetRecentMediaAsync_TranslatesSavesToSaved_AndNormalizesResponseBack()
+    {
+        string? insightsQuery = null;
+        RouteByPath((path, query) =>
+        {
+            if (path == "/m1/insights")
+                insightsQuery = query;
+            return path switch
+            {
+                "/me/media" => """{"data":[{"id":"m1","caption":"c"}]}""",
+                "/m1/insights" => """{"data":[{"name":"saved","values":[{"value":12}]}]}""",
+                _ => "{}"
+            };
+        });
+
+        var media = await CreateClient().GetRecentMediaAsync("token", ["saves"], 10, CancellationToken.None);
+
+        Assert.Contains("saved", insightsQuery);        // requested the media-API spelling
+        Assert.DoesNotContain("saves", insightsQuery);  // never the account spelling
+        Assert.Equal(12, Assert.Single(media).Metrics["saves"]);  // normalized back to canonical key
+    }
 }
