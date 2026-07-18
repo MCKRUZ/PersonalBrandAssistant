@@ -1,50 +1,60 @@
 import { TestBed } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
+import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { AnalyticsComponent } from './analytics.component';
-import { WebsiteAnalytics } from './models/analytics.model';
+import { AnalyticsOverview } from './models/channel-analytics.model';
 
-describe('AnalyticsComponent', () => {
+describe('AnalyticsComponent (shell)', () => {
   let httpMock: HttpTestingController;
 
-  const stub: WebsiteAnalytics = {
-    overview: { activeUsers: 123, sessions: 200, pageViews: 500, avgSessionDuration: 90, bounceRate: 0.4, newUsers: 80 },
-    topPages: [{ pagePath: '/blog', views: 50, uniqueUsers: 30 }],
-    trafficSources: [{ channel: 'Organic Search', sessions: 100, users: 80 }],
-    searchQueries: [{ query: 'ai tools', clicks: 50, impressions: 1000, ctr: 0.05, position: 3.2 }],
-  };
+  const overviewStub: AnalyticsOverview = { totalAudience: 100, combinedKpis: [], channels: [] };
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      imports: [AnalyticsComponent, HttpClientTestingModule],
+      imports: [AnalyticsComponent, HttpClientTestingModule, NoopAnimationsModule],
     });
     httpMock = TestBed.inject(HttpTestingController);
   });
 
   afterEach(() => httpMock.verify());
 
-  it('loads website analytics on init and renders active users', () => {
+  it('renders the five source tabs', () => {
     const fixture = TestBed.createComponent(AnalyticsComponent);
     fixture.detectChanges();
 
-    httpMock.expectOne('/api/analytics/website?period=30d').flush(stub);
-    const health = httpMock.match('/api/analytics/health');
-    health.forEach(r => r.flush({ ga4: true, searchConsole: true }));
-
+    // Overview mounts eagerly and fires its load; flush it so verify() stays clean.
+    httpMock.expectOne('/api/analytics/overview?period=30d').flush(overviewStub);
     fixture.detectChanges();
+
     const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
-    expect(text).toContain('123');
+    for (const label of ['Overview', 'Website', 'YouTube', 'Instagram', 'TikTok']) {
+      expect(text).toContain(label);
+    }
   });
 
-  it('shows an unavailable banner when a health source is down', () => {
+  it('lazy-loads a channel tab: no channel request before activation, exactly one after', () => {
     const fixture = TestBed.createComponent(AnalyticsComponent);
     fixture.detectChanges();
-
-    httpMock.expectOne('/api/analytics/website?period=30d').flush(stub);
-    const health = httpMock.match('/api/analytics/health');
-    health.forEach(r => r.flush({ ga4: false, searchConsole: true }));
-
+    httpMock.expectOne('/api/analytics/overview?period=30d').flush(overviewStub);
     fixture.detectChanges();
-    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
-    expect(text).toContain('unavailable');
+
+    // Before activating YouTube: no channel request exists.
+    expect(httpMock.match('/api/analytics/channel/youtube?period=30d').length).toBe(0);
+
+    // Activate the YouTube tab through the rendered p-tabs DOM — this exercises the
+    // (valueChange) wiring, not just the handler method.
+    const el = fixture.nativeElement as HTMLElement;
+    const tabs = Array.from(el.querySelectorAll('[role="tab"]')) as HTMLElement[];
+    const youtubeTab = tabs.find(t => (t.textContent ?? '').trim() === 'YouTube');
+    expect(youtubeTab).withContext('YouTube tab element should render').toBeTruthy();
+    youtubeTab!.click();
+    fixture.detectChanges();
+
+    // Exactly one channel request now fires.
+    const reqs = httpMock.match('/api/analytics/channel/youtube?period=30d');
+    expect(reqs.length).toBe(1);
+    reqs[0].flush({ platform: 'YouTube', status: 'NotConnected', asOf: null, kpis: [], trends: [], recentPosts: [] });
+    fixture.detectChanges();
+    // NotConnected => no deep call; nothing else outstanding.
   });
 });

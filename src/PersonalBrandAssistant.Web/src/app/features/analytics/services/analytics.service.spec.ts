@@ -40,4 +40,25 @@ describe('AnalyticsService', () => {
     expect(req.request.method).toBe('GET');
     req.flush({ ga4: true, searchConsole: true });
   });
+
+  it('requests overview with the period param', () => {
+    service.getOverview('7d').subscribe();
+    const req = httpMock.expectOne('/api/analytics/overview?period=7d');
+    expect(req.request.method).toBe('GET');
+    req.flush({ totalAudience: 0, combinedKpis: [], channels: [] });
+  });
+
+  it('requests channel analytics for a platform with the period param', () => {
+    service.getChannel('youtube', '30d').subscribe();
+    const req = httpMock.expectOne('/api/analytics/channel/youtube?period=30d');
+    expect(req.request.method).toBe('GET');
+    req.flush({ platform: 'YouTube', status: 'Connected', asOf: null, kpis: [], trends: [], recentPosts: [] });
+  });
+
+  it('requests the YouTube deep path with the period param', () => {
+    service.getYouTubeDeep('90d').subscribe();
+    const req = httpMock.expectOne('/api/analytics/youtube/deep?period=90d');
+    expect(req.request.method).toBe('GET');
+    req.flush({ daySeries: [], trafficSources: [], geography: [], demographics: [] });
+  });
 });

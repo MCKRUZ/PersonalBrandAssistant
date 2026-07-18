@@ -213,6 +213,36 @@ Note: when `[platform]="youtube"`, the component fires TWO requests (channel + d
 
 Preserve the two existing Website assertions (active-users render + health-down banner) against whichever component now owns that markup, so the regression is real.
 
+## As-built notes (implemented 2026-07-17)
+
+Delivered on `v2-rebuild`. All 8 acceptance items met; **605 frontend tests green**, `ng build` clean.
+
+**Files created**
+- `models/channel-analytics.model.ts` — TS mirrors. `platform`/`status` are enum **string names**
+  (verified: global `JsonStringEnumConverter`). `YouTubeDeepAnalytics` mirrors the **real** DTO —
+  four `YouTubeMetricSeries[]` arrays (`daySeries`/`trafficSources`/`geography`/`demographics`,
+  each `{ metric, points: {day,value}[] }`), not the looser plan stub.
+- `website/website-analytics.component.ts` (+ spec) — verbatim move of the old Website markup.
+- `overview/overview.component.ts` (+ spec).
+- `channel/channel-analytics.component.ts` (+ spec) — generic per-platform view, YouTube deep panel inline.
+- **`shared/` (deviation from plan §12.1 file list — added during code-review DRY extraction):**
+  - `shared/period-selector.component.ts` — `<app-period-selector [period] (periodChange)>`.
+  - `shared/analytics-cards.styles.ts` — `ANALYTICS_CARD_STYLES` shared kpi/panel/table/skeleton CSS.
+  - `shared/analytics-shared.ts` — `PERIOD_OPTIONS`, `periodDisplayLabel()`, `CHART_PALETTE`.
+
+**Files modified**
+- `services/analytics.service.ts` (+ spec) — `getOverview`/`getChannel`/`getYouTubeDeep`.
+- `analytics.component.ts` (+ spec) — thin `p-tabs` shell; `visited`-set gates lazy child mount;
+  `onTabChange` guards unknown values via a `TAB_KEYS` allowlist.
+
+**Deviations / decisions from review**
+- Chart `[data]` is bound to **`computed()` arrays** (`channelViews`/`trendCharts`/`deepDayCharts`),
+  not per-CD method calls — avoids chart.js redraw thrash.
+- Deep breakdowns are **summed across the range** (`sumBreakdown`), and **all three** (incl. Geography)
+  render; empty ones hide.
+- Channel adds a **distinct error state with Retry** (`loadError` signal), separate from the empty state.
+- Enum type resolved to **string name** per the serialization note.
+
 ## Acceptance checklist
 
 - [ ] Website tab behavior byte-for-byte unchanged (existing two Website specs still green against the moved component).
