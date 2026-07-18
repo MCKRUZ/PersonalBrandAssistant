@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using PBA.Domain.Entities;
 using PBA.Domain.Enums;
 using Microsoft.Extensions.DependencyInjection;
+using Moq;
 using PBA.Infrastructure.Data;
 using Xunit;
 
@@ -35,6 +36,48 @@ public class OAuthEndpointsTests : IClassFixture<TestWebApplicationFactory>
     public async Task Authorize_UnsupportedPlatform_Returns400()
     {
         var response = await _client.GetAsync("/api/auth/Blog/authorize");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("YouTube")]
+    [InlineData("Instagram")]
+    [InlineData("TikTok")]
+    public async Task Authorize_YouTubeInstagramTikTok_Returns302(string platform)
+    {
+        var response = await _client.GetAsync($"/api/auth/{platform}/authorize");
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Authorize_WithPurposeAnalytics_PassesAnalyticsPurpose()
+    {
+        var response = await _client.GetAsync("/api/auth/TikTok/authorize?purpose=analytics");
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        // Only this test uses TikTok+analytics, so the verify is not coupled to other tests.
+        _factory.OAuthServiceMock.Verify(x => x.GetAuthorizationUrlAsync(
+            Platform.TikTok, CredentialPurpose.Analytics, It.IsAny<CancellationToken>()), Times.AtLeastOnce);
+    }
+
+    [Fact]
+    public async Task Authorize_InvalidPurpose_Returns400()
+    {
+        var response = await _client.GetAsync("/api/auth/YouTube/authorize?purpose=bogus");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("LinkedIn")]
+    [InlineData("Twitter")]
+    public async Task Authorize_AnalyticsPurposeForPublishingPlatform_Returns400(string platform)
+    {
+        // Analytics OAuth is only valid for the analytics platforms; allowing it for a publishing platform
+        // would let a read-only credential shadow the publishing one in Platform-only lookups.
+        var response = await _client.GetAsync($"/api/auth/{platform}/authorize?purpose=analytics");
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }

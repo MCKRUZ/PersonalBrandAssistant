@@ -7,7 +7,14 @@ namespace PBA.Api.Endpoints;
 
 public static class OAuthEndpoints
 {
-    private static readonly HashSet<Platform> OAuthPlatforms = [Platform.LinkedIn, Platform.Twitter];
+    private static readonly HashSet<Platform> OAuthPlatforms =
+        [Platform.LinkedIn, Platform.Twitter, Platform.YouTube, Platform.Instagram, Platform.TikTok];
+
+    // Analytics credentials are only meaningful for platforms with an analytics provider. Restricting the
+    // Analytics purpose to these keeps every publishing-side Platform-only credential lookup unambiguous
+    // (a publishing platform can only ever have a Publishing credential).
+    private static readonly HashSet<Platform> AnalyticsPlatforms =
+        [Platform.YouTube, Platform.Instagram, Platform.TikTok];
 
     public static void MapOAuthEndpoints(this IEndpointRouteBuilder app)
     {
@@ -15,6 +22,7 @@ public static class OAuthEndpoints
 
         group.MapGet("/{platform}/authorize", async (
             string platform,
+            string? purpose,
             IOAuthService oauthService,
             CancellationToken ct) =>
         {
@@ -24,7 +32,13 @@ public static class OAuthEndpoints
             if (!OAuthPlatforms.Contains(p))
                 return Results.BadRequest($"{p} does not support OAuth. Use credential storage instead.");
 
-            var authUrl = await oauthService.GetAuthorizationUrlAsync(p, ct);
+            if (!TryParsePurpose(purpose, out var credentialPurpose))
+                return Results.BadRequest($"Invalid purpose '{purpose}'. Use 'publishing' or 'analytics'.");
+
+            if (credentialPurpose == CredentialPurpose.Analytics && !AnalyticsPlatforms.Contains(p))
+                return Results.BadRequest($"{p} does not support analytics OAuth.");
+
+            var authUrl = await oauthService.GetAuthorizationUrlAsync(p, credentialPurpose, ct);
             return Results.Redirect(authUrl);
         });
 
@@ -100,5 +114,27 @@ public static class OAuthEndpoints
             await db.SaveChangesAsync(ct);
             return Results.Ok();
         });
+    }
+
+    // Absent/empty -> Publishing (the pre-analytics default). Only the literal "publishing"/"analytics"
+    // (any case) are accepted; anything else — including numeric strings — is rejected so a typo never
+    // silently stores a Publishing credential.
+    private static bool TryParsePurpose(string? purpose, out CredentialPurpose result)
+    {
+        result = CredentialPurpose.Publishing;
+        if (string.IsNullOrWhiteSpace(purpose))
+            return true;
+
+        switch (purpose.ToLowerInvariant())
+        {
+            case "publishing":
+                result = CredentialPurpose.Publishing;
+                return true;
+            case "analytics":
+                result = CredentialPurpose.Analytics;
+                return true;
+            default:
+                return false;
+        }
     }
 }

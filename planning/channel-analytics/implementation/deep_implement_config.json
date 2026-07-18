@@ -1,0 +1,29 @@
+{
+  "plugin_root": "C:\\Users\\kruz7\\.claude\\plugins\\cache\\piercelamb-plugins\\deep-implement\\0.2.0",
+  "sections_dir": "C:\\Users\\kruz7\\OneDrive\\Documents\\Code Repos\\MCKRUZ\\personal-brand-assistant\\planning\\channel-analytics\\sections",
+  "target_dir": "C:\\Users\\kruz7\\OneDrive\\Documents\\Code Repos\\MCKRUZ\\personal-brand-assistant",
+  "state_dir": "C:\\Users\\kruz7\\OneDrive\\Documents\\Code Repos\\MCKRUZ\\personal-brand-assistant\\planning\\channel-analytics\\implementation",
+  "git_root": "C:\\Users\\kruz7\\OneDrive\\Documents\\Code Repos\\MCKRUZ\\personal-brand-assistant",
+  "commit_style": "conventional",
+  "test_command": "uv run pytest",
+  "sections": [
+    "section-01-oauth-provider-refactor",
+    "section-02-domain-persistence",
+    "section-03-oauth-providers",
+    "section-04-analytics-services",
+    "section-05-snapshot-poller",
+    "section-06-read-api",
+    "section-07-frontend",
+    "section-08-console-runbook"
+  ],
+  "sections_state": {},
+  "pre_commit": {
+    "present": false,
+    "type": "none",
+    "config_file": null,
+    "native_hook": null,
+    "may_modify_files": false,
+    "detected_formatters": []
+  },
+  "created_at": "2026-07-17T18:39:53.480290+00:00"
+}

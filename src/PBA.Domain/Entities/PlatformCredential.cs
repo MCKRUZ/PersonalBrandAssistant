@@ -6,6 +6,10 @@ public class PlatformCredential
 {
     public Guid Id { get; init; } = Guid.NewGuid();
     public Platform Platform { get; init; }
+
+    // Publishing (default, preserves the meaning of every existing row) vs Analytics. Lets one active
+    // Publishing token and one active Analytics token coexist per platform.
+    public CredentialPurpose Purpose { get; init; } = CredentialPurpose.Publishing;
     public string EncryptedAccessToken { get; set; } = string.Empty;
     public string? EncryptedRefreshToken { get; set; }
     public DateTimeOffset? AccessTokenExpiresAt { get; set; }

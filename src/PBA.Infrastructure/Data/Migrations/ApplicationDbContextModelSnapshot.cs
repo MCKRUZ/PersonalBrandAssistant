@@ -176,6 +176,47 @@ namespace PBA.Infrastructure.Data.Migrations
                     b.ToTable("BrandRankingProfiles", (string)null);
                 });
 
+            modelBuilder.Entity("PBA.Domain.Entities.ChannelMetricSnapshot", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CapturedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Metrics")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<int>("Platform")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Scope")
+                        .HasColumnType("integer");
+
+                    b.Property<DateOnly>("SnapshotDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("VideoId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("VideoTitle")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Platform", "SnapshotDate");
+
+                    b.HasIndex("Platform", "SnapshotDate", "Scope", "VideoId")
+                        .IsUnique();
+
+                    b.ToTable("ChannelMetricSnapshots");
+                });
+
             modelBuilder.Entity("PBA.Domain.Entities.Content", b =>
                 {
                     b.Property<Guid>("Id")
@@ -640,6 +681,9 @@ namespace PBA.Infrastructure.Data.Migrations
                     b.Property<int>("Platform")
                         .HasColumnType("integer");
 
+                    b.Property<int>("Purpose")
+                        .HasColumnType("integer");
+
                     b.Property<DateTimeOffset?>("RefreshTokenExpiresAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -652,11 +696,11 @@ namespace PBA.Infrastructure.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Platform")
+                    b.HasIndex("Platform", "IsActive");
+
+                    b.HasIndex("Platform", "Purpose")
                         .IsUnique()
                         .HasFilter("\"IsActive\" = true");
-
-                    b.HasIndex("Platform", "IsActive");
 
                     b.ToTable("PlatformCredentials");
                 });

@@ -11,6 +11,7 @@ using PBA.Infrastructure.Data;
 using PBA.Infrastructure.Publishing;
 using PBA.Infrastructure.Seeding;
 using PBA.Infrastructure.Security;
+using PBA.Infrastructure.Security.OAuthProviders;
 using PBA.Infrastructure.Services;
 using PBA.Infrastructure.Transformers;
 using Npgsql;
@@ -92,9 +93,12 @@ public static class DependencyInjection
         services.AddScoped<PBA.Infrastructure.Services.Radar.IdeaEmbeddingService>();
         services.AddScoped<IDigestWriter, PBA.Infrastructure.Services.Radar.DigestWriter>();
 
+        services.Configure<ChannelAnalyticsOptions>(configuration.GetSection(ChannelAnalyticsOptions.SectionName));
+
         services.AddHostedService<PBA.Infrastructure.Services.Radar.IdeaScoringService>();
         services.AddHostedService<PBA.Infrastructure.Services.Radar.IdeaDedupService>();
         services.AddHostedService<PBA.Infrastructure.Services.Radar.DigestService>();
+        services.AddHostedService<PBA.Infrastructure.Services.Analytics.ChannelMetricPollingService>();
 
         // AI News Radar Phase 2: external delivery (email + Discord) + instant high-score alerts.
         services.Configure<DigestDeliveryOptions>(configuration.GetSection(DigestDeliveryOptions.SectionName));
@@ -123,6 +127,20 @@ public static class DependencyInjection
         services.AddSingleton<ISearchConsoleClient, PBA.Infrastructure.Services.Analytics.SearchConsoleClient>();
         services.AddScoped<IGoogleAnalyticsService, PBA.Infrastructure.Services.Analytics.GoogleAnalyticsService>();
 
+        // Channel analytics thin clients (SDK/HTTP seams) + keyed per-platform facades.
+        services.AddScoped<IYouTubeApiClient, PBA.Infrastructure.Services.Analytics.YouTubeApiClient>();
+        services.AddHttpClient<IInstagramGraphClient, PBA.Infrastructure.Services.Analytics.InstagramGraphClient>(
+            client => client.BaseAddress = new Uri("https://graph.instagram.com/"));
+        services.AddHttpClient<ITikTokDisplayClient, PBA.Infrastructure.Services.Analytics.TikTokDisplayClient>(
+            client => client.BaseAddress = new Uri("https://open.tiktokapis.com/"));
+
+        services.AddKeyedScoped<IChannelAnalyticsService,
+            PBA.Infrastructure.Services.Analytics.YouTubeAnalyticsService>(Platform.YouTube);
+        services.AddKeyedScoped<IChannelAnalyticsService,
+            PBA.Infrastructure.Services.Analytics.InstagramAnalyticsService>(Platform.Instagram);
+        services.AddKeyedScoped<IChannelAnalyticsService,
+            PBA.Infrastructure.Services.Analytics.TikTokAnalyticsService>(Platform.TikTok);
+
         return services;
     }
 
@@ -136,12 +154,25 @@ public static class DependencyInjection
         services.Configure<SubstackOptions>(configuration.GetSection(SubstackOptions.SectionName));
         services.Configure<LinkedInOptions>(configuration.GetSection(LinkedInOptions.SectionName));
         services.Configure<TwitterOptions>(configuration.GetSection(TwitterOptions.SectionName));
+        services.Configure<YouTubeOAuthOptions>(configuration.GetSection(YouTubeOAuthOptions.SectionName));
+        services.Configure<InstagramOAuthOptions>(configuration.GetSection(InstagramOAuthOptions.SectionName));
+        services.Configure<TikTokOAuthOptions>(configuration.GetSection(TikTokOAuthOptions.SectionName));
         services.Configure<TransformerOptions>(configuration.GetSection(TransformerOptions.SectionName));
         services.Configure<ComfyUiOptions>(configuration.GetSection(ComfyUiOptions.SectionName));
 
         // Security
         services.AddSingleton<ITokenEncryptor, TokenEncryptor>();
         services.AddScoped<IOAuthService, OAuthService>();
+
+        // On-demand token freshness for the live analytics read path.
+        services.AddScoped<IAnalyticsTokenProvider, AnalyticsTokenProvider>();
+
+        // Keyed OAuth providers (resolved by the OAuthService coordinator)
+        services.AddKeyedScoped<IOAuthProvider, LinkedInOAuthProvider>(Platform.LinkedIn);
+        services.AddKeyedScoped<IOAuthProvider, TwitterOAuthProvider>(Platform.Twitter);
+        services.AddKeyedScoped<IOAuthProvider, YouTubeOAuthProvider>(Platform.YouTube);
+        services.AddKeyedScoped<IOAuthProvider, InstagramOAuthProvider>(Platform.Instagram);
+        services.AddKeyedScoped<IOAuthProvider, TikTokOAuthProvider>(Platform.TikTok);
 
         // Content transformation
         services.AddScoped<IContentTransformer, ContentTransformer>();

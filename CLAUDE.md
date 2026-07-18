@@ -121,6 +121,10 @@ Discord bot token for the **system-ai** persona (the Dungeon Crawler Carl System
   > Enables continuation of long-running projects across multiple Claude sessions by maintaining human-readable status and next steps
 - **[integration]** Integrate FreshRSS for content aggregation
   > Enables RSS feed integration capabilities within the idea bank feature
+- **[security]** Use environment-variable-injected secrets for production Docker Compose (e.g., …
+  > Keeps credentials out of version control; enables safe prod deployment without repo changes
+- **[security]** Use keyed DI services (IServiceProvider.GetRequiredKeyedService) for platform-s…
+  > Allows runtime platform selection (YouTube, Instagram, TikTok) without switch statements or factory overhead; enforced by type safety
 
 ### Active Conflicts
 - [medium] personal-brand-assistant routes DraftContent to OpenRouter (default) but matthewkruczek-ai's APIM policy enforces Anthropic Claude v2 gating — if these projects share blog publishing infrastructure, the routing abstraction (ISidecarClient) must be extended to support separate Anthropic-gated and OpenRouter-gated backends.

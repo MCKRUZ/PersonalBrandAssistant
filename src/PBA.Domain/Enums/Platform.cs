@@ -8,5 +8,7 @@ public enum Platform
     Twitter = 3,
     Reddit = 4,
     YouTube = 5,
-    Medium = 6
+    Medium = 6,
+    Instagram = 7,
+    TikTok = 8
 }

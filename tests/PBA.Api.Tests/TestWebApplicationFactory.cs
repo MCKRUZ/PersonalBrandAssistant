@@ -14,6 +14,9 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>
 {
     private readonly string _dbName = "TestDb_" + Guid.NewGuid();
 
+    // Exposed so endpoint tests can verify what the OAuth endpoints pass to the service (e.g. the purpose).
+    public Mock<IOAuthService> OAuthServiceMock { get; } = new();
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.ConfigureServices(services =>
@@ -29,7 +32,9 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>
                     d.ServiceType.FullName?.Contains("Hangfire") == true ||
                     d.ImplementationType?.FullName?.Contains("Hangfire") == true ||
                     d.ImplementationFactory?.Method.DeclaringType?.FullName?.Contains("Hangfire") == true ||
-                    d.ImplementationType?.FullName?.Contains("ScheduledPublishReconciler") == true)
+                    d.ImplementationType?.FullName?.Contains("ScheduledPublishReconciler") == true ||
+                    // Poller must not start / hit external APIs during integration tests (M4 isolation).
+                    d.ImplementationType?.FullName?.Contains("ChannelMetricPollingService") == true)
                 .ToList();
 
             foreach (var d in descriptorsToRemove)
@@ -60,12 +65,11 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>
                 .ReturnsAsync((PBA.Domain.Entities.Content c, PBA.Domain.Enums.Platform _, CancellationToken _) => c.Body);
             services.AddSingleton<IContentTransformer>(transformerMock.Object);
 
-            var oauthMock = new Mock<IOAuthService>();
-            oauthMock.Setup(x => x.GetAuthorizationUrlAsync(It.IsAny<PBA.Domain.Enums.Platform>(), It.IsAny<CancellationToken>()))
+            OAuthServiceMock.Setup(x => x.GetAuthorizationUrlAsync(It.IsAny<PBA.Domain.Enums.Platform>(), It.IsAny<PBA.Domain.Enums.CredentialPurpose>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync("https://oauth.test/authorize?state=test");
-            oauthMock.Setup(x => x.ExchangeCodeAsync(It.IsAny<PBA.Domain.Enums.Platform>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            OAuthServiceMock.Setup(x => x.ExchangeCodeAsync(It.IsAny<PBA.Domain.Enums.Platform>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new PBA.Domain.Entities.PlatformCredential { Platform = PBA.Domain.Enums.Platform.LinkedIn, IsActive = true, EncryptedAccessToken = "encrypted" });
-            services.AddSingleton(oauthMock.Object);
+            services.AddSingleton(OAuthServiceMock.Object);
 
             var encryptorMock = new Mock<ITokenEncryptor>();
             encryptorMock.Setup(x => x.Encrypt(It.IsAny<string>())).Returns<string>(s => $"enc:{s}");
