@@ -62,6 +62,16 @@ Author `planning/channel-analytics/runbook.md` with these sections, each as an e
 6. **Verification** — the per-platform end-to-end checklist above.
 7. **Troubleshooting** — the common failure modes: Google refresh token dies in 7 days (consent screen still in Testing); TikTok stats null (scope not added / not re-authorized); Instagram insights empty (account not Business/Creator, or <100 followers for some metrics); token revoked → status shows Reconnect Required.
 
+## As-built note (implemented 2026-07-17)
+
+Delivered `planning/channel-analytics/runbook.md` with all seven subsections. All infra facts were
+**verified against the actual source** (not just the plan): callback `/api/auth/{platform}/callback`
++ `?purpose=analytics` (`OAuthEndpoints.cs`); secret keys `Publishing:{YouTube,Instagram,TikTok}:*`
+(`*OAuthOptions.cs`, incl. YouTube `ApiKey`); gates `ChannelAnalytics:{Platform}Enabled`
+(`ChannelAnalyticsOptions.cs`). Added the prod **env-var double-underscore form**
+(`Publishing__YouTube__ClientId`, `ChannelAnalytics__YouTubeEnabled`) since the Mac Mini runs via
+Docker-compose env. No code, no tests (documentation deliverable, per spec).
+
 ## Definition of done
 
 - `planning/channel-analytics/runbook.md` exists and covers all seven sections above with concrete, copy-followable steps.
