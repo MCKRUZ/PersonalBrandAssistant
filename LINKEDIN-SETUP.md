@@ -23,24 +23,28 @@ posting account.
   http://localhost:5001/api/auth/linkedin/callback
   ```
 
-## 2. Configuration (`.env` — git-ignored, never commit)
+## 2. Store secrets in the DevSecrets vault (NOT `.env`)
 
-Add to `personal-brand-assistant/.env`:
+Secrets live only in the Windows DevSecrets vault — never in `.env` or the repo. Store them once:
 
+```powershell
+Import-Module C:\Users\kruz7\.devsecrets\DevSecrets.psm1
+Set-DevSecret -Name LINKEDIN_CLIENT_ID     -Value '<client id>'
+Set-DevSecret -Name LINKEDIN_CLIENT_SECRET -Value '<client secret>'
+Set-DevSecret -Name EXTERNAL_API_KEY       -Value '<a long random string; guards the external publish route>'
 ```
-LINKEDIN_CLIENT_ID=<client id>
-LINKEDIN_CLIENT_SECRET=<client secret>
-LINKEDIN_REDIRECT_URI=http://localhost:5001/api/auth/linkedin/callback
-EXTERNAL_API_KEY=<a long random string; guards the external publish route>
-```
 
-`docker-compose*.yml` maps these to `Publishing__LinkedIn__{ClientId,ClientSecret,RedirectUri}`
-and sets `Publishing__LinkedIn__Enabled=true`, so a Docker run picks them up automatically.
+`docker-compose*.yml` maps `Publishing__LinkedIn__{ClientId,ClientSecret,RedirectUri}` from the
+environment and sets `Publishing__LinkedIn__Enabled=true`. `LINKEDIN_REDIRECT_URI` is a URL (not a
+secret) and is set by the launch script below.
 
 ## 3. Run + one-time consent
 
-```
-docker compose up -d          # from the PBA repo root
+`scripts/dev-up.ps1` pulls the secrets from the vault, injects them as env vars for the run
+(nothing persisted to disk), and starts the stack:
+
+```powershell
+pwsh scripts/dev-up.ps1
 ```
 
 Open <http://localhost:5001/api/auth/linkedin/authorize> in a browser and approve. PBA
