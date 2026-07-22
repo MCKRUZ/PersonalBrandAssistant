@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Mvc;
 using PBA.Api.Authentication;
 using PBA.Api.Extensions;
 using PBA.Application.Features.Analytics.Queries;
+using PBA.Application.Features.Content.Commands;
+using PBA.Application.Features.Content.Dtos;
 using PBA.Application.Features.Content.Queries;
 using PBA.Application.Features.Digests.Queries;
 using PBA.Application.Features.Feed.Queries;
@@ -15,8 +17,9 @@ namespace PBA.Api.Endpoints;
 /// <summary>
 /// Read-mostly API surface for trusted server-to-server consumers (project-avatar).
 /// Every route is guarded by <see cref="ApiKeyEndpointFilter"/>. Reads reuse the same
-/// MediatR queries as the internal UI endpoints; the single write injects an idea into
-/// the Idea Bank. Publishing and feed-mutation actions are intentionally not exposed here.
+/// MediatR queries as the internal UI endpoints; writes are bounded — inject an idea into
+/// the Idea Bank, and trigger publication of an already-approved content item to its
+/// target platform(s). Feed-mutation actions are intentionally not exposed here.
 /// </summary>
 public static class ExternalEndpoints
 {
@@ -113,6 +116,14 @@ public static class ExternalEndpoints
                 ? Results.Created($"/api/external/ideas/{result.Value}", new { id = result.Value })
                 : result.ToApiResult();
         });
+
+        // Trigger publication of an already-approved content item to its target platform(s)
+        // (e.g. LinkedIn). Reuses the same MediatR command as the internal UI publish route;
+        // the item must already be in Approved/Scheduled status. Ad-hoc raw-text posting is not
+        // exposed here by design — content is created and approved through the normal flow first.
+        group.MapPost("/content/{id:guid}/publish", async (
+            Guid id, PublishContentRequest? body, ISender sender, CancellationToken ct) =>
+            (await sender.Send(new PublishContent.Command(id, body?.TargetPlatforms), ct)).ToApiResult());
     }
 
     private static DigestKind ParseKind(string? kind) =>
