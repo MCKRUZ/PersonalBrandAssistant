@@ -30,12 +30,13 @@ public sealed class ContentPublisher(
             return;
         }
 
-        await PublishAsync(contentId, targetPlatforms: null, CancellationToken.None);
+        await PublishAsync(contentId, targetPlatforms: null, media: null, CancellationToken.None);
     }
 
     public async Task<PublishResult> PublishAsync(
         Guid contentId,
         IReadOnlyList<Platform>? targetPlatforms,
+        MediaAttachment? media,
         CancellationToken ct)
     {
         var content = await db.Contents.FindAsync([contentId], ct);
@@ -62,7 +63,7 @@ public sealed class ContentPublisher(
 
         if (platforms.Contains(primaryPlatform) && !publishedPrimary)
         {
-            primaryResult = await PublishToPlatformAsync(content, primaryPlatform, canonicalUrl: null, ct);
+            primaryResult = await PublishToPlatformAsync(content, primaryPlatform, canonicalUrl: null, media, ct);
 
             db.ContentPlatformPublishes.Add(new ContentPlatformPublish
             {
@@ -123,7 +124,7 @@ public sealed class ContentPublisher(
             {
                 try
                 {
-                    var result = await PublishToPlatformAsync(content, platform, primaryUrl, ct);
+                    var result = await PublishToPlatformAsync(content, platform, primaryUrl, media, ct);
                     return new PlatformPublishOutcome(platform, result.Success, result.PublishedUrl, result.ErrorMessage);
                 }
                 catch (Exception ex)
@@ -168,6 +169,7 @@ public sealed class ContentPublisher(
         Content content,
         Platform platform,
         string? canonicalUrl,
+        MediaAttachment? media,
         CancellationToken ct)
     {
         var connector = serviceProvider.GetKeyedService<IPlatformConnector>(platform);
@@ -184,7 +186,8 @@ public sealed class ContentPublisher(
             Tags: content.Tags.AsReadOnly(),
             CanonicalUrl: canonicalUrl,
             Mode: PublishMode.Publish,
-            ScheduledAt: content.ScheduledAt);
+            ScheduledAt: content.ScheduledAt,
+            Media: media);
 
         return await connector.PublishAsync(request, ct);
     }

@@ -155,7 +155,7 @@ public class ContentPublisherTests : IDisposable
         SetupConnectorFailure(_blogConnector, "git push failed");
 
         var publisher = CreatePublisher();
-        var result = await publisher.PublishAsync(content.Id, null, CancellationToken.None);
+        var result = await publisher.PublishAsync(content.Id, null, null, CancellationToken.None);
 
         Assert.False(result.PrimarySuccess);
         _mediumConnector.Verify(c => c.PublishAsync(It.IsAny<PlatformPublishRequest>(), It.IsAny<CancellationToken>()), Times.Never);
@@ -190,7 +190,7 @@ public class ContentPublisherTests : IDisposable
         SetupConnectorFailure(_mediumConnector, "Medium API error");
 
         var publisher = CreatePublisher();
-        var result = await publisher.PublishAsync(content.Id, null, CancellationToken.None);
+        var result = await publisher.PublishAsync(content.Id, null, null, CancellationToken.None);
 
         Assert.True(result.PrimarySuccess);
 
@@ -217,7 +217,7 @@ public class ContentPublisherTests : IDisposable
         SetupConnectorFailure(_mediumConnector);
 
         var publisher = CreatePublisher();
-        await publisher.PublishAsync(content.Id, null, CancellationToken.None);
+        await publisher.PublishAsync(content.Id, null, null, CancellationToken.None);
 
         var mediumRecord = await _dbContext.ContentPlatformPublishes
             .SingleAsync(p => p.ContentId == content.Id && p.Platform == Platform.Medium);
@@ -241,7 +241,7 @@ public class ContentPublisherTests : IDisposable
         await _dbContext.SaveChangesAsync();
 
         var publisher = CreatePublisher();
-        var result = await publisher.PublishAsync(content.Id, null, CancellationToken.None);
+        var result = await publisher.PublishAsync(content.Id, null, null, CancellationToken.None);
 
         _blogConnector.Verify(c => c.PublishAsync(It.IsAny<PlatformPublishRequest>(), It.IsAny<CancellationToken>()), Times.Never);
         var records = await _dbContext.ContentPlatformPublishes.Where(p => p.ContentId == content.Id).ToListAsync();
@@ -259,7 +259,7 @@ public class ContentPublisherTests : IDisposable
         SetupConnectorSuccess(_linkedInConnector, "https://linkedin.com/post/1", "li-1");
 
         var publisher = CreatePublisher();
-        await publisher.PublishAsync(content.Id, null, CancellationToken.None);
+        await publisher.PublishAsync(content.Id, null, null, CancellationToken.None);
 
         _blogConnector.Verify(c => c.PublishAsync(It.IsAny<PlatformPublishRequest>(), It.IsAny<CancellationToken>()), Times.Once);
         _linkedInConnector.Verify(c => c.PublishAsync(It.IsAny<PlatformPublishRequest>(), It.IsAny<CancellationToken>()), Times.Once);
@@ -275,7 +275,7 @@ public class ContentPublisherTests : IDisposable
         SetupConnectorSuccess(_blogConnector);
 
         var publisher = CreatePublisher();
-        await publisher.PublishAsync(content.Id, null, CancellationToken.None);
+        await publisher.PublishAsync(content.Id, null, null, CancellationToken.None);
 
         _blogConnector.Verify(c => c.PublishAsync(It.IsAny<PlatformPublishRequest>(), It.IsAny<CancellationToken>()), Times.Once);
         _mediumConnector.Verify(c => c.PublishAsync(It.IsAny<PlatformPublishRequest>(), It.IsAny<CancellationToken>()), Times.Never);
@@ -311,7 +311,7 @@ public class ContentPublisherTests : IDisposable
         SetupConnectorFailure(_twitterConnector, "Twitter error");
 
         var publisher = CreatePublisher();
-        var result = await publisher.PublishAsync(content.Id, null, CancellationToken.None);
+        var result = await publisher.PublishAsync(content.Id, null, null, CancellationToken.None);
 
         Assert.True(result.PrimarySuccess);
         Assert.Equal("https://matthewkruczek.ai/posts/test", result.PrimaryUrl);

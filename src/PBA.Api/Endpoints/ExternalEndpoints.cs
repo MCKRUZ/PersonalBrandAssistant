@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using PBA.Api.Authentication;
 using PBA.Api.Extensions;
+using PBA.Application.Common.Models;
 using PBA.Application.Features.Analytics.Queries;
 using PBA.Application.Features.Content.Commands;
 using PBA.Application.Features.Content.Dtos;
@@ -124,6 +125,45 @@ public static class ExternalEndpoints
         group.MapPost("/content/{id:guid}/publish", async (
             Guid id, PublishContentRequest? body, ISender sender, CancellationToken ct) =>
             (await sender.Send(new PublishContent.Command(id, body?.TargetPlatforms), ct)).ToApiResult());
+
+        // Publish an approved content item WITH a native media attachment (multipart upload) —
+        // an MP4/MOV video or a PNG/JPEG/GIF image. Only LinkedIn currently consumes the media
+        // (it streams video to the Videos API / image to the Images API and attaches the resulting
+        // URN); other target platforms ignore it and post text as usual. `title` becomes the video
+        // title or image alt-text. `platforms` is an optional comma-separated list (e.g. "LinkedIn");
+        // omit to use the content's own target platforms. Note: the default request-body limit
+        // (~30 MB) caps the file size — raise Kestrel's limit if larger media is ever needed.
+        group.MapPost("/content/{id:guid}/publish-media", async (
+            Guid id, IFormFile file, [FromForm] string? title, [FromForm] string? platforms,
+            ISender sender, CancellationToken ct) =>
+        {
+            if (file.Length == 0)
+                return Results.BadRequest(new { error = "Media file is empty." });
+
+            using var stream = new MemoryStream();
+            await file.CopyToAsync(stream, ct);
+            var media = new MediaAttachment(stream.ToArray(), file.FileName, file.ContentType, title);
+
+            var command = new PublishContent.Command(id, ParsePlatformsCsv(platforms), media);
+            return (await sender.Send(command, ct)).ToApiResult();
+        }).DisableAntiforgery();
+    }
+
+    // Parse an optional comma-separated platform list (e.g. "LinkedIn,Twitter") into enum values.
+    // Unknown names are skipped; an empty/absent value yields null (fall back to content defaults).
+    private static IReadOnlyList<Platform>? ParsePlatformsCsv(string? csv)
+    {
+        if (string.IsNullOrWhiteSpace(csv))
+            return null;
+
+        var platforms = csv
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(name => Enum.TryParse<Platform>(name, ignoreCase: true, out var p) ? (Platform?)p : null)
+            .Where(p => p is not null)
+            .Select(p => p!.Value)
+            .ToList();
+
+        return platforms.Count > 0 ? platforms : null;
     }
 
     private static DigestKind ParseKind(string? kind) =>

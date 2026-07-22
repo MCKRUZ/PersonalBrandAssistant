@@ -25,6 +25,7 @@ public class LinkedInConnectorTests : IDisposable
     private readonly Mock<IOAuthService> _oauthService = new();
     private readonly Mock<HttpMessageHandler> _httpHandler = new();
     private readonly HttpClient _httpClient;
+    private readonly Mock<IHttpClientFactory> _httpClientFactory = new();
     private readonly Mock<ILogger<LinkedInConnector>> _logger = new();
 
     private readonly LinkedInOptions _linkedInOptions = new()
@@ -51,6 +52,11 @@ public class LinkedInConnectorTests : IDisposable
         };
         _httpClient.DefaultRequestHeaders.Accept.Add(
             new MediaTypeWithQualityHeaderValue("application/json"));
+
+        // The connector asks the factory for a bare client to PUT the pre-signed video parts;
+        // route it through the same mock handler so the upload PUTs are intercepted too.
+        _httpClientFactory.Setup(f => f.CreateClient(It.IsAny<string>()))
+            .Returns(() => new HttpClient(_httpHandler.Object));
 
         SeedCredential(DateTimeOffset.UtcNow.AddDays(30));
     }
@@ -82,6 +88,7 @@ public class LinkedInConnectorTests : IDisposable
             _encryptor.Object,
             _oauthService.Object,
             optionsMonitor.Object,
+            _httpClientFactory.Object,
             _logger.Object);
     }
 
@@ -382,9 +389,11 @@ public class LinkedInConnectorTests : IDisposable
         Assert.Equal(3000, caps.MaxCharacters);
         Assert.False(caps.SupportsMarkdown);
         Assert.False(caps.SupportsHtml);
-        Assert.False(caps.SupportsImages);
+        Assert.True(caps.SupportsImages);
         Assert.False(caps.SupportsScheduling);
         Assert.False(caps.SupportsThreads);
+        Assert.Contains("image/png", caps.SupportedMediaTypes);
+        Assert.Contains("video/mp4", caps.SupportedMediaTypes);
     }
 
     [Theory]
@@ -401,6 +410,236 @@ public class LinkedInConnectorTests : IDisposable
         Assert.False(result.Success);
         Assert.Contains("does not support", result.ErrorMessage!);
     }
+
+    [Fact]
+    public async Task PublishAsync_WithVideo_UploadsAndAttachesVideoUrn()
+    {
+        const string videoUrn = "urn:li:video:C5505AQH-testvideo";
+        const string partEtag = "/ambry-video/signedId/AQJxWLYH-part0.bin";
+        string? finalizeBody = null;
+        string? postBody = null;
+
+        _httpHandler.Protected()
+            .Setup<Task<HttpResponseMessage>>("SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .Returns<HttpRequestMessage, CancellationToken>(async (req, _) =>
+            {
+                var path = req.RequestUri!.PathAndQuery;
+
+                // 1. person lookup
+                if (path == "/v2/userinfo")
+                    return Json(new { sub = "person123", name = "Test User" });
+
+                // 2. initializeUpload -> one pre-signed part covering the whole file
+                if (path == "/rest/videos?action=initializeUpload")
+                    return Json(new
+                    {
+                        value = new
+                        {
+                            uploadUrlsExpireAt = 1633234498985L,
+                            video = videoUrn,
+                            uploadInstructions = new[]
+                            {
+                                new { uploadUrl = "https://api.linkedin.com/dms-uploads/part0", firstByte = 0, lastByte = 9 }
+                            },
+                            uploadToken = ""
+                        }
+                    });
+
+                // 3. the pre-signed PUT for the bytes -> 200 with an ETag part id (no auth header)
+                if (req.Method == HttpMethod.Put)
+                {
+                    Assert.Null(req.Headers.Authorization);
+                    var putResponse = new HttpResponseMessage(HttpStatusCode.OK);
+                    // LinkedIn's part id is a path-form ETag that fails strict validation on Add,
+                    // but arrives fine as a received header — mimic that with TryAddWithoutValidation.
+                    putResponse.Headers.TryAddWithoutValidation("ETag", partEtag);
+                    return putResponse;
+                }
+
+                // 4. finalizeUpload
+                if (path == "/rest/videos?action=finalizeUpload")
+                {
+                    finalizeBody = await req.Content!.ReadAsStringAsync();
+                    return new HttpResponseMessage(HttpStatusCode.OK);
+                }
+
+                // 5. status poll -> AVAILABLE
+                if (path.StartsWith("/rest/videos/"))
+                    return Json(new { id = videoUrn, status = "AVAILABLE" });
+
+                // 6. the actual post
+                postBody = await req.Content!.ReadAsStringAsync();
+                var created = new HttpResponseMessage(HttpStatusCode.Created);
+                created.Headers.Add("x-restli-id", "urn:li:share:99999");
+                return created;
+            });
+
+        var connector = CreateConnector();
+        var media = new MediaAttachment(new byte[10], "harness_li_teaser.mp4", "video/mp4", "Harness teaser");
+        var request = new PlatformPublishRequest(
+            CreateContent(), "Post with a video.", [], null, PublishMode.Publish, null, media);
+
+        var result = await connector.PublishAsync(request, CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.Equal("urn:li:share:99999", result.PlatformPostId);
+
+        // Finalize carried the ETag part id back (quotes stripped).
+        Assert.NotNull(finalizeBody);
+        Assert.Contains(partEtag, finalizeBody);
+
+        // The post references the video URN and its title via content.media.
+        Assert.NotNull(postBody);
+        Assert.Contains($"\"id\":\"{videoUrn}\"", postBody);
+        Assert.Contains("Harness teaser", postBody);
+    }
+
+    [Fact]
+    public async Task PublishAsync_WithImage_UploadsAndAttachesImageUrn()
+    {
+        const string imageUrn = "urn:li:image:C4E10AQFtestimage";
+        var putHadAuth = false;
+        string? postBody = null;
+
+        _httpHandler.Protected()
+            .Setup<Task<HttpResponseMessage>>("SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .Returns<HttpRequestMessage, CancellationToken>(async (req, _) =>
+            {
+                var path = req.RequestUri!.PathAndQuery;
+
+                if (path == "/v2/userinfo")
+                    return Json(new { sub = "person123", name = "Test User" });
+
+                // initializeUpload -> single upload URL (no byte ranges, no token)
+                if (path == "/rest/images?action=initializeUpload")
+                    return Json(new
+                    {
+                        value = new
+                        {
+                            uploadUrlExpiresAt = 1650567510704L,
+                            uploadUrl = "https://api.linkedin.com/dms-uploads/image0",
+                            image = imageUrn
+                        }
+                    });
+
+                // the single image PUT — LinkedIn requires the bearer token here (unlike video)
+                if (req.Method == HttpMethod.Put)
+                {
+                    putHadAuth = req.Headers.Authorization is not null;
+                    return new HttpResponseMessage(HttpStatusCode.Created);
+                }
+
+                // status poll -> AVAILABLE (status under `value`)
+                if (path.StartsWith("/rest/images/"))
+                    return Json(new { value = new { status = "AVAILABLE" } });
+
+                postBody = await req.Content!.ReadAsStringAsync();
+                var created = new HttpResponseMessage(HttpStatusCode.Created);
+                created.Headers.Add("x-restli-id", "urn:li:share:77777");
+                return created;
+            });
+
+        var connector = CreateConnector();
+        var media = new MediaAttachment(new byte[64], "thumb.png", "image/png", "Harness thumbnail");
+        var request = new PlatformPublishRequest(
+            CreateContent(), "Post with an image.", [], null, PublishMode.Publish, null, media);
+
+        var result = await connector.PublishAsync(request, CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.True(putHadAuth); // image upload URL is token-gated
+        Assert.NotNull(postBody);
+        Assert.Contains($"\"id\":\"{imageUrn}\"", postBody);
+        Assert.Contains("altText", postBody);
+        Assert.Contains("Harness thumbnail", postBody);
+    }
+
+    [Fact]
+    public async Task PublishAsync_UnsupportedMediaType_ReturnsFailureWithoutPosting()
+    {
+        var posted = false;
+        _httpHandler.Protected()
+            .Setup<Task<HttpResponseMessage>>("SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .Returns<HttpRequestMessage, CancellationToken>((req, _) =>
+            {
+                if (req.RequestUri!.PathAndQuery == "/v2/userinfo")
+                    return Task.FromResult(Json(new { sub = "person123" }));
+                if (req.RequestUri.PathAndQuery == "/rest/posts")
+                    posted = true;
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.Created));
+            });
+
+        var connector = CreateConnector();
+        var media = new MediaAttachment(new byte[16], "notes.pdf", "application/pdf", null);
+        var request = new PlatformPublishRequest(
+            CreateContent(), "Post with a PDF.", [], null, PublishMode.Publish, null, media);
+
+        var result = await connector.PublishAsync(request, CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Contains("does not support this media type", result.ErrorMessage!);
+        Assert.False(posted); // must not silently post text and drop the attachment
+    }
+
+    [Fact]
+    public async Task PublishAsync_VideoProcessingFails_ReturnsFailure()
+    {
+        _httpHandler.Protected()
+            .Setup<Task<HttpResponseMessage>>("SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .Returns<HttpRequestMessage, CancellationToken>((req, _) =>
+            {
+                var path = req.RequestUri!.PathAndQuery;
+                if (path == "/v2/userinfo")
+                    return Task.FromResult(Json(new { sub = "person123" }));
+                if (path == "/rest/videos?action=initializeUpload")
+                    return Task.FromResult(Json(new
+                    {
+                        value = new
+                        {
+                            video = "urn:li:video:fail",
+                            uploadInstructions = new[]
+                            {
+                                new { uploadUrl = "https://api.linkedin.com/dms-uploads/part0", firstByte = 0, lastByte = 9 }
+                            },
+                            uploadToken = ""
+                        }
+                    }));
+                if (req.Method == HttpMethod.Put)
+                {
+                    var put = new HttpResponseMessage(HttpStatusCode.OK);
+                    put.Headers.TryAddWithoutValidation("ETag", "etag0");
+                    return Task.FromResult(put);
+                }
+                if (path == "/rest/videos?action=finalizeUpload")
+                    return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK));
+                // status poll -> processing failed (must not proceed to a post)
+                return Task.FromResult(Json(new { status = "PROCESSING_FAILED" }));
+            });
+
+        var connector = CreateConnector();
+        var media = new MediaAttachment(new byte[10], "clip.mp4", "video/mp4", null);
+        var request = new PlatformPublishRequest(
+            CreateContent(), "Post with a video.", [], null, PublishMode.Publish, null, media);
+
+        var result = await connector.PublishAsync(request, CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Contains("video upload failed", result.ErrorMessage!, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static HttpResponseMessage Json(object payload) => new(HttpStatusCode.OK)
+    {
+        Content = new StringContent(
+            JsonSerializer.Serialize(payload), System.Text.Encoding.UTF8, "application/json")
+    };
 
     public void Dispose()
     {

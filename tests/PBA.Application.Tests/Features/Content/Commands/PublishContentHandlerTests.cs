@@ -19,14 +19,14 @@ public class PublishContentHandlerTests
         var contentId = Guid.NewGuid();
         var platforms = new List<Platform> { Platform.Blog, Platform.Medium }.AsReadOnly();
         var publishResult = new PublishResult(true, "https://example.com/post", []);
-        _publisher.Setup(p => p.PublishAsync(contentId, platforms, It.IsAny<CancellationToken>()))
+        _publisher.Setup(p => p.PublishAsync(contentId, platforms, It.IsAny<MediaAttachment?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(publishResult);
 
         var handler = CreateHandler();
         var result = await handler.Handle(new PublishContent.Command(contentId, platforms), CancellationToken.None);
 
         Assert.True(result.IsSuccess);
-        _publisher.Verify(p => p.PublishAsync(contentId, platforms, It.IsAny<CancellationToken>()), Times.Once);
+        _publisher.Verify(p => p.PublishAsync(contentId, platforms, It.IsAny<MediaAttachment?>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -34,14 +34,14 @@ public class PublishContentHandlerTests
     {
         var contentId = Guid.NewGuid();
         var publishResult = new PublishResult(true, "https://example.com/post", []);
-        _publisher.Setup(p => p.PublishAsync(contentId, null, It.IsAny<CancellationToken>()))
+        _publisher.Setup(p => p.PublishAsync(contentId, null, It.IsAny<MediaAttachment?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(publishResult);
 
         var handler = CreateHandler();
         var result = await handler.Handle(new PublishContent.Command(contentId), CancellationToken.None);
 
         Assert.True(result.IsSuccess);
-        _publisher.Verify(p => p.PublishAsync(contentId, null, It.IsAny<CancellationToken>()), Times.Once);
+        _publisher.Verify(p => p.PublishAsync(contentId, null, It.IsAny<MediaAttachment?>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -49,7 +49,7 @@ public class PublishContentHandlerTests
     {
         var contentId = Guid.NewGuid();
         var publishResult = new PublishResult(false, null, []);
-        _publisher.Setup(p => p.PublishAsync(contentId, null, It.IsAny<CancellationToken>()))
+        _publisher.Setup(p => p.PublishAsync(contentId, null, It.IsAny<MediaAttachment?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(publishResult);
 
         var handler = CreateHandler();

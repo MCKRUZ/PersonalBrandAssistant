@@ -9,5 +9,6 @@ public record PlatformPublishRequest(
     IReadOnlyList<string> Tags,
     string? CanonicalUrl,
     PublishMode Mode,
-    DateTimeOffset? ScheduledAt
+    DateTimeOffset? ScheduledAt,
+    MediaAttachment? Media = null
 );

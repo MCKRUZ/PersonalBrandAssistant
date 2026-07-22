@@ -8,14 +8,18 @@ namespace PBA.Application.Features.Content.Commands;
 
 public static class PublishContent
 {
-    public record Command(Guid ContentId, IReadOnlyList<Platform>? TargetPlatforms = null) : IRequest<Result<PublishResult>>;
+    public record Command(
+        Guid ContentId,
+        IReadOnlyList<Platform>? TargetPlatforms = null,
+        MediaAttachment? Media = null) : IRequest<Result<PublishResult>>;
 
     internal sealed class Handler(
         IContentPublisher publisher) : IRequestHandler<Command, Result<PublishResult>>
     {
         public async Task<Result<PublishResult>> Handle(Command request, CancellationToken cancellationToken)
         {
-            var result = await publisher.PublishAsync(request.ContentId, request.TargetPlatforms, cancellationToken);
+            var result = await publisher.PublishAsync(
+                request.ContentId, request.TargetPlatforms, request.Media, cancellationToken);
 
             if (!result.PrimarySuccess)
                 return Result<PublishResult>.Fail("Primary platform publish failed");
