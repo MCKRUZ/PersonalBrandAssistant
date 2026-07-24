@@ -27,6 +27,15 @@ services:
       Publishing__LinkedIn__ClientId: ${LINKEDIN_CLIENT_ID:-}
       Publishing__LinkedIn__ClientSecret: ${LINKEDIN_CLIENT_SECRET:-}
       Publishing__LinkedIn__RedirectUri: ${LINKEDIN_REDIRECT_URI:-http://localhost:5001/api/auth/linkedin/callback}
+      # TikTok publishing via Buffer (transport) + Cloudflare R2 (media hosting). Buffer fetches the
+      # video from the bucket's public custom domain (media.matthewkruczek.ai), so both must be
+      # configured together.
+      Publishing__Buffer__Enabled: "true"
+      Publishing__Buffer__ApiKey: ${BUFFER_API_KEY:-}
+      Media__R2__Enabled: "true"
+      Media__R2__AccessKeyId: ${R2_ACCESS_KEY_ID:-}
+      Media__R2__SecretAccessKey: ${R2_SECRET_ACCESS_KEY:-}
+      Media__R2__Endpoint: https://122c54305bb75c93b4ad2eeb5e616d79.r2.cloudflarestorage.com
       # Channel analytics OAuth (binds *OAuthOptions "Publishing:{Platform}") + per-platform gates.
       Publishing__YouTube__ClientId: ${YOUTUBE_CLIENT_ID:-}
       Publishing__YouTube__ClientSecret: ${YOUTUBE_CLIENT_SECRET:-}

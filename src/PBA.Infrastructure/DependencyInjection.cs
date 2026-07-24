@@ -1,4 +1,5 @@
 using System.Net.Http.Headers;
+using Amazon.S3;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -8,6 +9,7 @@ using PBA.Domain.Enums;
 using PBA.Infrastructure.Configuration;
 using PBA.Infrastructure.Connectors;
 using PBA.Infrastructure.Data;
+using PBA.Infrastructure.Media;
 using PBA.Infrastructure.Publishing;
 using PBA.Infrastructure.Seeding;
 using PBA.Infrastructure.Security;
@@ -159,6 +161,8 @@ public static class DependencyInjection
         services.Configure<TikTokOAuthOptions>(configuration.GetSection(TikTokOAuthOptions.SectionName));
         services.Configure<TransformerOptions>(configuration.GetSection(TransformerOptions.SectionName));
         services.Configure<ComfyUiOptions>(configuration.GetSection(ComfyUiOptions.SectionName));
+        services.Configure<BufferOptions>(configuration.GetSection(BufferOptions.SectionName));
+        services.Configure<R2Options>(configuration.GetSection(R2Options.SectionName));
 
         // Security
         services.AddSingleton<ITokenEncryptor, TokenEncryptor>();
@@ -183,6 +187,7 @@ public static class DependencyInjection
         services.AddKeyedScoped<IPlatformConnector, LinkedInConnector>(Platform.LinkedIn);
         services.AddKeyedScoped<IPlatformConnector, TwitterConnector>(Platform.Twitter);
         services.AddKeyedScoped<IPlatformConnector, SubstackConnector>(Platform.Substack);
+        services.AddKeyedScoped<IPlatformConnector, BufferConnector>(Platform.TikTok);
 
         // Keyed formatters
         services.AddKeyedScoped<IPlatformFormatter, BlogFormatter>(Platform.Blog);
@@ -190,6 +195,25 @@ public static class DependencyInjection
         services.AddKeyedScoped<IPlatformFormatter, LinkedInFormatter>(Platform.LinkedIn);
         services.AddKeyedScoped<IPlatformFormatter, TwitterFormatter>(Platform.Twitter);
         services.AddKeyedScoped<IPlatformFormatter, SubstackFormatter>(Platform.Substack);
+        services.AddKeyedScoped<IPlatformFormatter, TikTokFormatter>(Platform.TikTok);
+
+        // TikTok-via-Buffer media hosting: videos are uploaded to R2 and served to Buffer from the
+        // bucket's public custom domain (Buffer fetches media by URL, never raw bytes, and HEAD-probes
+        // it first — so the URL is public and unsigned, not presigned).
+        services.AddSingleton<IAmazonS3>(sp =>
+        {
+            var r2 = sp.GetRequiredService<IOptionsMonitor<R2Options>>().CurrentValue;
+            var config = new AmazonS3Config
+            {
+                ServiceURL = r2.Endpoint,
+                ForcePathStyle = true,
+                // R2's canonical SigV4 region is "auto". Match the proven boto3 IG-lane config.
+                AuthenticationRegion = "auto"
+            };
+            return new AmazonS3Client(
+                new Amazon.Runtime.BasicAWSCredentials(r2.AccessKeyId, r2.SecretAccessKey), config);
+        });
+        services.AddScoped<IMediaHost, R2MediaHost>();
 
         // HttpClient factories
         services.AddHttpClient<MediumConnector>(client =>
@@ -223,6 +247,14 @@ public static class DependencyInjection
             client.DefaultRequestHeaders.Accept.Add(
                 new MediaTypeWithQualityHeaderValue("application/json"));
         });
+
+        services.AddHttpClient<BufferConnector>(client =>
+        {
+            client.BaseAddress = new Uri("https://api.buffer.com");
+            client.DefaultRequestHeaders.Accept.Add(
+                new MediaTypeWithQualityHeaderValue("application/json"));
+        })
+        .AddStandardResilienceHandler();
 
         // Hero image generation via self-hosted ComfyUI (BaseAddress is per-request from options)
         services.AddHttpClient<IHeroImageGenerator, ComfyUiHeroImageGenerator>();

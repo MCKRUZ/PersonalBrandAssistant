@@ -7,6 +7,9 @@
 #     Set-DevSecret -Name LINKEDIN_CLIENT_ID       # paste app client id
 #     Set-DevSecret -Name LINKEDIN_CLIENT_SECRET   # paste app client secret
 #     Set-DevSecret -Name EXTERNAL_API_KEY         # paste a long random string
+#     Set-DevSecret -Name BUFFER_API_KEY           # paste Buffer API key (TikTok-via-Buffer publishing)
+#     Set-DevSecret -Name R2_ACCESS_KEY_ID         # paste Cloudflare R2 access key id (media hosting)
+#     Set-DevSecret -Name R2_SECRET_ACCESS_KEY     # paste Cloudflare R2 secret access key
 #   And a 256-bit token-encryption key (base64 32 bytes) — generate + store in one go:
 #     $b=New-Object byte[] 32;[Security.Cryptography.RandomNumberGenerator]::Fill($b)
 #     Set-DevSecret -Name PBA_ENCRYPTION_KEY -Secret ([Convert]::ToBase64String($b))
@@ -16,7 +19,7 @@ $ErrorActionPreference = 'Stop'
 
 Import-Module C:\Users\kruz7\.devsecrets\DevSecrets.psm1
 
-foreach ($name in 'LINKEDIN_CLIENT_ID','LINKEDIN_CLIENT_SECRET','EXTERNAL_API_KEY') {
+foreach ($name in 'LINKEDIN_CLIENT_ID','LINKEDIN_CLIENT_SECRET','EXTERNAL_API_KEY','BUFFER_API_KEY','R2_ACCESS_KEY_ID','R2_SECRET_ACCESS_KEY') {
     $val = Get-DevSecret -Name $name
     if ([string]::IsNullOrWhiteSpace($val)) {
         throw "DevSecret '$name' is not set. Store it first (see header of this script)."
