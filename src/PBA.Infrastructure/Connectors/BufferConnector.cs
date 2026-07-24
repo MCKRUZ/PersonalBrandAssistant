@@ -7,6 +7,7 @@ using PBA.Application.Common.Interfaces;
 using PBA.Application.Common.Models;
 using PBA.Domain.Enums;
 using PBA.Infrastructure.Configuration;
+using PBA.Infrastructure.Media;
 
 namespace PBA.Infrastructure.Connectors;
 
@@ -26,7 +27,10 @@ public sealed class BufferConnector(
     // object must still exist then. The R2 bucket reaps objects on a lifecycle rule (~8 days); cap
     // scheduling below that so a post can never reference an already-expired object.
     private static readonly TimeSpan MaxScheduleWindow = TimeSpan.FromDays(7);
-    private const int ThumbnailOffsetMs = 0; // first frame
+
+    // Cover-frame offset used when the clip's duration can't be read from the MP4 container. 2s is
+    // past the black title-card these clips open on, so it beats a frame-0 (black) cover.
+    private const int FallbackCoverOffsetMs = 2000;
 
     private const string AccountQuery = "{ account { organizations { id name } } }";
     private const string CreatePostMutation =
@@ -141,13 +145,14 @@ public sealed class BufferConnector(
         PlatformPublishRequest request, string channelId, string mediaUrl, CancellationToken ct)
     {
         var scheduled = request.ScheduledAt is not null;
+        var thumbnailOffsetMs = ResolveCoverOffsetMs(request.Media?.Data);
 
         var videoAsset = new
         {
             video = new
             {
                 url = mediaUrl,
-                metadata = new { thumbnailOffset = ThumbnailOffsetMs }
+                metadata = new { thumbnailOffset = thumbnailOffsetMs }
             }
         };
 
@@ -189,6 +194,23 @@ public sealed class BufferConnector(
             : "Buffer createPost failed.";
         logger.LogError("Buffer createPost error: {Message}", message);
         return new PlatformPublishResult(false, null, null, message);
+    }
+
+    /// <summary>
+    /// Picks the TikTok cover-frame offset (ms). Reading duration from the MP4 and taking a mid-clip
+    /// frame avoids the black title-card that opens these clips — the frame TikTok/Buffer would grab
+    /// at offset 0. Falls back to a fixed non-zero offset when the duration can't be read.
+    /// </summary>
+    private int ResolveCoverOffsetMs(byte[]? videoData)
+    {
+        if (videoData is not null &&
+            Mp4Probe.TryGetDurationMs(videoData, out var durationMs) && durationMs > 0)
+        {
+            var fraction = Math.Clamp(options.CurrentValue.CoverFrameFraction, 0.0, 0.95);
+            return (int)(durationMs * fraction);
+        }
+
+        return FallbackCoverOffsetMs;
     }
 
     /// <summary>

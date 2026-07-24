@@ -66,6 +66,26 @@ public class BufferConnectorTests : IDisposable
     private static MediaAttachment VideoMedia() =>
         new(new byte[16], "clip.mp4", "video/mp4", "A clip");
 
+    // A minimal but valid MP4 (ftyp + moov>mvhd) reporting the given duration, so the connector can
+    // read it and compute a mid-clip cover offset.
+    private static MediaAttachment Mp4Media(int durationMs)
+    {
+        static byte[] Box(string type, byte[] payload)
+        {
+            var box = new byte[8 + payload.Length];
+            System.Buffers.Binary.BinaryPrimitives.WriteUInt32BigEndian(box.AsSpan(0, 4), (uint)box.Length);
+            for (var i = 0; i < 4; i++) box[4 + i] = (byte)type[i];
+            payload.CopyTo(box, 8);
+            return box;
+        }
+
+        var mvhdPayload = new byte[20];
+        System.Buffers.Binary.BinaryPrimitives.WriteUInt32BigEndian(mvhdPayload.AsSpan(12, 4), 1000); // timescale
+        System.Buffers.Binary.BinaryPrimitives.WriteUInt32BigEndian(mvhdPayload.AsSpan(16, 4), (uint)durationMs);
+        var moov = Box("moov", Box("mvhd", mvhdPayload));
+        return new MediaAttachment(moov, "clip.mp4", "video/mp4", "A clip");
+    }
+
     /// <summary>
     /// All Buffer operations POST to the same root endpoint, so branch on the GraphQL query text in
     /// the request body: an org lookup, a channels lookup, or the createPost mutation.
@@ -175,6 +195,38 @@ public class BufferConnectorTests : IDisposable
         Assert.Contains("customScheduled", _capturedCreateBody);
         Assert.Contains("\"dueAt\":\"2026-07-27T14:15:00Z\"", _capturedCreateBody);
         Assert.DoesNotContain("shareNow", _capturedCreateBody);
+    }
+
+    [Fact]
+    public async Task PublishAsync_Mp4Video_SetsMidClipCoverOffset()
+    {
+        SetupGraphQl();
+        var connector = CreateConnector();
+        var request = new PlatformPublishRequest(
+            CreateContent(), "Clip", [], null, PublishMode.Publish, null, Mp4Media(60_000));
+
+        var result = await connector.PublishAsync(request, CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.NotNull(_capturedCreateBody);
+        // 60s clip * default 0.5 fraction => 30000ms cover, never the black frame-0.
+        Assert.Contains("\"thumbnailOffset\":30000", _capturedCreateBody);
+    }
+
+    [Fact]
+    public async Task PublishAsync_UnreadableVideo_UsesNonZeroFallbackCoverOffset()
+    {
+        SetupGraphQl();
+        var connector = CreateConnector();
+        var request = new PlatformPublishRequest(
+            CreateContent(), "Clip", [], null, PublishMode.Publish, null, VideoMedia());
+
+        var result = await connector.PublishAsync(request, CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.NotNull(_capturedCreateBody);
+        Assert.Contains("\"thumbnailOffset\":2000", _capturedCreateBody);
+        Assert.DoesNotContain("\"thumbnailOffset\":0", _capturedCreateBody);
     }
 
     [Fact]
