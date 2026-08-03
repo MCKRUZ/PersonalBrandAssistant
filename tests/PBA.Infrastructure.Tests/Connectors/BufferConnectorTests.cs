@@ -319,6 +319,43 @@ public class BufferConnectorTests : IDisposable
         Assert.True(result);
     }
 
+    // A valid API key with no TikTok channel connected publishes nothing, so reporting "ready" on
+    // the key alone is a false green — callers schedule against it and find out at the slot.
+    [Fact]
+    public async Task ValidateCredentialsAsync_KeyValidButNoTikTokChannel_ReturnsFalse()
+    {
+        _httpHandler.Protected()
+            .Setup<Task<HttpResponseMessage>>("SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .Returns<HttpRequestMessage, CancellationToken>(async (req, _) =>
+            {
+                var body = await req.Content!.ReadAsStringAsync();
+                if (body.Contains("channels"))
+                    return Json(new
+                    {
+                        data = new
+                        {
+                            channels = new[] { new { id = "chan-fb", name = "FB Page", service = "facebook" } }
+                        }
+                    });
+
+                return Json(new
+                {
+                    data = new
+                    {
+                        account = new { organizations = new[] { new { id = "org-1", name = "Org" } } }
+                    }
+                });
+            });
+
+        var connector = CreateConnector();
+
+        var result = await connector.ValidateCredentialsAsync(CancellationToken.None);
+
+        Assert.False(result);
+    }
+
     [Fact]
     public async Task ValidateCredentialsAsync_HttpError_ReturnsFalse()
     {

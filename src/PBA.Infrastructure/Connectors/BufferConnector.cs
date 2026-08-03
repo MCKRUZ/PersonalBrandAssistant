@@ -83,12 +83,21 @@ public sealed class BufferConnector(
         }
     }
 
+    /// <summary>
+    /// Probes everything a publish needs short of actually posting: a valid API key, a resolvable
+    /// organization, AND a connected TikTok channel. Stopping at the key would report healthy while
+    /// a disconnected channel fails every post — the exact false-green that let the previous
+    /// direct-API TikTok lane sit broken while its own verify said it was fine.
+    /// </summary>
     public async Task<bool> ValidateCredentialsAsync(CancellationToken ct)
     {
         try
         {
-            var data = await SendGraphQlAsync(AccountQuery, null, ct);
-            return data is { } d && TryGetFirstOrganizationId(d, out _);
+            var organizationId = await ResolveOrganizationIdAsync(ct);
+            if (organizationId is null)
+                return false;
+
+            return await ResolveTikTokChannelIdAsync(organizationId, ct) is not null;
         }
         catch (Exception ex)
         {

@@ -187,7 +187,13 @@ public static class DependencyInjection
         services.AddKeyedScoped<IPlatformConnector, LinkedInConnector>(Platform.LinkedIn);
         services.AddKeyedScoped<IPlatformConnector, TwitterConnector>(Platform.Twitter);
         services.AddKeyedScoped<IPlatformConnector, SubstackConnector>(Platform.Substack);
-        services.AddKeyedScoped<IPlatformConnector, BufferConnector>(Platform.TikTok);
+        // Resolved through the typed-client factory, NOT as a plain keyed type. AddHttpClient<BufferConnector>
+        // below sets BaseAddress on the client it builds; a plain keyed registration constructs the
+        // connector straight from the container instead, handing it an unconfigured HttpClient — every
+        // Buffer call then throws "An invalid request URI was provided". That made TikTok publishing
+        // impossible through ContentPublisher while working fine from a hand-built connector.
+        services.AddKeyedScoped<IPlatformConnector>(Platform.TikTok,
+            (sp, _) => sp.GetRequiredService<BufferConnector>());
 
         // Keyed formatters
         services.AddKeyedScoped<IPlatformFormatter, BlogFormatter>(Platform.Blog);
@@ -251,10 +257,29 @@ public static class DependencyInjection
         services.AddHttpClient<BufferConnector>(client =>
         {
             client.BaseAddress = new Uri("https://api.buffer.com");
+            // Must exceed the resilience pipeline's total timeout below, or HttpClient cancels first.
+            client.Timeout = TimeSpan.FromMinutes(5);
             client.DefaultRequestHeaders.Accept.Add(
                 new MediaTypeWithQualityHeaderValue("application/json"));
         })
-        .AddStandardResilienceHandler();
+        .AddStandardResilienceHandler(o =>
+        {
+            // NEVER retry. createPost is not idempotent and Buffer has no request-dedup key, so a
+            // retried mutation posts again. The default handler retried a createPost that had in
+            // fact succeeded but answered slowly, and published the same clip to TikTok three times
+            // (2026-08-03). A duplicate public post is far worse than a failed one: the caller can
+            // retry a failure deliberately, but cannot un-publish.
+            // This also disables retries for the two read queries, which is an acceptable trade —
+            // they are cheap for the caller to repeat.
+            o.Retry.ShouldHandle = _ => ValueTask.FromResult(false);
+
+            // createPost carries a video asset and Buffer validates the media URL before accepting,
+            // so it routinely runs past the 30s default that caused the timeout in the first place.
+            o.AttemptTimeout.Timeout = TimeSpan.FromMinutes(2);
+            o.TotalRequestTimeout.Timeout = TimeSpan.FromMinutes(3);
+            // The handler requires SamplingDuration >= 2x AttemptTimeout.
+            o.CircuitBreaker.SamplingDuration = TimeSpan.FromMinutes(4);
+        });
 
         // Hero image generation via self-hosted ComfyUI (BaseAddress is per-request from options)
         services.AddHttpClient<IHeroImageGenerator, ComfyUiHeroImageGenerator>();
