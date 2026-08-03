@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using PBA.Api.Authentication;
 using PBA.Api.Extensions;
+using PBA.Application.Common.Interfaces;
 using PBA.Application.Common.Models;
 using PBA.Application.Features.Analytics.Queries;
 using PBA.Application.Features.Content.Commands;
@@ -127,12 +128,12 @@ public static class ExternalEndpoints
             (await sender.Send(new PublishContent.Command(id, body?.TargetPlatforms), ct)).ToApiResult());
 
         // Publish an approved content item WITH a native media attachment (multipart upload) —
-        // an MP4/MOV video or a PNG/JPEG/GIF image. Only LinkedIn currently consumes the media
-        // (it streams video to the Videos API / image to the Images API and attaches the resulting
-        // URN); other target platforms ignore it and post text as usual. `title` becomes the video
-        // title or image alt-text. `platforms` is an optional comma-separated list (e.g. "LinkedIn");
-        // omit to use the content's own target platforms. Note: the default request-body limit
-        // (~30 MB) caps the file size — raise Kestrel's limit if larger media is ever needed.
+        // an MP4/MOV video or a PNG/JPEG/GIF image. LinkedIn streams video to the Videos API /
+        // image to the Images API and attaches the resulting URN; TikTok (via Buffer) hosts the
+        // video on R2 and hands Buffer the public URL. Platforms whose connector ignores media
+        // post text as usual. `title` becomes the video title or image alt-text. `platforms` is
+        // an optional comma-separated list (e.g. "LinkedIn"); omit to use the content's own
+        // target platforms. The default ~30 MB request-body limit caps the file size here.
         group.MapPost("/content/{id:guid}/publish-media", async (
             Guid id, IFormFile file, [FromForm] string? title, [FromForm] string? platforms,
             ISender sender, CancellationToken ct) =>
@@ -147,7 +148,61 @@ public static class ExternalEndpoints
             var command = new PublishContent.Command(id, ParsePlatformsCsv(platforms), media);
             return (await sender.Send(command, ct)).ToApiResult();
         }).DisableAntiforgery();
+
+        // Publish a video clip authored OUTSIDE PBA in one call — ai-video-producer renders the
+        // clip, owns the caption, and has already reviewed both. Creates the Content record,
+        // walks it to Approved, and publishes it with the video attached; defaults to TikTok
+        // (Buffer → R2). The caption is posted verbatim: the record is created with no tags, so
+        // TikTokFormatter has nothing to append.
+        //
+        // Deliberately narrower than general content creation, which stays closed on this surface
+        // — this accepts a finished clip, not an idea to be drafted. Larger body limit than
+        // publish-media because rendered clips routinely exceed the 30 MB default.
+        group.MapPost("/social-clip/publish", async (
+            IFormFile file, [FromForm] string caption, [FromForm] string? title,
+            [FromForm] string? platforms, ISender sender, CancellationToken ct) =>
+        {
+            if (file.Length == 0)
+                return Results.BadRequest(new { error = "Clip file is empty." });
+
+            using var stream = new MemoryStream();
+            await file.CopyToAsync(stream, ct);
+            var media = new MediaAttachment(stream.ToArray(), file.FileName, file.ContentType, title);
+
+            var command = new PublishSocialClip.Command(
+                title ?? string.Empty, caption, media, ParsePlatformsCsv(platforms));
+            return (await sender.Send(command, ct)).ToApiResult();
+        })
+        .DisableAntiforgery()
+        .WithMetadata(new RequestSizeLimitAttribute(MaxClipBytes));
+
+        // Readiness probe for a publishing lane, for callers that schedule posts and need to know
+        // BEFORE the slot arrives whether the lane can actually deliver. Runs the connector's own
+        // credential check — for TikTok that means a live Buffer key AND a connected channel, not
+        // merely a configured-looking credential row.
+        group.MapGet("/platforms/{platform}/validate", async (
+            string platform, IServiceProvider sp, CancellationToken ct) =>
+        {
+            if (!Enum.TryParse<Platform>(platform, ignoreCase: true, out var parsed))
+                return Results.BadRequest(new { error = $"Unknown platform '{platform}'." });
+
+            var connector = sp.GetKeyedService<IPlatformConnector>(parsed);
+            if (connector is null)
+                return Results.Ok(new { platform = parsed.ToString(), ready = false, reason = "No connector registered." });
+
+            var ready = await connector.ValidateCredentialsAsync(ct);
+            return Results.Ok(new
+            {
+                platform = parsed.ToString(),
+                ready,
+                reason = ready ? null : "Connector credential validation failed — see API logs."
+            });
+        });
     }
+
+    // Rendered social clips run well past the 30 MB minimal-API default; 100 MB covers a
+    // three-minute 1080p vertical cut with room to spare.
+    private const long MaxClipBytes = 100L * 1024 * 1024;
 
     // Parse an optional comma-separated platform list (e.g. "LinkedIn,Twitter") into enum values.
     // Unknown names are skipped; an empty/absent value yields null (fall back to content defaults).
