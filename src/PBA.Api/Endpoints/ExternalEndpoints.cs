@@ -1,3 +1,4 @@
+using System.Globalization;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using PBA.Api.Authentication;
@@ -158,19 +159,37 @@ public static class ExternalEndpoints
         // Deliberately narrower than general content creation, which stays closed on this surface
         // — this accepts a finished clip, not an idea to be drafted. Larger body limit than
         // publish-media because rendered clips routinely exceed the 30 MB default.
+        //
+        // `scheduledAt` (optional, ISO-8601 WITH an offset, e.g. 2026-08-07T10:15:00-04:00) hands
+        // the clip over to be posted later BY THE PLATFORM. For TikTok, Buffer holds and fires it,
+        // so the caller does not need a machine awake at the slot — that is the whole reason this
+        // field exists. Omit it to post immediately. A slot already in the past posts immediately.
         group.MapPost("/social-clip/publish", async (
             IFormFile file, [FromForm] string caption, [FromForm] string? title,
-            [FromForm] string? platforms, ISender sender, CancellationToken ct) =>
+            [FromForm] string? platforms, [FromForm] string? scheduledAt,
+            ISender sender, CancellationToken ct) =>
         {
             if (file.Length == 0)
                 return Results.BadRequest(new { error = "Clip file is empty." });
+
+            DateTimeOffset? when = null;
+            if (!string.IsNullOrWhiteSpace(scheduledAt))
+            {
+                if (!TryParseOffsetAwareTimestamp(scheduledAt, out var parsed))
+                    return Results.BadRequest(new
+                    {
+                        error = $"scheduledAt '{scheduledAt}' is not a valid ISO-8601 timestamp " +
+                                "with a UTC offset. Example: 2026-08-07T10:15:00-04:00."
+                    });
+                when = parsed;
+            }
 
             using var stream = new MemoryStream();
             await file.CopyToAsync(stream, ct);
             var media = new MediaAttachment(stream.ToArray(), file.FileName, file.ContentType, title);
 
             var command = new PublishSocialClip.Command(
-                title ?? string.Empty, caption, media, ParsePlatformsCsv(platforms));
+                title ?? string.Empty, caption, media, ParsePlatformsCsv(platforms), when);
             return (await sender.Send(command, ct)).ToApiResult();
         })
         .DisableAntiforgery()
@@ -203,6 +222,31 @@ public static class ExternalEndpoints
     // Rendered social clips run well past the 30 MB minimal-API default; 100 MB covers a
     // three-minute 1080p vertical cut with room to spare.
     private const long MaxClipBytes = 100L * 1024 * 1024;
+
+    /// <summary>
+    /// Parses a timestamp that MUST carry an explicit UTC offset (or a trailing Z).
+    ///
+    /// The offset is the whole point of the check. DateTimeOffset.TryParse happily accepts
+    /// "2026-08-07T10:15:00" and resolves it against the SERVER's zone — the API container runs
+    /// UTC while the campaign queues that feed this endpoint are written in America/New_York, so
+    /// an offset-less value would schedule every post four or five hours off with nothing logged
+    /// and no error to notice. Rejecting is the only safe reading: there is no correct zone to
+    /// guess, and the mistake only becomes visible once the post is already public.
+    /// </summary>
+    private static bool TryParseOffsetAwareTimestamp(string value, out DateTimeOffset parsed)
+    {
+        parsed = default;
+
+        // Kind survives parsing only when the text carried zone information; Unspecified means the
+        // caller left it out, whatever DateTimeOffset.TryParse would have invented for it.
+        if (!DateTime.TryParse(value, CultureInfo.InvariantCulture,
+                DateTimeStyles.RoundtripKind, out var probe) ||
+            probe.Kind == DateTimeKind.Unspecified)
+            return false;
+
+        return DateTimeOffset.TryParse(value, CultureInfo.InvariantCulture,
+            DateTimeStyles.RoundtripKind, out parsed);
+    }
 
     // Parse an optional comma-separated platform list (e.g. "LinkedIn,Twitter") into enum values.
     // Unknown names are skipped; an empty/absent value yields null (fall back to content defaults).

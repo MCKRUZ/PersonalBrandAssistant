@@ -21,11 +21,19 @@ namespace PBA.Application.Features.Content.Commands;
 /// </summary>
 public static class PublishSocialClip
 {
+    /// <summary>
+    /// <paramref name="ScheduledAt"/> asks the platform to hold the post until then, rather than
+    /// PBA holding it — the connector decides. For TikTok, BufferConnector turns it into
+    /// mode:customScheduled and Buffer fires the post itself, which is the point: no machine here
+    /// has to be awake at the slot. Connectors that cannot schedule ignore it and post now.
+    /// Past timestamps are dropped (see the handler), so a late caller still posts.
+    /// </summary>
     public record Command(
         string Title,
         string Caption,
         MediaAttachment Media,
-        IReadOnlyList<Platform>? TargetPlatforms = null) : IRequest<Result<PublishResult>>;
+        IReadOnlyList<Platform>? TargetPlatforms = null,
+        DateTimeOffset? ScheduledAt = null) : IRequest<Result<PublishResult>>;
 
     internal sealed class Handler(IAppDbContext db, IContentPublisher publisher)
         : IRequestHandler<Command, Result<PublishResult>>
@@ -65,6 +73,18 @@ public static class PublishSocialClip
             {
                 return Result<PublishResult>.Fail("Could not move the clip to Approved.");
             }
+
+            // AFTER the transitions, never in the initializer: entering Draft nulls ScheduledAt.
+            //
+            // The record deliberately stays Approved rather than moving to Scheduled. Scheduled
+            // means "PBA will publish this later", and ScheduledPublishReconciler sweeps exactly
+            // that set on startup — the platform would fire the post and PBA would fire it again.
+            // Here the hand-off has already happened and the platform owns the timing.
+            //
+            // A slot that has already passed becomes an immediate post, matching what a late drip
+            // run did before: a past dueAt is not something we have verified the platform accepts.
+            if (request.ScheduledAt is { } scheduledAt && scheduledAt > DateTimeOffset.UtcNow)
+                content.ScheduledAt = scheduledAt;
 
             db.Contents.Add(content);
             await db.SaveChangesAsync(ct);

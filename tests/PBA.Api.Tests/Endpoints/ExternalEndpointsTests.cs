@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
@@ -9,6 +10,7 @@ using PBA.Api.Endpoints;
 using PBA.Application.Common.Interfaces;
 using PBA.Application.Features.Analytics.Dtos;
 using PBA.Domain.Common;
+using PBA.Infrastructure.Configuration;
 using Xunit;
 
 namespace PBA.Api.Tests.Endpoints;
@@ -29,6 +31,13 @@ public class ExternalEndpointsTests : IClassFixture<TestWebApplicationFactory>
         var client = _factory.WithWebHostBuilder(builder =>
         {
             builder.UseSetting($"{ExternalApiOptions.SectionName}:ApiKey", ValidKey);
+            // The R2 media host builds an S3 client eagerly and throws without an endpoint, which
+            // fails any request whose route touches the publishing graph — before the handler runs,
+            // so it looks like the endpoint is broken. Inert placeholders: nothing here uploads.
+            builder.UseSetting($"{R2Options.SectionName}:Endpoint", "https://r2.invalid");
+            builder.UseSetting($"{R2Options.SectionName}:PublicBaseUrl", "https://media.invalid");
+            builder.UseSetting($"{R2Options.SectionName}:AccessKeyId", "test");
+            builder.UseSetting($"{R2Options.SectionName}:SecretAccessKey", "test");
             if (configure is not null)
                 builder.ConfigureTestServices(configure);
         }).CreateClient();
@@ -157,6 +166,64 @@ public class ExternalEndpointsTests : IClassFixture<TestWebApplicationFactory>
         var body = await response.Content.ReadFromJsonAsync<CreatedIdeaResponse>();
         Assert.NotNull(body);
         Assert.NotEqual(Guid.Empty, body!.Id);
+    }
+
+    // A scheduledAt that cannot be parsed must stop the request, not fall through to an immediate
+    // post. Silently posting now would put a clip on a public account days early, and the caller
+    // would see a 200 telling it everything went to plan.
+    [Theory]
+    [InlineData("not-a-date")]
+    [InlineData("08/07/2026 10:15")]
+    public async Task SocialClipPublish_UnparseableScheduledAt_Returns400AndNamesTheFormat(string bad)
+    {
+        var client = AuthorizedHost(ValidKey);
+        var response = await client.PostAsync("/api/external/social-clip/publish", ClipForm(bad));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("ISO-8601", await response.Content.ReadAsStringAsync());
+    }
+
+    // An offset-less timestamp is the dangerous case: it PARSES, but as SERVER-local time. The API
+    // container runs UTC while the campaign queues are written in America/New_York, so accepting
+    // one would shift every slot by four or five hours with nothing logged and no error to notice —
+    // the mistake only shows up once the clip is already public at the wrong hour.
+    [Fact]
+    public async Task SocialClipPublish_ScheduledAtWithoutOffset_IsRejected()
+    {
+        var client = AuthorizedHost(ValidKey);
+        var response = await client.PostAsync(
+            "/api/external/social-clip/publish", ClipForm("2026-08-07T10:15:00"));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    // The other half of the rule: the formats AIVP actually sends must get THROUGH the parse.
+    // Python's datetime.isoformat() emits "+00:00"; the campaign queues carry "-04:00". A check
+    // strict enough to reject these would take the whole TikTok lane down.
+    [Theory]
+    [InlineData("2026-08-07T10:15:00-04:00")]
+    [InlineData("2026-08-07T14:15:00+00:00")]
+    [InlineData("2026-08-07T14:15:00Z")]
+    public async Task SocialClipPublish_ValidOffsetTimestamp_IsAcceptedByTheParse(string good)
+    {
+        var client = AuthorizedHost(ValidKey);
+        var response = await client.PostAsync("/api/external/social-clip/publish", ClipForm(good));
+
+        // Publishing itself fails here (no Buffer channel in a test host) — the assertion is that
+        // the request got PAST the parse, which a 400 would mean it had not.
+        Assert.NotEqual(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    private static MultipartFormDataContent ClipForm(string scheduledAt)
+    {
+        var file = new ByteArrayContent([0x00, 0x01, 0x02]);
+        file.Headers.ContentType = new MediaTypeHeaderValue("video/mp4");
+        return new MultipartFormDataContent
+        {
+            { file, "file", "clip.mp4" },
+            { new StringContent("caption"), "caption" },
+            { new StringContent(scheduledAt), "scheduledAt" }
+        };
     }
 
     private sealed record CreatedIdeaResponse(Guid Id);

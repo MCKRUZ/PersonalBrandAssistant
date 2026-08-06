@@ -99,6 +99,67 @@ public class PublishSocialClipHandlerTests
         Assert.Equal(Platform.LinkedIn, stored.PrimaryPlatform);
     }
 
+    // ContentPublisher reads ScheduledAt off the Content record to build PlatformPublishRequest,
+    // and BufferConnector turns that into mode:customScheduled + dueAt. So the assignment here is
+    // the whole scheduling feature. It must land AFTER the state transitions: entering Draft nulls
+    // ScheduledAt (ContentStateMachine), so setting it on the initializer would silently vanish.
+    [Fact]
+    public async Task Handle_FutureScheduledAt_IsStoredSoTheConnectorSchedulesRatherThanPostsNow()
+    {
+        await using var context = CreateContext();
+        PublisherReturns(new PublishResult(true, null, []));
+        var when = DateTimeOffset.UtcNow.AddDays(2);
+
+        var handler = new PublishSocialClip.Handler(context, _publisher.Object);
+        var result = await handler.Handle(
+            new PublishSocialClip.Command("Part 6", "caption", Clip(), ScheduledAt: when),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        var stored = await context.Contents.SingleAsync();
+        Assert.Equal(when, stored.ScheduledAt);
+    }
+
+    // Buffer holds the post and fires it itself, so PBA has already done its job at hand-off time.
+    // If the record were left Scheduled, ScheduledPublishReconciler would sweep it once the time
+    // passed and publish it a SECOND time — the exact duplicate-post failure that hit TikTok on
+    // 2026-08-03, which cannot be undone because Buffer has no dedup key.
+    [Fact]
+    public async Task Handle_ScheduledClip_StaysApprovedSoTheReconcilerCannotRepublishIt()
+    {
+        await using var context = CreateContext();
+        PublisherReturns(new PublishResult(true, null, []));
+
+        var handler = new PublishSocialClip.Handler(context, _publisher.Object);
+        await handler.Handle(
+            new PublishSocialClip.Command("Part 6", "caption", Clip(),
+                ScheduledAt: DateTimeOffset.UtcNow.AddDays(2)),
+            CancellationToken.None);
+
+        var stored = await context.Contents.SingleAsync();
+        Assert.NotEqual(ContentStatus.Scheduled, stored.Status);
+        Assert.Equal(ContentStatus.Approved, stored.Status);
+    }
+
+    // A drip run that fires late hands over an item whose slot has already passed. Posting it now
+    // is what the old hourly runner did, and it is what the caller wants — a past dueAt would
+    // instead be handed to Buffer as a scheduled post, whose behaviour we have not verified.
+    [Fact]
+    public async Task Handle_PastScheduledAt_IsDroppedSoTheClipPostsImmediately()
+    {
+        await using var context = CreateContext();
+        PublisherReturns(new PublishResult(true, null, []));
+
+        var handler = new PublishSocialClip.Handler(context, _publisher.Object);
+        await handler.Handle(
+            new PublishSocialClip.Command("Part 6", "caption", Clip(),
+                ScheduledAt: DateTimeOffset.UtcNow.AddHours(-3)),
+            CancellationToken.None);
+
+        var stored = await context.Contents.SingleAsync();
+        Assert.Null(stored.ScheduledAt);
+    }
+
     // The state machine only permits Approve with a non-empty body, so an empty caption would
     // otherwise fail deep in the transition with an opaque message.
     [Fact]

@@ -65,6 +65,30 @@ public class ContentPublisherTests : IDisposable
 
     // --- Migrated existing tests ---
 
+    // The record's ScheduledAt is the ONLY channel by which a caller can ask a platform to hold a
+    // post — BufferConnector reads it off the request to choose customScheduled over shareNow.
+    // Dropping it here would silently turn every scheduled clip into an immediate post, and the
+    // symptom (a clip going out days early) would surface on the platform, not in any log.
+    [Fact]
+    public async Task PublishAsync_PassesTheRecordsScheduledAt_ToTheConnector()
+    {
+        var when = DateTimeOffset.UtcNow.AddDays(2);
+        var content = CreateScheduledContent();
+        content.ScheduledAt = when;
+        _dbContext.Contents.Add(content);
+        await _dbContext.SaveChangesAsync();
+
+        PlatformPublishRequest? captured = null;
+        _blogConnector.Setup(c => c.PublishAsync(It.IsAny<PlatformPublishRequest>(), It.IsAny<CancellationToken>()))
+            .Callback((PlatformPublishRequest r, CancellationToken _) => captured = r)
+            .ReturnsAsync(new PlatformPublishResult(true, "https://example.com/post", "post-1", null));
+
+        var publisher = CreatePublisher();
+        await publisher.PublishAsync(content.Id, null, null, CancellationToken.None);
+
+        Assert.Equal(when, captured!.ScheduledAt);
+    }
+
     [Fact]
     public async Task PublishAsync_PublishesContent_WhenStatusIsScheduled()
     {
