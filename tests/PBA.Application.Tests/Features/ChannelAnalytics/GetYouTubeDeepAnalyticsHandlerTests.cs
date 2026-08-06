@@ -11,10 +11,10 @@ public class GetYouTubeDeepAnalyticsHandlerTests
 {
     private static readonly DateOnly Day1 = new(2026, 6, 1);
 
-    private static Mock<IAnalyticsTokenProvider> FreshToken()
+    private static Mock<IPlatformTokenProvider> FreshToken()
     {
-        var m = new Mock<IAnalyticsTokenProvider>();
-        m.Setup(t => t.GetFreshAccessTokenAsync(Platform.YouTube, It.IsAny<CancellationToken>()))
+        var m = new Mock<IPlatformTokenProvider>();
+        m.Setup(t => t.GetFreshAccessTokenAsync(Platform.YouTube, CredentialPurpose.Analytics, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Result<string>.Success("fresh-token"));
         return m;
     }
@@ -35,8 +35,8 @@ public class GetYouTubeDeepAnalyticsHandlerTests
     [Fact]
     public async Task GetYouTubeDeepAnalytics_TokenUnavailable_ReturnsResultFail_WithoutCallingClient()
     {
-        var tokens = new Mock<IAnalyticsTokenProvider>();
-        tokens.Setup(t => t.GetFreshAccessTokenAsync(Platform.YouTube, It.IsAny<CancellationToken>()))
+        var tokens = new Mock<IPlatformTokenProvider>();
+        tokens.Setup(t => t.GetFreshAccessTokenAsync(Platform.YouTube, CredentialPurpose.Analytics, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Result<string>.Fail("YouTube analytics is not connected."));
         var youtube = new Mock<IYouTubeApiClient>();
 

@@ -20,13 +20,13 @@ public static class GetYouTubeDeepAnalytics
 
     public record Query(DateOnly From, DateOnly To) : IRequest<Result<YouTubeDeepAnalyticsDto>>;
 
-    public sealed class Handler(IYouTubeApiClient youtube, IAnalyticsTokenProvider tokens)
+    public sealed class Handler(IYouTubeApiClient youtube, IPlatformTokenProvider tokens)
         : IRequestHandler<Query, Result<YouTubeDeepAnalyticsDto>>
     {
         public async Task<Result<YouTubeDeepAnalyticsDto>> Handle(Query request, CancellationToken ct)
         {
             // Ensure a fresh token on demand — the stored one expires ~1h after the daily poll.
-            var tokenResult = await tokens.GetFreshAccessTokenAsync(Platform.YouTube, ct);
+            var tokenResult = await tokens.GetFreshAccessTokenAsync(Platform.YouTube, CredentialPurpose.Analytics, ct);
             if (!tokenResult.IsSuccess)
                 return Result<YouTubeDeepAnalyticsDto>.Fail(
                     tokenResult.Errors.FirstOrDefault() ?? "YouTube analytics is unavailable.");

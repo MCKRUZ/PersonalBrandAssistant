@@ -6,20 +6,26 @@ using PBA.Domain.Enums;
 
 namespace PBA.Infrastructure.Security;
 
-// On-demand token freshness for live analytics reads. Mirrors the poller's revoked-only-deactivation refresh
-// (calls the keyed provider directly, re-persists rotated tokens), but returns the decrypted token for a
-// caller that needs to hit the live API right now.
-public sealed class AnalyticsTokenProvider(
+// On-demand token freshness for callers that must hit a live API right now. Mirrors the poller's
+// revoked-only-deactivation refresh (calls the keyed provider directly, re-persists rotated tokens),
+// but returns the decrypted token to the caller.
+//
+// Purpose is a parameter, not a constant: Analytics and Publishing are separate credential rows with
+// different scopes. Instagram is the clearest case — its analytics token carries
+// instagram_business_manage_insights and physically cannot post, so a publisher that grabbed "the
+// Instagram token" would fail at the API with a permissions error rather than a missing-credential one.
+public sealed class PlatformTokenProvider(
     IServiceProvider serviceProvider,
     IAppDbContext db,
-    ITokenEncryptor encryptor) : IAnalyticsTokenProvider
+    ITokenEncryptor encryptor) : IPlatformTokenProvider
 {
-    public async Task<Result<string>> GetFreshAccessTokenAsync(Platform platform, CancellationToken ct)
+    public async Task<Result<string>> GetFreshAccessTokenAsync(
+        Platform platform, CredentialPurpose purpose, CancellationToken ct)
     {
         var credential = await db.PlatformCredentials.FirstOrDefaultAsync(
-            c => c.Platform == platform && c.Purpose == CredentialPurpose.Analytics && c.IsActive, ct);
+            c => c.Platform == platform && c.Purpose == purpose && c.IsActive, ct);
         if (credential is null)
-            return Result<string>.Fail($"{platform} analytics is not connected.");
+            return Result<string>.Fail($"{platform} {purpose} is not connected.");
 
         var provider = serviceProvider.GetRequiredKeyedService<IOAuthProvider>(platform);
         var now = DateTimeOffset.UtcNow;
@@ -34,11 +40,11 @@ public sealed class AnalyticsTokenProvider(
                     credential.IsActive = false;
                     credential.UpdatedAt = now;
                     await db.SaveChangesAsync(ct);
-                    return Result<string>.Fail($"{platform} analytics token revoked; reconnect required.");
+                    return Result<string>.Fail($"{platform} {purpose} token revoked; reconnect required.");
                 }
 
                 // Transient — leave active; the caller degrades for this request only.
-                return Result<string>.Fail($"{platform} analytics token refresh failed (transient).");
+                return Result<string>.Fail($"{platform} {purpose} token refresh failed (transient).");
             }
 
             var tokens = refresh.Tokens!;

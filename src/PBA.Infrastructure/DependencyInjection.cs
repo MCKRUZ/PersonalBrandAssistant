@@ -162,14 +162,17 @@ public static class DependencyInjection
         services.Configure<TransformerOptions>(configuration.GetSection(TransformerOptions.SectionName));
         services.Configure<ComfyUiOptions>(configuration.GetSection(ComfyUiOptions.SectionName));
         services.Configure<BufferOptions>(configuration.GetSection(BufferOptions.SectionName));
+        services.Configure<InstagramPublishingOptions>(
+            configuration.GetSection(InstagramPublishingOptions.SectionName));
         services.Configure<R2Options>(configuration.GetSection(R2Options.SectionName));
 
         // Security
         services.AddSingleton<ITokenEncryptor, TokenEncryptor>();
         services.AddScoped<IOAuthService, OAuthService>();
 
-        // On-demand token freshness for the live analytics read path.
-        services.AddScoped<IAnalyticsTokenProvider, AnalyticsTokenProvider>();
+        // On-demand token freshness for callers hitting a live API now — analytics reads and the
+        // Instagram publish path, which use separately-scoped credentials for the same platform.
+        services.AddScoped<IPlatformTokenProvider, PlatformTokenProvider>();
 
         // Keyed OAuth providers (resolved by the OAuthService coordinator)
         services.AddKeyedScoped<IOAuthProvider, LinkedInOAuthProvider>(Platform.LinkedIn);
@@ -194,6 +197,10 @@ public static class DependencyInjection
         // impossible through ContentPublisher while working fine from a hand-built connector.
         services.AddKeyedScoped<IPlatformConnector>(Platform.TikTok,
             (sp, _) => sp.GetRequiredService<BufferConnector>());
+        // Same typed-client caveat as Buffer above: resolved through the factory so the connector
+        // gets the HttpClient configured by AddHttpClient<InstagramConnector>, not a bare one.
+        services.AddKeyedScoped<IPlatformConnector>(Platform.Instagram,
+            (sp, _) => sp.GetRequiredService<InstagramConnector>());
 
         // Keyed formatters
         services.AddKeyedScoped<IPlatformFormatter, BlogFormatter>(Platform.Blog);
@@ -202,6 +209,7 @@ public static class DependencyInjection
         services.AddKeyedScoped<IPlatformFormatter, TwitterFormatter>(Platform.Twitter);
         services.AddKeyedScoped<IPlatformFormatter, SubstackFormatter>(Platform.Substack);
         services.AddKeyedScoped<IPlatformFormatter, TikTokFormatter>(Platform.TikTok);
+        services.AddKeyedScoped<IPlatformFormatter, InstagramFormatter>(Platform.Instagram);
 
         // TikTok-via-Buffer media hosting: videos are uploaded to R2 and served to Buffer from the
         // bucket's public custom domain (Buffer fetches media by URL, never raw bytes, and HEAD-probes
@@ -279,6 +287,29 @@ public static class DependencyInjection
             o.TotalRequestTimeout.Timeout = TimeSpan.FromMinutes(3);
             // The handler requires SamplingDuration >= 2x AttemptTimeout.
             o.CircuitBreaker.SamplingDuration = TimeSpan.FromMinutes(4);
+        });
+
+        services.AddHttpClient<InstagramConnector>(client =>
+        {
+            // No BaseAddress: every call is an absolute URL built from InstagramPublishingOptions.
+            // GraphBase, so the API version is configurable without a code change.
+            client.Timeout = TimeSpan.FromMinutes(2);
+        })
+        .AddStandardResilienceHandler(o =>
+        {
+            // NEVER retry, for the same reason as Buffer above. /media_publish is not idempotent and
+            // carries no dedup key: a retry after a slow-but-successful call publishes the Reel a
+            // second time, and a duplicate public post cannot be undone. The container polls are
+            // GETs and safe to repeat, but they are cheap to repeat deliberately — not worth
+            // enabling retries on the one call that must never repeat.
+            o.Retry.ShouldHandle = _ => ValueTask.FromResult(false);
+
+            // Meta fetches the video asynchronously, so no single call here waits on transcoding —
+            // the long wait is the poll loop, which is many short calls rather than one long one.
+            o.AttemptTimeout.Timeout = TimeSpan.FromSeconds(60);
+            o.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(90);
+            // The handler requires SamplingDuration >= 2x AttemptTimeout.
+            o.CircuitBreaker.SamplingDuration = TimeSpan.FromMinutes(2);
         });
 
         // Hero image generation via self-hosted ComfyUI (BaseAddress is per-request from options)
