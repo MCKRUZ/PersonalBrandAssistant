@@ -35,7 +35,12 @@ public static class PublishSocialClip
         IReadOnlyList<Platform>? TargetPlatforms = null,
         DateTimeOffset? ScheduledAt = null) : IRequest<Result<PublishResult>>;
 
-    internal sealed class Handler(IAppDbContext db, IContentPublisher publisher)
+    internal sealed class Handler(
+        IAppDbContext db,
+        IContentPublisher publisher,
+        IPlatformCapabilityReader capabilities,
+        IMediaHost mediaHost,
+        IContentScheduler scheduler)
         : IRequestHandler<Command, Result<PublishResult>>
     {
         public async Task<Result<PublishResult>> Handle(Command request, CancellationToken ct)
@@ -88,8 +93,43 @@ public static class PublishSocialClip
             // and REJECTS any non-zero offset outright, so a caller sending -04:00 — which every
             // America/New_York campaign queue does — fails the insert with a 500 that says nothing
             // about scheduling. The in-memory provider the tests use does not enforce this.
-            if (request.ScheduledAt is { } scheduledAt && scheduledAt > DateTimeOffset.UtcNow)
-                content.ScheduledAt = scheduledAt.ToUniversalTime();
+            var slot = request.ScheduledAt is { } at && at > DateTimeOffset.UtcNow
+                ? at.ToUniversalTime()
+                : (DateTimeOffset?)null;
+
+            if (slot is not null)
+                content.ScheduledAt = slot;
+
+            // Who holds the post until its slot depends on whether the platform CAN. Buffer holds a
+            // TikTok post itself, so PBA hands the clip over now and is done. Meta has no scheduling
+            // concept at all, so PBA must hold it — which also means holding the VIDEO, because the
+            // bytes arrive with this request and are gone by the time the slot comes round.
+            var platformHoldsIt = capabilities.SupportsScheduling(platforms[0]);
+
+            if (slot is not null && !platformHoldsIt)
+            {
+                var staged = await mediaHost.UploadAsync(
+                    request.Media.Data, request.Media.FileName, request.Media.ContentType, ct);
+                content.StagedMediaUrl = staged.Url;
+                content.StagedMediaKey = staged.Key;
+
+                try
+                {
+                    await machine.FireAsync(ContentTrigger.Schedule);
+                }
+                catch (InvalidOperationException)
+                {
+                    return Result<PublishResult>.Fail("Could not move the clip to Scheduled.");
+                }
+
+                db.Contents.Add(content);
+                await db.SaveChangesAsync(ct);
+
+                content.HangfireJobId = scheduler.SchedulePublish(content.Id, slot.Value);
+                await db.SaveChangesAsync(ct);
+
+                return Result<PublishResult>.Success(new PublishResult(true, null, []));
+            }
 
             db.Contents.Add(content);
             await db.SaveChangesAsync(ct);

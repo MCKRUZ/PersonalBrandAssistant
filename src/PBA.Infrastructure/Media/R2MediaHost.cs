@@ -20,7 +20,14 @@ namespace PBA.Infrastructure.Media;
 /// <see cref="DeleteAsync"/> stays on the interface for explicit future use but is never called on
 /// the publish path.
 /// </remarks>
-public sealed class R2MediaHost(IAmazonS3 s3, IOptionsMonitor<R2Options> options) : IMediaHost
+/// <remarks>
+/// The S3 client is taken lazily on purpose. AmazonS3Client validates its endpoint AT CONSTRUCTION
+/// and throws when none is configured, so an eager dependency means a missing R2 setting fails to
+/// build the whole publishing graph — including a blog or LinkedIn post that never touches a bucket.
+/// Deferring construction to first actual use keeps a media-hosting misconfiguration contained to
+/// the lanes that host media.
+/// </remarks>
+public sealed class R2MediaHost(Lazy<IAmazonS3> s3, IOptionsMonitor<R2Options> options) : IMediaHost
 {
     public async Task<HostedMedia> UploadAsync(
         byte[] data, string fileName, string contentType, CancellationToken ct)
@@ -30,7 +37,7 @@ public sealed class R2MediaHost(IAmazonS3 s3, IOptionsMonitor<R2Options> options
         var key = $"{opts.KeyPrefix}{Guid.NewGuid():N}{extension}";
 
         using var stream = new MemoryStream(data);
-        await s3.PutObjectAsync(new PutObjectRequest
+        await s3.Value.PutObjectAsync(new PutObjectRequest
         {
             BucketName = opts.Bucket,
             Key = key,
@@ -46,7 +53,7 @@ public sealed class R2MediaHost(IAmazonS3 s3, IOptionsMonitor<R2Options> options
     public async Task DeleteAsync(string key, CancellationToken ct)
     {
         var opts = options.CurrentValue;
-        await s3.DeleteObjectAsync(new DeleteObjectRequest
+        await s3.Value.DeleteObjectAsync(new DeleteObjectRequest
         {
             BucketName = opts.Bucket,
             Key = key

@@ -114,6 +114,7 @@ public static class DependencyInjection
         services.Configure<BlogConnectorOptions>(configuration.GetSection(BlogConnectorOptions.SectionName));
 
         services.AddScoped<IContentPublisher, ContentPublisher>();
+        services.AddScoped<IPlatformCapabilityReader, PlatformCapabilityReader>();
         services.AddScoped<IContentScheduler, HangfireContentScheduler>();
         services.AddHostedService<ScheduledPublishReconciler>();
 
@@ -214,6 +215,10 @@ public static class DependencyInjection
         // TikTok-via-Buffer media hosting: videos are uploaded to R2 and served to Buffer from the
         // bucket's public custom domain (Buffer fetches media by URL, never raw bytes, and HEAD-probes
         // it first — so the URL is public and unsigned, not presigned).
+        // Wrapped in Lazy so the client is built on first upload, not on first resolve. It validates
+        // its endpoint in the constructor, and R2MediaHost is now reachable from ContentPublisher —
+        // so an eager registration lets a missing bucket setting break every publish, blog included.
+        services.AddSingleton(sp => new Lazy<IAmazonS3>(() => sp.GetRequiredService<IAmazonS3>()));
         services.AddSingleton<IAmazonS3>(sp =>
         {
             var r2 = sp.GetRequiredService<IOptionsMonitor<R2Options>>().CurrentValue;

@@ -38,10 +38,15 @@ public sealed class InstagramConnector(
 
     public async Task<PlatformPublishResult> PublishAsync(PlatformPublishRequest request, CancellationToken ct)
     {
-        HostedMedia? hosted = null;
+        HostedMedia? staged = null;
         try
         {
-            if (request.Media is not { } media || !media.IsVideo)
+            // Either the bytes arrive with the request (publish now) or PBA staged them earlier and
+            // hands over the URL (the post was held until its slot, so the bytes are long gone).
+            var preStagedUrl = request.HostedMediaUrl;
+            var media = request.Media;
+
+            if (preStagedUrl is null && (media is null || !media.IsVideo))
                 return Fail("Instagram publishing via this lane requires a video attachment (mp4/mov).");
 
             if (request.TransformedContent.Length > MaxCaptionCharacters)
@@ -62,10 +67,23 @@ public sealed class InstagramConnector(
                             ?? "No usable Instagram publishing credential.");
 
             var config = options.CurrentValue;
-            hosted = await mediaHost.UploadAsync(media.Data, media.FileName, media.ContentType, ct);
+
+            // Stage only if nobody has. When PBA held the post it staged at ingest and owns cleanup,
+            // so re-uploading here would orphan an object and store the same clip twice.
+            string videoUrl;
+            if (preStagedUrl is not null)
+            {
+                videoUrl = preStagedUrl;
+            }
+            else
+            {
+                staged = await mediaHost.UploadAsync(
+                    media!.Data, media.FileName, media.ContentType, ct);
+                videoUrl = staged.Url;
+            }
 
             var containerId = await CreateReelContainerAsync(
-                config, token.Value!, hosted.Url, request.TransformedContent, media.Data, ct);
+                config, token.Value!, videoUrl, request.TransformedContent, media?.Data, ct);
             if (containerId.Error is not null)
                 return Fail(containerId.Error);
 
@@ -87,18 +105,21 @@ public sealed class InstagramConnector(
         }
         finally
         {
-            // Meta has copied the video by now. The staged object is dead weight, but failing to
-            // remove it must never turn a published Reel into a reported failure — the bucket has a
-            // lifecycle rule that reaps whatever is left behind.
-            if (hosted is not null)
+            // Meta has copied the video by now. Only clean up what THIS call staged — a pre-staged
+            // object belongs to whoever held the post and is removed there, since it may still be
+            // needed if this attempt failed and the publish is retried.
+            //
+            // Failing to unstage must never turn a published Reel into a reported failure; the
+            // bucket has a lifecycle rule that reaps whatever is left behind.
+            if (staged is not null)
             {
                 try
                 {
-                    await mediaHost.DeleteAsync(hosted.Key, ct);
+                    await mediaHost.DeleteAsync(staged.Key, ct);
                 }
                 catch (Exception ex)
                 {
-                    logger.LogWarning(ex, "Could not unstage {Key}; the lifecycle rule will reap it", hosted.Key);
+                    logger.LogWarning(ex, "Could not unstage {Key}; the lifecycle rule will reap it", staged.Key);
                 }
             }
         }
@@ -143,7 +164,7 @@ public sealed class InstagramConnector(
 
     private async Task<(string? Value, string? Error)> CreateReelContainerAsync(
         InstagramPublishingOptions config, string token, string videoUrl, string caption,
-        byte[] videoData, CancellationToken ct)
+        byte[]? videoData, CancellationToken ct)
     {
         var form = new Dictionary<string, string>
         {
@@ -266,11 +287,14 @@ public sealed class InstagramConnector(
 
     /// <summary>
     /// Picks the Reel cover offset (ms). Instagram would otherwise use frame 0, which on these clips
-    /// is the black title card — every cover would be a black square.
+    /// is the black title card — every cover would be a black square. Falls back to a fixed non-zero
+    /// offset when the duration can't be read, including when the bytes are no longer in hand
+    /// because the clip was staged days earlier.
     /// </summary>
-    private static int ResolveCoverOffsetMs(InstagramPublishingOptions config, byte[] videoData)
+    private static int ResolveCoverOffsetMs(InstagramPublishingOptions config, byte[]? videoData)
     {
-        if (Mp4Probe.TryGetDurationMs(videoData, out var durationMs) && durationMs > 0)
+        if (videoData is not null &&
+            Mp4Probe.TryGetDurationMs(videoData, out var durationMs) && durationMs > 0)
         {
             var fraction = Math.Clamp(config.CoverFrameFraction, 0.0, 0.95);
             return (int)(durationMs * fraction);

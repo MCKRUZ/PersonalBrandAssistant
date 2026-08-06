@@ -14,6 +14,31 @@ namespace PBA.Application.Tests.Features.Content.Commands;
 public class PublishSocialClipHandlerTests
 {
     private readonly Mock<IContentPublisher> _publisher = new();
+    private readonly Mock<IPlatformCapabilityReader> _capabilities = new();
+    private readonly Mock<IMediaHost> _mediaHost = new();
+    private readonly Mock<IContentScheduler> _scheduler = new();
+
+    public PublishSocialClipHandlerTests()
+    {
+        // Default to a platform that holds the post itself (TikTok via Buffer) — the original
+        // behaviour of this command, and what every test predating PBA-held scheduling assumes.
+        _capabilities.Setup(c => c.SupportsScheduling(It.IsAny<Platform>())).Returns(true);
+
+        _mediaHost.Setup(m => m.UploadAsync(
+                It.IsAny<byte[]>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new HostedMedia("https://media.matthewkruczek.ai/ig/x.mp4", "ig/x.mp4"));
+
+        _scheduler.Setup(s => s.SchedulePublish(It.IsAny<Guid>(), It.IsAny<DateTimeOffset>()))
+            .Returns("job-1");
+    }
+
+    private PublishSocialClip.Handler CreateHandler(ApplicationDbContext context) =>
+        new(context, _publisher.Object, _capabilities.Object, _mediaHost.Object, _scheduler.Object);
+
+    /// <summary>Makes the target platform one that cannot schedule — Instagram, where Meta has no
+    /// scheduling concept — so PBA has to hold the post and the media itself.</summary>
+    private void PlatformCannotSchedule() =>
+        _capabilities.Setup(c => c.SupportsScheduling(It.IsAny<Platform>())).Returns(false);
 
     private static ApplicationDbContext CreateContext()
     {
@@ -42,7 +67,7 @@ public class PublishSocialClipHandlerTests
         PublisherReturns(new PublishResult(true, "https://tiktok.com/@x/video/1", []));
         const string caption = "You'd never tell a new hire to \"go fix bugs\".\n\n#AI #softwareengineering";
 
-        var handler = new PublishSocialClip.Handler(context, _publisher.Object);
+        var handler = CreateHandler(context);
         var result = await handler.Handle(
             new PublishSocialClip.Command("Part 6", caption, Clip()), CancellationToken.None);
 
@@ -60,7 +85,7 @@ public class PublishSocialClipHandlerTests
         await using var context = CreateContext();
         PublisherReturns(new PublishResult(true, "https://tiktok.com/@x/video/1", []));
 
-        var handler = new PublishSocialClip.Handler(context, _publisher.Object);
+        var handler = CreateHandler(context);
         await handler.Handle(
             new PublishSocialClip.Command("Part 6", "caption", Clip()), CancellationToken.None);
 
@@ -75,7 +100,7 @@ public class PublishSocialClipHandlerTests
         await using var context = CreateContext();
         PublisherReturns(new PublishResult(true, "https://tiktok.com/@x/video/1", []));
 
-        var handler = new PublishSocialClip.Handler(context, _publisher.Object);
+        var handler = CreateHandler(context);
         await handler.Handle(
             new PublishSocialClip.Command("Part 6", "caption", Clip()), CancellationToken.None);
 
@@ -90,7 +115,7 @@ public class PublishSocialClipHandlerTests
         await using var context = CreateContext();
         PublisherReturns(new PublishResult(true, "https://linkedin.com/post/1", []));
 
-        var handler = new PublishSocialClip.Handler(context, _publisher.Object);
+        var handler = CreateHandler(context);
         await handler.Handle(
             new PublishSocialClip.Command("Part 6", "caption", Clip(), [Platform.LinkedIn]),
             CancellationToken.None);
@@ -110,7 +135,7 @@ public class PublishSocialClipHandlerTests
         PublisherReturns(new PublishResult(true, null, []));
         var when = DateTimeOffset.UtcNow.AddDays(2);
 
-        var handler = new PublishSocialClip.Handler(context, _publisher.Object);
+        var handler = CreateHandler(context);
         var result = await handler.Handle(
             new PublishSocialClip.Command("Part 6", "caption", Clip(), ScheduledAt: when),
             CancellationToken.None);
@@ -137,7 +162,7 @@ public class PublishSocialClipHandlerTests
         var when = new DateTimeOffset(DateTime.UtcNow.AddDays(2).Ticks, TimeSpan.Zero)
             .ToOffset(offset);
 
-        var handler = new PublishSocialClip.Handler(context, _publisher.Object);
+        var handler = CreateHandler(context);
         await handler.Handle(
             new PublishSocialClip.Command("Part 6", "caption", Clip(), ScheduledAt: when),
             CancellationToken.None);
@@ -158,7 +183,7 @@ public class PublishSocialClipHandlerTests
         await using var context = CreateContext();
         PublisherReturns(new PublishResult(true, null, []));
 
-        var handler = new PublishSocialClip.Handler(context, _publisher.Object);
+        var handler = CreateHandler(context);
         await handler.Handle(
             new PublishSocialClip.Command("Part 6", "caption", Clip(),
                 ScheduledAt: DateTimeOffset.UtcNow.AddDays(2)),
@@ -178,7 +203,7 @@ public class PublishSocialClipHandlerTests
         await using var context = CreateContext();
         PublisherReturns(new PublishResult(true, null, []));
 
-        var handler = new PublishSocialClip.Handler(context, _publisher.Object);
+        var handler = CreateHandler(context);
         await handler.Handle(
             new PublishSocialClip.Command("Part 6", "caption", Clip(),
                 ScheduledAt: DateTimeOffset.UtcNow.AddHours(-3)),
@@ -188,6 +213,113 @@ public class PublishSocialClipHandlerTests
         Assert.Null(stored.ScheduledAt);
     }
 
+    // ---- PBA-held scheduling: for platforms that cannot schedule at all (Instagram) ----
+
+    // Meta has no scheduling concept, so nobody but PBA can hold this post. Handing it to the
+    // connector now would publish it immediately — days early, publicly, un-undoably.
+    [Fact]
+    public async Task Handle_PlatformCannotSchedule_PbaHoldsThePostInsteadOfPublishingNow()
+    {
+        await using var context = CreateContext();
+        PlatformCannotSchedule();
+
+        var handler = CreateHandler(context);
+        var result = await handler.Handle(
+            new PublishSocialClip.Command("Beat 2", "caption", Clip(), [Platform.Instagram],
+                DateTimeOffset.UtcNow.AddDays(2)),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        _publisher.Verify(p => p.PublishAsync(
+            It.IsAny<Guid>(), It.IsAny<IReadOnlyList<Platform>?>(),
+            It.IsAny<MediaAttachment?>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    // The video arrives with THIS request and is gone by the slot. Staging it up front is the only
+    // thing that makes a held post publishable later — without it the job fires with no media.
+    [Fact]
+    public async Task Handle_PbaHoldsThePost_StagesTheClipSoItSurvivesUntilTheSlot()
+    {
+        await using var context = CreateContext();
+        PlatformCannotSchedule();
+
+        var handler = CreateHandler(context);
+        await handler.Handle(
+            new PublishSocialClip.Command("Beat 2", "caption", Clip(), [Platform.Instagram],
+                DateTimeOffset.UtcNow.AddDays(2)),
+            CancellationToken.None);
+
+        var stored = await context.Contents.SingleAsync();
+        Assert.Equal("https://media.matthewkruczek.ai/ig/x.mp4", stored.StagedMediaUrl);
+        Assert.Equal("ig/x.mp4", stored.StagedMediaKey);
+    }
+
+    // Scheduled is what makes the record PBA's responsibility: it is the status the Hangfire job and
+    // the startup reconciler both act on. Left Approved, the slot would simply never fire.
+    [Fact]
+    public async Task Handle_PbaHoldsThePost_MovesToScheduledAndBooksTheJob()
+    {
+        await using var context = CreateContext();
+        PlatformCannotSchedule();
+        var when = DateTimeOffset.UtcNow.AddDays(2);
+
+        var handler = CreateHandler(context);
+        await handler.Handle(
+            new PublishSocialClip.Command("Beat 2", "caption", Clip(), [Platform.Instagram], when),
+            CancellationToken.None);
+
+        var stored = await context.Contents.SingleAsync();
+        Assert.Equal(ContentStatus.Scheduled, stored.Status);
+        Assert.Equal("job-1", stored.HangfireJobId);
+        _scheduler.Verify(s => s.SchedulePublish(stored.Id, when.ToUniversalTime()), Times.Once);
+    }
+
+    // The mirror of the TikTok rule. There, Scheduled would double-post because Buffer also fires.
+    // Here nothing else fires, so PBA must own it — and staging without scheduling would leave a
+    // clip paid for in storage that never posts.
+    [Fact]
+    public async Task Handle_PlatformCanSchedule_HandsOffImmediatelyAndStagesNothing()
+    {
+        await using var context = CreateContext();
+        PublisherReturns(new PublishResult(true, null, []));
+
+        var handler = CreateHandler(context);
+        await handler.Handle(
+            new PublishSocialClip.Command("Beat 2", "caption", Clip(), [Platform.TikTok],
+                DateTimeOffset.UtcNow.AddDays(2)),
+            CancellationToken.None);
+
+        var stored = await context.Contents.SingleAsync();
+        Assert.Equal(ContentStatus.Approved, stored.Status);
+        Assert.Null(stored.StagedMediaUrl);
+        _scheduler.Verify(s => s.SchedulePublish(It.IsAny<Guid>(), It.IsAny<DateTimeOffset>()), Times.Never);
+        _mediaHost.Verify(m => m.UploadAsync(
+            It.IsAny<byte[]>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    // No slot means post now, whatever the platform can or cannot schedule. Staging here would hold
+    // a clip nobody is waiting for.
+    [Fact]
+    public async Task Handle_NoSlotOnANonSchedulingPlatform_PublishesNowWithoutStaging()
+    {
+        await using var context = CreateContext();
+        PlatformCannotSchedule();
+        PublisherReturns(new PublishResult(true, null, []));
+
+        var handler = CreateHandler(context);
+        await handler.Handle(
+            new PublishSocialClip.Command("Beat 2", "caption", Clip(), [Platform.Instagram]),
+            CancellationToken.None);
+
+        var stored = await context.Contents.SingleAsync();
+        Assert.Equal(ContentStatus.Approved, stored.Status);
+        Assert.Null(stored.StagedMediaUrl);
+        _publisher.Verify(p => p.PublishAsync(
+            It.IsAny<Guid>(), It.IsAny<IReadOnlyList<Platform>?>(),
+            It.IsAny<MediaAttachment?>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
     // The state machine only permits Approve with a non-empty body, so an empty caption would
     // otherwise fail deep in the transition with an opaque message.
     [Fact]
@@ -195,7 +327,7 @@ public class PublishSocialClipHandlerTests
     {
         await using var context = CreateContext();
 
-        var handler = new PublishSocialClip.Handler(context, _publisher.Object);
+        var handler = CreateHandler(context);
         var result = await handler.Handle(
             new PublishSocialClip.Command("Part 6", "   ", Clip()), CancellationToken.None);
 
@@ -212,7 +344,7 @@ public class PublishSocialClipHandlerTests
         await using var context = CreateContext();
         var image = new MediaAttachment([1, 2, 3], "card.png", "image/png");
 
-        var handler = new PublishSocialClip.Handler(context, _publisher.Object);
+        var handler = CreateHandler(context);
         var result = await handler.Handle(
             new PublishSocialClip.Command("Part 6", "caption", image), CancellationToken.None);
 
@@ -248,7 +380,7 @@ public class PublishSocialClipHandlerTests
                 return new PublishResult(false, null, []);
             });
 
-        var handler = new PublishSocialClip.Handler(context, _publisher.Object);
+        var handler = CreateHandler(context);
         var result = await handler.Handle(
             new PublishSocialClip.Command("Part 6", "caption", Clip()), CancellationToken.None);
 
@@ -262,7 +394,7 @@ public class PublishSocialClipHandlerTests
         await using var context = CreateContext();
         PublisherReturns(new PublishResult(false, null, []));
 
-        var handler = new PublishSocialClip.Handler(context, _publisher.Object);
+        var handler = CreateHandler(context);
         var result = await handler.Handle(
             new PublishSocialClip.Command("Part 6", "caption", Clip()), CancellationToken.None);
 

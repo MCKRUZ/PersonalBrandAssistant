@@ -20,6 +20,7 @@ public class ContentPublisherTests : IDisposable
     private readonly Mock<IPlatformConnector> _linkedInConnector = new();
     private readonly Mock<IPlatformConnector> _twitterConnector = new();
     private readonly Mock<IContentTransformer> _transformer = new();
+    private readonly Mock<IMediaHost> _mediaHost = new();
     private readonly Mock<ILogger<ContentPublisher>> _logger = new();
 
     public ContentPublisherTests()
@@ -42,7 +43,7 @@ public class ContentPublisherTests : IDisposable
         services.AddKeyedSingleton<IPlatformConnector>(Platform.Twitter, _twitterConnector.Object);
         var sp = services.BuildServiceProvider();
 
-        return new ContentPublisher(_dbContext, sp, _transformer.Object, _logger.Object);
+        return new ContentPublisher(_dbContext, sp, _transformer.Object, _mediaHost.Object, _logger.Object);
     }
 
     private Content CreateScheduledContent(Platform platform = Platform.Blog) =>
@@ -87,6 +88,89 @@ public class ContentPublisherTests : IDisposable
         await publisher.PublishAsync(content.Id, null, null, CancellationToken.None);
 
         Assert.Equal(when, captured!.ScheduledAt);
+    }
+
+    // A post PBA held until its slot has no bytes left — they arrived days earlier. The staged clip
+    // on R2 is the only handle on the video, so failing to pass it means the connector publishes
+    // nothing at the moment it finally matters.
+    [Fact]
+    public async Task PublishAsync_HeldPost_HandsTheStagedUrlToTheConnector()
+    {
+        var content = CreateScheduledContent();
+        content.StagedMediaUrl = "https://media.matthewkruczek.ai/ig/held.mp4";
+        content.StagedMediaKey = "ig/held.mp4";
+        _dbContext.Contents.Add(content);
+        await _dbContext.SaveChangesAsync();
+
+        PlatformPublishRequest? captured = null;
+        _blogConnector.Setup(c => c.PublishAsync(It.IsAny<PlatformPublishRequest>(), It.IsAny<CancellationToken>()))
+            .Callback((PlatformPublishRequest r, CancellationToken _) => captured = r)
+            .ReturnsAsync(new PlatformPublishResult(true, "https://example.com/post", "post-1", null));
+
+        await CreatePublisher().PublishAsync(content.Id);
+
+        Assert.Equal("https://media.matthewkruczek.ai/ig/held.mp4", captured!.HostedMediaUrl);
+    }
+
+    // The slot has ARRIVED — that is why this is running. Passing ScheduledAt on would tell a
+    // scheduling-capable connector to book the post for a moment already in the past.
+    [Fact]
+    public async Task PublishAsync_HeldPost_DoesNotAskTheConnectorToRescheduleIt()
+    {
+        var content = CreateScheduledContent();
+        content.ScheduledAt = DateTimeOffset.UtcNow.AddMinutes(-1);
+        content.StagedMediaUrl = "https://media.matthewkruczek.ai/ig/held.mp4";
+        content.StagedMediaKey = "ig/held.mp4";
+        _dbContext.Contents.Add(content);
+        await _dbContext.SaveChangesAsync();
+
+        PlatformPublishRequest? captured = null;
+        _blogConnector.Setup(c => c.PublishAsync(It.IsAny<PlatformPublishRequest>(), It.IsAny<CancellationToken>()))
+            .Callback((PlatformPublishRequest r, CancellationToken _) => captured = r)
+            .ReturnsAsync(new PlatformPublishResult(true, "https://example.com/post", "post-1", null));
+
+        await CreatePublisher().PublishAsync(content.Id);
+
+        Assert.Null(captured!.ScheduledAt);
+    }
+
+    // Storage is billed and the pointer must not outlive the object: a stale StagedMediaUrl on a
+    // republish would send the platform at something that has already been reaped.
+    [Fact]
+    public async Task PublishAsync_HeldPost_ReleasesTheStagedClipOncePublished()
+    {
+        var content = CreateScheduledContent();
+        content.StagedMediaUrl = "https://media.matthewkruczek.ai/ig/held.mp4";
+        content.StagedMediaKey = "ig/held.mp4";
+        _dbContext.Contents.Add(content);
+        await _dbContext.SaveChangesAsync();
+        SetupConnectorSuccess(_blogConnector);
+
+        await CreatePublisher().PublishAsync(content.Id);
+
+        _mediaHost.Verify(m => m.DeleteAsync("ig/held.mp4", It.IsAny<CancellationToken>()), Times.Once);
+        var updated = await _dbContext.Contents.FindAsync(content.Id);
+        Assert.Null(updated!.StagedMediaKey);
+        Assert.Null(updated.StagedMediaUrl);
+    }
+
+    // A failed publish will be retried, and the retry needs the clip. Releasing it on failure would
+    // make the first failure permanent.
+    [Fact]
+    public async Task PublishAsync_HeldPostThatFails_KeepsTheStagedClipForTheRetry()
+    {
+        var content = CreateScheduledContent();
+        content.StagedMediaUrl = "https://media.matthewkruczek.ai/ig/held.mp4";
+        content.StagedMediaKey = "ig/held.mp4";
+        _dbContext.Contents.Add(content);
+        await _dbContext.SaveChangesAsync();
+        SetupConnectorFailure(_blogConnector);
+
+        await CreatePublisher().PublishAsync(content.Id);
+
+        _mediaHost.Verify(m => m.DeleteAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        var updated = await _dbContext.Contents.FindAsync(content.Id);
+        Assert.Equal("ig/held.mp4", updated!.StagedMediaKey);
     }
 
     [Fact]

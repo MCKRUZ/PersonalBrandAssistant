@@ -10,7 +10,6 @@ using PBA.Api.Endpoints;
 using PBA.Application.Common.Interfaces;
 using PBA.Application.Features.Analytics.Dtos;
 using PBA.Domain.Common;
-using PBA.Infrastructure.Configuration;
 using Xunit;
 
 namespace PBA.Api.Tests.Endpoints;
@@ -31,13 +30,6 @@ public class ExternalEndpointsTests : IClassFixture<TestWebApplicationFactory>
         var client = _factory.WithWebHostBuilder(builder =>
         {
             builder.UseSetting($"{ExternalApiOptions.SectionName}:ApiKey", ValidKey);
-            // The R2 media host builds an S3 client eagerly and throws without an endpoint, which
-            // fails any request whose route touches the publishing graph — before the handler runs,
-            // so it looks like the endpoint is broken. Inert placeholders: nothing here uploads.
-            builder.UseSetting($"{R2Options.SectionName}:Endpoint", "https://r2.invalid");
-            builder.UseSetting($"{R2Options.SectionName}:PublicBaseUrl", "https://media.invalid");
-            builder.UseSetting($"{R2Options.SectionName}:AccessKeyId", "test");
-            builder.UseSetting($"{R2Options.SectionName}:SecretAccessKey", "test");
             if (configure is not null)
                 builder.ConfigureTestServices(configure);
         }).CreateClient();

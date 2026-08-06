@@ -285,6 +285,52 @@ public class InstagramConnectorTests : IDisposable
 
     // Scheduling is a fact about Meta, not a gap here. Anything routing on this capability must see
     // false, or it will hand Instagram a slot and expect it to be honoured.
+    // When PBA held the post it staged the clip days ago and owns that object. Re-uploading here
+    // would store the same video twice and orphan the first copy.
+    [Fact]
+    public async Task PublishAsync_WithAPreStagedUrl_UsesItInsteadOfUploadingAgain()
+    {
+        RespondInOrder(
+            (HttpStatusCode.OK, ContainerCreated),
+            (HttpStatusCode.OK, Finished),
+            (HttpStatusCode.OK, Published));
+
+        var request = new PlatformPublishRequest(
+            new Content { Id = Guid.NewGuid(), Title = "Clip", Body = "caption" },
+            "caption", [], null, PublishMode.Publish, null,
+            Media: null,
+            HostedMediaUrl: "https://media.matthewkruczek.ai/ig/held.mp4");
+
+        var result = await CreateConnector().PublishAsync(request, CancellationToken.None);
+
+        Assert.True(result.Success);
+        _mediaHost.Verify(m => m.UploadAsync(
+            It.IsAny<byte[]>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+        Assert.Contains(Uri.EscapeDataString("https://media.matthewkruczek.ai/ig/held.mp4"), _calls[0].Body);
+    }
+
+    // A pre-staged object belongs to whoever held the post; ContentPublisher releases it only after
+    // a successful publish. Deleting it here would destroy the clip a retry depends on.
+    [Fact]
+    public async Task PublishAsync_WithAPreStagedUrl_DoesNotDeleteSomeoneElsesObject()
+    {
+        RespondInOrder(
+            (HttpStatusCode.OK, ContainerCreated),
+            (HttpStatusCode.OK, Finished),
+            (HttpStatusCode.OK, Published));
+
+        var request = new PlatformPublishRequest(
+            new Content { Id = Guid.NewGuid(), Title = "Clip", Body = "caption" },
+            "caption", [], null, PublishMode.Publish, null,
+            Media: null,
+            HostedMediaUrl: "https://media.matthewkruczek.ai/ig/held.mp4");
+
+        await CreateConnector().PublishAsync(request, CancellationToken.None);
+
+        _mediaHost.Verify(m => m.DeleteAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
     [Fact]
     public void GetCapabilities_ReportsThatInstagramCannotSchedule()
     {

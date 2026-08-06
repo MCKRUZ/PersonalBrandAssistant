@@ -34,7 +34,11 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>
                     d.ImplementationFactory?.Method.DeclaringType?.FullName?.Contains("Hangfire") == true ||
                     d.ImplementationType?.FullName?.Contains("ScheduledPublishReconciler") == true ||
                     // Poller must not start / hit external APIs during integration tests (M4 isolation).
-                    d.ImplementationType?.FullName?.Contains("ChannelMetricPollingService") == true)
+                    d.ImplementationType?.FullName?.Contains("ChannelMetricPollingService") == true ||
+                    // The R2 client validates its endpoint AT CONSTRUCTION and throws without one, so
+                    // merely resolving the publishing graph fails a test host that has no bucket
+                    // configured — and the error names AWS, not the route that was actually being hit.
+                    d.ServiceType.FullName?.Contains("Amazon") == true)
                 .ToList();
 
             foreach (var d in descriptorsToRemove)
@@ -77,6 +81,17 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>
             services.AddSingleton(encryptorMock.Object);
 
             services.AddSingleton(new Mock<IPublishRetryHandler>().Object);
+
+            // Nothing in an integration test should reach a real bucket. Media hosting is stubbed
+            // rather than left out: ContentPublisher takes it to release a staged clip after a held
+            // post goes out, so an absent registration breaks every publish route.
+            var mediaHostMock = new Mock<IMediaHost>();
+            mediaHostMock.Setup(m => m.UploadAsync(
+                    It.IsAny<byte[]>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new HostedMedia(
+                    "https://media.test/staged.mp4", "staged.mp4"));
+            services.RemoveAll<IMediaHost>();
+            services.AddSingleton(mediaHostMock.Object);
         });
 
         builder.UseEnvironment("Testing");

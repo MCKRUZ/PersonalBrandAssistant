@@ -27,7 +27,7 @@ public class R2MediaHostTests
     {
         var monitor = new Mock<IOptionsMonitor<R2Options>>();
         monitor.Setup(o => o.CurrentValue).Returns(_options);
-        return new R2MediaHost(_s3.Object, monitor.Object);
+        return new R2MediaHost(new Lazy<IAmazonS3>(() => _s3.Object), monitor.Object);
     }
 
     [Fact]

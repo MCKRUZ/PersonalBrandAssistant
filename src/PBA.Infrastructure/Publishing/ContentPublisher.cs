@@ -13,6 +13,7 @@ public sealed class ContentPublisher(
     IAppDbContext db,
     IServiceProvider serviceProvider,
     IContentTransformer transformer,
+    IMediaHost mediaHost,
     ILogger<ContentPublisher> logger) : IContentPublisher
 {
     public async Task PublishAsync(Guid contentId)
@@ -154,6 +155,25 @@ public sealed class ContentPublisher(
                 secondaryOutcomes.Add(new PlatformPublishOutcome(skipped, true, null, null));
         }
 
+        // The clip PBA held on R2 has now been fetched by the platform. Release it rather than
+        // waiting on the bucket's lifecycle rule, and clear the pointer so a later republish cannot
+        // reference an object that is no longer there. Cleanup failure must not fail a live publish.
+        if (content.StagedMediaKey is { } stagedKey && content.Status == ContentStatus.Published)
+        {
+            try
+            {
+                await mediaHost.DeleteAsync(stagedKey, ct);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Could not unstage {Key} for content {ContentId}; " +
+                    "the lifecycle rule will reap it", stagedKey, contentId);
+            }
+
+            content.StagedMediaKey = null;
+            content.StagedMediaUrl = null;
+        }
+
         await db.SaveChangesAsync(ct);
 
         logger.LogInformation("Published content {ContentId} to {Platform} (primary) + {SecondaryCount} secondaries",
@@ -180,14 +200,23 @@ public sealed class ContentPublisher(
         }
 
         var transformed = await transformer.TransformAsync(content, platform, ct);
+
+        // A record PBA held until its slot has no bytes left — they arrived days ago with the
+        // original request. What survives is the staged clip on R2, so hand the connector its URL.
+        //
+        // ScheduledAt is suppressed in that case: the slot has ARRIVED, and a connector that can
+        // schedule would otherwise re-schedule the post for a moment now in the past.
+        var staged = media is null ? content.StagedMediaUrl : null;
+
         var request = new PlatformPublishRequest(
             Content: content,
             TransformedContent: transformed,
             Tags: content.Tags.AsReadOnly(),
             CanonicalUrl: canonicalUrl,
             Mode: PublishMode.Publish,
-            ScheduledAt: content.ScheduledAt,
-            Media: media);
+            ScheduledAt: staged is null ? content.ScheduledAt : null,
+            Media: media,
+            HostedMediaUrl: staged);
 
         return await connector.PublishAsync(request, ct);
     }
