@@ -47,7 +47,13 @@ public sealed class YouTubeOAuthProvider(
         qs["scope"] = ScopeFor(purpose);
         qs["state"] = state;
         qs["access_type"] = "offline";   // request a refresh token
-        qs["prompt"] = "consent";        // guarantee a refresh token is returned
+        // consent: guarantees a refresh token is returned.
+        // select_account: forces Google to show the account AND channel chooser. Without it an
+        // already-signed-in browser goes straight through on whatever channel it used last — which
+        // is how the upload credential was granted for @mattkruczek2665 twice running, while the
+        // videos were meant for @matthewkruczek. This account owns both, under the same display
+        // name, so nothing on the consent screen reveals which one is being handed over.
+        qs["prompt"] = "select_account consent";
 
         return new AuthorizationRequest($"{AuthorizeBase}?{qs}", new OAuthStateAdditions());
     }

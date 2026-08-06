@@ -78,7 +78,10 @@ public class YouTubeOAuthProviderTests : IDisposable
         Assert.DoesNotContain("youtube.upload", q["scope"]);
         Assert.Equal(_options.RedirectUri, q["redirect_uri"]);
         Assert.Equal("offline", q["access_type"]);
-        Assert.Equal("consent", q["prompt"]);
+        // Both values matter. consent guarantees a refresh token; select_account forces Google to
+        // show the channel chooser, without which an already-signed-in browser silently re-grants
+        // whichever channel it used last — this account owns two under the same display name.
+        Assert.Equal("select_account consent", q["prompt"]);
         Assert.Equal("STATE1", q["state"]);
         Assert.Null(request.Additions.CodeVerifier);
     }
