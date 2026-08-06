@@ -20,4 +20,12 @@ public sealed class R2Options
 
     public string Bucket { get; init; } = "pba-media";
     public string KeyPrefix { get; init; } = "tiktok/";
+
+    /// <summary>
+    /// How long a staged object can be relied on, in days. MUST stay below the bucket's actual
+    /// lifecycle rule (~8 days) — this is the number every caller uses to decide whether a slot is
+    /// too far out to stage for, and a value at or above the real rule lets them stage clips that
+    /// will be reaped before anything fetches them.
+    /// </summary>
+    public int StagedMediaLifetimeDays { get; init; } = 7;
 }

@@ -29,6 +29,9 @@ namespace PBA.Infrastructure.Media;
 /// </remarks>
 public sealed class R2MediaHost(Lazy<IAmazonS3> s3, IOptionsMonitor<R2Options> options) : IMediaHost
 {
+    public TimeSpan MaxHostedLifetime =>
+        TimeSpan.FromDays(options.CurrentValue.StagedMediaLifetimeDays);
+
     public async Task<HostedMedia> UploadAsync(
         byte[] data, string fileName, string contentType, CancellationToken ct)
     {

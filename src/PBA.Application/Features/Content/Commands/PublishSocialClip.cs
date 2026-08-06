@@ -114,6 +114,16 @@ public static class PublishSocialClip
 
             if (slot is not null && !platformHoldsIt)
             {
+                // The clip has to still be hosted when the slot finally arrives, and storage reaps
+                // it on a lifecycle rule. Staging something that will be gone first does not fail
+                // here — it fails days later, in the middle of the night, as a dead link with a
+                // log line nobody is reading. Refuse it while there is someone to tell.
+                var maxWindow = mediaHost.MaxHostedLifetime;
+                if (slot.Value - DateTimeOffset.UtcNow > maxWindow)
+                    return Result<PublishResult>.ValidationFailure(
+                        [$"{platforms[0]} cannot be scheduled more than {maxWindow.TotalDays:0} days " +
+                         "out: the clip PBA holds for it would be reaped from storage before the slot."]);
+
                 var staged = await mediaHost.UploadAsync(
                     request.Media.Data, request.Media.FileName, request.Media.ContentType, ct);
                 content.StagedMediaUrl = staged.Url;

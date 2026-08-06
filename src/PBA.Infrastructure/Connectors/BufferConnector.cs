@@ -23,11 +23,6 @@ public sealed class BufferConnector(
     IOptionsMonitor<BufferOptions> options,
     ILogger<BufferConnector> logger) : IPlatformConnector
 {
-    // Buffer fetches the media asynchronously (at publish time for a scheduled post), so the hosted
-    // object must still exist then. The R2 bucket reaps objects on a lifecycle rule (~8 days); cap
-    // scheduling below that so a post can never reference an already-expired object.
-    private static readonly TimeSpan MaxScheduleWindow = TimeSpan.FromDays(7);
-
     // Cover-frame offset used when the clip's duration can't be read from the MP4 container. 2s is
     // past the black title-card these clips open on, so it beats a frame-0 (black) cover.
     private const int FallbackCoverOffsetMs = 2000;
@@ -52,14 +47,17 @@ public sealed class BufferConnector(
                 return new PlatformPublishResult(false, null, null,
                     "TikTok via Buffer requires a video attachment (mp4/mov). No supported video was provided.");
 
-            // The hosted object is reaped by an R2 lifecycle rule; a schedule beyond that window
-            // would post a URL to an object that no longer exists when Buffer fetches it. Reject
-            // rather than publish a broken link.
+            // Buffer fetches the media at publish time, not now, so the hosted object has to still
+            // be there then. Storage reaps it on a lifecycle rule; a schedule beyond that window
+            // would post a URL to an object that no longer exists. Reject rather than publish a
+            // broken link. The window comes from the media host so this and the PBA-held path — the
+            // same bucket, the same rule — cannot drift to different numbers.
+            var maxWindow = mediaHost.MaxHostedLifetime;
             if (request.ScheduledAt is { } scheduledAt &&
-                scheduledAt - DateTimeOffset.UtcNow > MaxScheduleWindow)
+                scheduledAt - DateTimeOffset.UtcNow > maxWindow)
                 return new PlatformPublishResult(false, null, null,
-                    "TikTok via Buffer cannot schedule more than 7 days out: the hosted media object " +
-                    "would be reaped before Buffer fetches the video. Schedule within 7 days.");
+                    $"TikTok via Buffer cannot schedule more than {maxWindow.TotalDays:0} days out: " +
+                    "the hosted media object would be reaped before Buffer fetches the video.");
 
             var hosted = await mediaHost.UploadAsync(media.Data, media.FileName, media.ContentType, ct);
 

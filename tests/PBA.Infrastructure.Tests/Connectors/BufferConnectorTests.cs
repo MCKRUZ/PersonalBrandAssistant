@@ -45,6 +45,10 @@ public class BufferConnectorTests : IDisposable
         _mediaHost.Setup(m => m.UploadAsync(
                 It.IsAny<byte[]>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new HostedMedia("https://media.matthewkruczek.ai/tiktok/x.mp4", "tiktok/x.mp4"));
+
+        // The schedule cap now comes from the media host rather than a constant here, so the same
+        // number governs Buffer and the posts PBA holds itself — one bucket, one lifecycle rule.
+        _mediaHost.Setup(m => m.MaxHostedLifetime).Returns(TimeSpan.FromDays(7));
     }
 
     private BufferConnector CreateConnector()

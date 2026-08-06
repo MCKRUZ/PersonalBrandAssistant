@@ -27,6 +27,7 @@ public class PublishSocialClipHandlerTests
         _mediaHost.Setup(m => m.UploadAsync(
                 It.IsAny<byte[]>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new HostedMedia("https://media.matthewkruczek.ai/ig/x.mp4", "ig/x.mp4"));
+        _mediaHost.Setup(m => m.MaxHostedLifetime).Returns(TimeSpan.FromDays(7));
 
         _scheduler.Setup(s => s.SchedulePublish(It.IsAny<Guid>(), It.IsAny<DateTimeOffset>()))
             .Returns("job-1");
@@ -318,6 +319,44 @@ public class PublishSocialClipHandlerTests
         _publisher.Verify(p => p.PublishAsync(
             It.IsAny<Guid>(), It.IsAny<IReadOnlyList<Platform>?>(),
             It.IsAny<MediaAttachment?>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    // The clip has to outlive the wait. Storage reaps staged objects on a lifecycle rule, so a slot
+    // beyond it would stage now, be reaped, and fail at the slot as a dead link days later — with
+    // nobody watching. Refusing while the caller is still there is the only useful moment.
+    [Fact]
+    public async Task Handle_HeldPostBeyondTheStagingLifetime_IsRefusedRatherThanStagedToRot()
+    {
+        await using var context = CreateContext();
+        PlatformCannotSchedule();
+
+        var handler = CreateHandler(context);
+        var result = await handler.Handle(
+            new PublishSocialClip.Command("Beat 2", "caption", Clip(), [Platform.Instagram],
+                DateTimeOffset.UtcNow.AddDays(9)),
+            CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ResultFailureType.Validation, result.FailureType);
+        Assert.Empty(await context.Contents.ToListAsync());
+        _mediaHost.Verify(m => m.UploadAsync(
+            It.IsAny<byte[]>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task Handle_HeldPostInsideTheStagingLifetime_IsAccepted()
+    {
+        await using var context = CreateContext();
+        PlatformCannotSchedule();
+
+        var handler = CreateHandler(context);
+        var result = await handler.Handle(
+            new PublishSocialClip.Command("Beat 2", "caption", Clip(), [Platform.Instagram],
+                DateTimeOffset.UtcNow.AddDays(5)),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
     }
 
     // Persisted, not just passed through: a held post is published days later, and by then this

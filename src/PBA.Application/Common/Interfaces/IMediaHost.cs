@@ -9,6 +9,15 @@ namespace PBA.Application.Common.Interfaces;
 /// </summary>
 public interface IMediaHost
 {
+    /// <summary>
+    /// How long a hosted object can be relied on to still be there. Storage reaps them on a
+    /// lifecycle rule, and everything that publishes from a URL fetches it LATER than it was
+    /// staged — Buffer at the scheduled moment, Meta when PBA finally posts a held clip. Staging
+    /// something that will be gone before it is fetched fails days later, in the middle of the
+    /// night, as a dead link. Callers must refuse to schedule beyond this rather than find out.
+    /// </summary>
+    TimeSpan MaxHostedLifetime { get; }
+
     Task<HostedMedia> UploadAsync(byte[] data, string fileName, string contentType, CancellationToken ct);
     Task DeleteAsync(string key, CancellationToken ct);
 }
