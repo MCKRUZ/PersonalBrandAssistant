@@ -320,6 +320,40 @@ public class PublishSocialClipHandlerTests
             It.IsAny<MediaAttachment?>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
+    // Persisted, not just passed through: a held post is published days later, and by then this
+    // record is the only thing that remembers which frame was chosen.
+    [Fact]
+    public async Task Handle_HeldPost_RemembersTheChosenCoverFrame()
+    {
+        await using var context = CreateContext();
+        PlatformCannotSchedule();
+
+        var handler = CreateHandler(context);
+        await handler.Handle(
+            new PublishSocialClip.Command("Beat 2", "caption", Clip(), [Platform.Instagram],
+                DateTimeOffset.UtcNow.AddDays(2), CoverFrameOffsetMs: 2334),
+            CancellationToken.None);
+
+        var stored = await context.Contents.SingleAsync();
+        Assert.Equal(2334, stored.CoverFrameOffsetMs);
+    }
+
+    [Fact]
+    public async Task Handle_NegativeCoverFrame_IsRejectedRatherThanSentToThePlatform()
+    {
+        await using var context = CreateContext();
+
+        var handler = CreateHandler(context);
+        var result = await handler.Handle(
+            new PublishSocialClip.Command("Beat 2", "caption", Clip(), null, null,
+                CoverFrameOffsetMs: -1),
+            CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ResultFailureType.Validation, result.FailureType);
+        Assert.Empty(await context.Contents.ToListAsync());
+    }
+
     // The state machine only permits Approve with a non-empty body, so an empty caption would
     // otherwise fail deep in the transition with an opaque message.
     [Fact]

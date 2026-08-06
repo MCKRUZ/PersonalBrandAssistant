@@ -331,6 +331,66 @@ public class InstagramConnectorTests : IDisposable
         _mediaHost.Verify(m => m.DeleteAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
+    // Cover frames are picked per clip by whoever cut it — 2334ms on one beat, 37290ms on another.
+    // A duration-based guess lands somewhere else, so every Reel would open on the wrong frame.
+    [Fact]
+    public async Task PublishAsync_WithAChosenCoverFrame_SendsItRatherThanGuessing()
+    {
+        RespondInOrder(
+            (HttpStatusCode.OK, ContainerCreated),
+            (HttpStatusCode.OK, Finished),
+            (HttpStatusCode.OK, Published));
+
+        var request = new PlatformPublishRequest(
+            new Content { Id = Guid.NewGuid(), Title = "Clip", Body = "caption" },
+            "caption", [], null, PublishMode.Publish, null,
+            Media: new MediaAttachment([1, 2, 3], "clip.mp4", "video/mp4"),
+            HostedMediaUrl: null,
+            CoverFrameOffsetMs: 37290);
+
+        await CreateConnector().PublishAsync(request, CancellationToken.None);
+
+        Assert.Contains("thumb_offset=37290", _calls[0].Body);
+    }
+
+    // The held-post path is where this is easiest to lose: the bytes are gone by the slot, so the
+    // connector cannot re-derive a frame even if it wanted to. The chosen value must still arrive.
+    [Fact]
+    public async Task PublishAsync_ChosenCoverFrameSurvivesWithNoBytesInHand()
+    {
+        RespondInOrder(
+            (HttpStatusCode.OK, ContainerCreated),
+            (HttpStatusCode.OK, Finished),
+            (HttpStatusCode.OK, Published));
+
+        var request = new PlatformPublishRequest(
+            new Content { Id = Guid.NewGuid(), Title = "Clip", Body = "caption" },
+            "caption", [], null, PublishMode.Publish, null,
+            Media: null,
+            HostedMediaUrl: "https://media.matthewkruczek.ai/ig/held.mp4",
+            CoverFrameOffsetMs: 2334);
+
+        await CreateConnector().PublishAsync(request, CancellationToken.None);
+
+        Assert.Contains("thumb_offset=2334", _calls[0].Body);
+    }
+
+    // Frame 0 of these clips is a near-black title card, so falling back to zero would make every
+    // cover a black square — the reason an offset is sent at all.
+    [Fact]
+    public async Task PublishAsync_NoChosenCoverFrame_StillNeverUsesFrameZero()
+    {
+        RespondInOrder(
+            (HttpStatusCode.OK, ContainerCreated),
+            (HttpStatusCode.OK, Finished),
+            (HttpStatusCode.OK, Published));
+
+        await CreateConnector().PublishAsync(Request(), CancellationToken.None);
+
+        Assert.DoesNotContain("thumb_offset=0&", _calls[0].Body);
+        Assert.Contains("thumb_offset=", _calls[0].Body);
+    }
+
     [Fact]
     public void GetCapabilities_ReportsThatInstagramCannotSchedule()
     {

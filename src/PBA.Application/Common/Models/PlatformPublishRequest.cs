@@ -10,6 +10,11 @@ using PBA.Domain.Enums;
 /// this is the only handle on the video. A connector that gets this must use it rather than staging
 /// again; staging twice would leave an orphaned object and pay to store the same clip twice.
 /// </param>
+/// <param name="CoverFrameOffsetMs">
+/// Which frame becomes the post's cover, in milliseconds from the start. Null means the connector
+/// picks. A supplied value must win: these are chosen per clip by whoever cut it, and a connector
+/// guessing by duration lands somewhere else entirely.
+/// </param>
 public record PlatformPublishRequest(
     Content Content,
     string TransformedContent,
@@ -18,5 +23,6 @@ public record PlatformPublishRequest(
     PublishMode Mode,
     DateTimeOffset? ScheduledAt,
     MediaAttachment? Media = null,
-    string? HostedMediaUrl = null
+    string? HostedMediaUrl = null,
+    int? CoverFrameOffsetMs = null
 );

@@ -216,7 +216,8 @@ public sealed class ContentPublisher(
             Mode: PublishMode.Publish,
             ScheduledAt: staged is null ? content.ScheduledAt : null,
             Media: media,
-            HostedMediaUrl: staged);
+            HostedMediaUrl: staged,
+            CoverFrameOffsetMs: content.CoverFrameOffsetMs);
 
         return await connector.PublishAsync(request, ct);
     }

@@ -83,7 +83,8 @@ public sealed class InstagramConnector(
             }
 
             var containerId = await CreateReelContainerAsync(
-                config, token.Value!, videoUrl, request.TransformedContent, media?.Data, ct);
+                config, token.Value!, videoUrl, request.TransformedContent,
+                request.CoverFrameOffsetMs, media?.Data, ct);
             if (containerId.Error is not null)
                 return Fail(containerId.Error);
 
@@ -164,7 +165,7 @@ public sealed class InstagramConnector(
 
     private async Task<(string? Value, string? Error)> CreateReelContainerAsync(
         InstagramPublishingOptions config, string token, string videoUrl, string caption,
-        byte[]? videoData, CancellationToken ct)
+        int? chosenCoverOffsetMs, byte[]? videoData, CancellationToken ct)
     {
         var form = new Dictionary<string, string>
         {
@@ -172,7 +173,10 @@ public sealed class InstagramConnector(
             ["video_url"] = videoUrl,
             ["caption"] = caption,
             ["share_to_feed"] = config.ShareToFeed ? "true" : "false",
-            ["thumb_offset"] = ResolveCoverOffsetMs(config, videoData).ToString(),
+            // A caller's choice always wins. Cover frames are picked per clip by whoever cut it —
+            // a fraction of the duration lands on a different, usually worse, moment.
+            ["thumb_offset"] =
+                (chosenCoverOffsetMs ?? ResolveCoverOffsetMs(config, videoData)).ToString(),
             ["access_token"] = token
         };
 

@@ -38,6 +38,16 @@ public class Content
     /// once published rather than left for the bucket's lifecycle rule.</summary>
     public string? StagedMediaKey { get; set; }
 
+    /// <summary>
+    /// Which frame of the video becomes the post's cover, in milliseconds from the start. Set when
+    /// the caller chose one deliberately — the frames that read well are per-clip and a formula
+    /// picks them badly, so a supplied value always wins over the connector's own guess.
+    ///
+    /// Persisted rather than kept in the request because a post PBA holds until its slot is
+    /// published days later, by which time nothing but this record remembers the choice.
+    /// </summary>
+    public int? CoverFrameOffsetMs { get; set; }
+
     public Idea? SourceIdea { get; set; }
     public Content? ParentContent { get; set; }
     public List<Content> Children { get; set; } = [];

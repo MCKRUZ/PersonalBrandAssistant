@@ -33,7 +33,8 @@ public static class PublishSocialClip
         string Caption,
         MediaAttachment Media,
         IReadOnlyList<Platform>? TargetPlatforms = null,
-        DateTimeOffset? ScheduledAt = null) : IRequest<Result<PublishResult>>;
+        DateTimeOffset? ScheduledAt = null,
+        int? CoverFrameOffsetMs = null) : IRequest<Result<PublishResult>>;
 
     internal sealed class Handler(
         IAppDbContext db,
@@ -52,6 +53,10 @@ public static class PublishSocialClip
                 return Result<PublishResult>.ValidationFailure(
                     ["A social clip must be a video (mp4/mov)."]);
 
+            if (request.CoverFrameOffsetMs is < 0)
+                return Result<PublishResult>.ValidationFailure(
+                    ["coverFrameOffsetMs cannot be negative."]);
+
             IReadOnlyList<Platform> platforms = request.TargetPlatforms is { Count: > 0 }
                 ? request.TargetPlatforms
                 : [Platform.TikTok];
@@ -63,7 +68,8 @@ public static class PublishSocialClip
                 ContentType = ContentType.SocialClip,
                 PrimaryPlatform = platforms[0],
                 TargetPlatforms = [.. platforms],
-                Tags = []
+                Tags = [],
+                CoverFrameOffsetMs = request.CoverFrameOffsetMs
             };
 
             // Walk the real state machine rather than assigning Status directly: Approve is only

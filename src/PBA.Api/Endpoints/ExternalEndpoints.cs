@@ -164,9 +164,13 @@ public static class ExternalEndpoints
         // the clip over to be posted later BY THE PLATFORM. For TikTok, Buffer holds and fires it,
         // so the caller does not need a machine awake at the slot — that is the whole reason this
         // field exists. Omit it to post immediately. A slot already in the past posts immediately.
+        // `coverFrameOffsetMs` (optional) picks the cover frame, in milliseconds from the start of
+        // the clip. Omit it and the connector guesses from the video's duration, which is fine for
+        // an arbitrary clip and wrong for one whose good frame was chosen by hand.
         group.MapPost("/social-clip/publish", async (
             IFormFile file, [FromForm] string caption, [FromForm] string? title,
             [FromForm] string? platforms, [FromForm] string? scheduledAt,
+            [FromForm] int? coverFrameOffsetMs,
             ISender sender, CancellationToken ct) =>
         {
             if (file.Length == 0)
@@ -189,7 +193,8 @@ public static class ExternalEndpoints
             var media = new MediaAttachment(stream.ToArray(), file.FileName, file.ContentType, title);
 
             var command = new PublishSocialClip.Command(
-                title ?? string.Empty, caption, media, ParsePlatformsCsv(platforms), when);
+                title ?? string.Empty, caption, media, ParsePlatformsCsv(platforms), when,
+                coverFrameOffsetMs);
             return (await sender.Send(command, ct)).ToApiResult();
         })
         .DisableAntiforgery()
