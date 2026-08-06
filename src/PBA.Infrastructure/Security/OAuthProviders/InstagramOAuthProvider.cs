@@ -27,7 +27,7 @@ public sealed class InstagramOAuthProvider(
 
     public Platform Platform => Platform.Instagram;
 
-    public AuthorizationRequest BuildAuthorization(string state)
+    public AuthorizationRequest BuildAuthorization(string state, CredentialPurpose purpose)
     {
         var o = options.Value;
         var qs = HttpUtility.ParseQueryString(string.Empty);

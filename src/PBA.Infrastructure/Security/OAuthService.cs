@@ -30,7 +30,7 @@ public sealed class OAuthService(
 
         var provider = ResolveProvider(platform);
         var state = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
-        var authorization = provider.BuildAuthorization(state);
+        var authorization = provider.BuildAuthorization(state, purpose);
 
         StateStore[state] = new OAuthStateEntry(platform, authorization.Additions.CodeVerifier, purpose);
 

@@ -28,18 +28,25 @@ public static class PublishSocialClip
     /// has to be awake at the slot. Connectors that cannot schedule ignore it and post now.
     /// Past timestamps are dropped (see the handler), so a late caller still posts.
     /// </summary>
+    /// <param name="Tags">
+    /// Keywords for platforms that have a real tags field — YouTube does, and uses them for
+    /// discovery. Empty for the caption-based lanes, and that emptiness is load-bearing there:
+    /// TikTokFormatter appends tags as hashtags, so a caption that already carries its own would
+    /// get a second set stapled on.
+    /// </param>
     public record Command(
         string Title,
         string Caption,
         MediaAttachment Media,
         IReadOnlyList<Platform>? TargetPlatforms = null,
         DateTimeOffset? ScheduledAt = null,
-        int? CoverFrameOffsetMs = null) : IRequest<Result<PublishResult>>;
+        int? CoverFrameOffsetMs = null,
+        IReadOnlyList<string>? Tags = null) : IRequest<Result<PublishResult>>;
 
     internal sealed class Handler(
         IAppDbContext db,
         IContentPublisher publisher,
-        IPlatformCapabilityReader capabilities,
+        IHandoverPlanner planner,
         IMediaHost mediaHost,
         IContentScheduler scheduler)
         : IRequestHandler<Command, Result<PublishResult>>
@@ -68,7 +75,7 @@ public static class PublishSocialClip
                 ContentType = ContentType.SocialClip,
                 PrimaryPlatform = platforms[0],
                 TargetPlatforms = [.. platforms],
-                Tags = [],
+                Tags = request.Tags is { Count: > 0 } tags ? [.. tags] : [],
                 CoverFrameOffsetMs = request.CoverFrameOffsetMs
             };
 
@@ -106,28 +113,42 @@ public static class PublishSocialClip
             if (slot is not null)
                 content.ScheduledAt = slot;
 
-            // Who holds the post until its slot depends on whether the platform CAN. Buffer holds a
-            // TikTok post itself, so PBA hands the clip over now and is done. Meta has no scheduling
-            // concept at all, so PBA must hold it — which also means holding the VIDEO, because the
-            // bytes arrive with this request and are gone by the time the slot comes round.
-            var platformHoldsIt = capabilities.SupportsScheduling(platforms[0]);
+            // WHEN the clip goes to the platform is a separate question from when the post appears,
+            // and only the connector knows the answer. Buffer takes a TikTok post now and holds it.
+            // Meta cannot schedule, so PBA holds the clip until the moment itself. YouTube schedules
+            // the release but rations uploads, so PBA holds the clip and hands it over early, on a
+            // day with quota left. Whenever PBA holds it, it must hold the VIDEO too — the bytes
+            // arrive with this request and are gone by the time the handover comes round.
+            var plan = slot is null
+                ? HandoverPlan.Now()
+                : await planner.PlanAsync(platforms[0], slot.Value, ct);
 
-            if (slot is not null && !platformHoldsIt)
+            if (plan.Refusal is not null)
+                return Result<PublishResult>.ValidationFailure([plan.Refusal]);
+
+            if (plan.PbaHolds)
             {
-                // The clip has to still be hosted when the slot finally arrives, and storage reaps
+                var handoverAt = plan.HandoverAt!.Value;
+
+                // The clip has to still be hosted when PBA finally hands it over, and storage reaps
                 // it on a lifecycle rule. Staging something that will be gone first does not fail
-                // here — it fails days later, in the middle of the night, as a dead link with a
-                // log line nobody is reading. Refuse it while there is someone to tell.
+                // here — it fails days later, in the middle of the night, as a dead link with a log
+                // line nobody is reading. Refuse it while there is someone to tell.
+                //
+                // Measured against the HANDOVER, not the go-live: a YouTube Short scheduled a month
+                // out is uploaded within days and YouTube keeps it from there, so the storage window
+                // has nothing to do with when the video appears.
                 var maxWindow = mediaHost.MaxHostedLifetime;
-                if (slot.Value - DateTimeOffset.UtcNow > maxWindow)
+                if (handoverAt - DateTimeOffset.UtcNow > maxWindow)
                     return Result<PublishResult>.ValidationFailure(
-                        [$"{platforms[0]} cannot be scheduled more than {maxWindow.TotalDays:0} days " +
-                         "out: the clip PBA holds for it would be reaped from storage before the slot."]);
+                        [$"{platforms[0]} cannot be scheduled that far out: PBA would hold the clip " +
+                         $"until {handoverAt:u}, and storage reaps it after {maxWindow.TotalDays:0} days."]);
 
                 var staged = await mediaHost.UploadAsync(
                     request.Media.Data, request.Media.FileName, request.Media.ContentType, ct);
                 content.StagedMediaUrl = staged.Url;
                 content.StagedMediaKey = staged.Key;
+                content.HandoverAt = handoverAt;
 
                 try
                 {
@@ -141,7 +162,7 @@ public static class PublishSocialClip
                 db.Contents.Add(content);
                 await db.SaveChangesAsync(ct);
 
-                content.HangfireJobId = scheduler.SchedulePublish(content.Id, slot.Value);
+                content.HangfireJobId = scheduler.SchedulePublish(content.Id, handoverAt);
                 await db.SaveChangesAsync(ct);
 
                 return Result<PublishResult>.Success(new PublishResult(true, null, []));

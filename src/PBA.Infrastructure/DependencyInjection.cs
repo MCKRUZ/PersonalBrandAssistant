@@ -114,7 +114,6 @@ public static class DependencyInjection
         services.Configure<BlogConnectorOptions>(configuration.GetSection(BlogConnectorOptions.SectionName));
 
         services.AddScoped<IContentPublisher, ContentPublisher>();
-        services.AddScoped<IPlatformCapabilityReader, PlatformCapabilityReader>();
         services.AddScoped<IContentScheduler, HangfireContentScheduler>();
         services.AddHostedService<ScheduledPublishReconciler>();
 
@@ -165,6 +164,8 @@ public static class DependencyInjection
         services.Configure<BufferOptions>(configuration.GetSection(BufferOptions.SectionName));
         services.Configure<InstagramPublishingOptions>(
             configuration.GetSection(InstagramPublishingOptions.SectionName));
+        services.Configure<YouTubePublishingOptions>(
+            configuration.GetSection(YouTubePublishingOptions.SectionName));
         services.Configure<R2Options>(configuration.GetSection(R2Options.SectionName));
 
         // Security
@@ -202,8 +203,20 @@ public static class DependencyInjection
         // gets the HttpClient configured by AddHttpClient<InstagramConnector>, not a bare one.
         services.AddKeyedScoped<IPlatformConnector>(Platform.Instagram,
             (sp, _) => sp.GetRequiredService<InstagramConnector>());
+        // Same typed-client caveat again: the YouTube connector's HttpClient is used only to pull a
+        // staged clip back down from R2, but it still has to be the configured one.
+        services.AddKeyedScoped<IPlatformConnector>(Platform.YouTube,
+            (sp, _) => sp.GetRequiredService<YouTubeConnector>());
 
         // Keyed formatters
+        // Who holds a clip until its slot, and when it is handed over. Lives here rather than with
+        // the general infrastructure registrations because every answer comes from a connector.
+        services.AddSingleton(TimeProvider.System);
+        services.AddScoped<IPlatformCapabilityReader, PlatformCapabilityReader>();
+        services.AddScoped<IHandoverPlanner, HandoverPlanner>();
+        // Only YouTube rations handovers; the planner treats a platform with no pacer as unrationed.
+        services.AddKeyedScoped<IUploadPacer, YouTubeUploadPacer>(Platform.YouTube);
+
         services.AddKeyedScoped<IPlatformFormatter, BlogFormatter>(Platform.Blog);
         services.AddKeyedScoped<IPlatformFormatter, MediumFormatter>(Platform.Medium);
         services.AddKeyedScoped<IPlatformFormatter, LinkedInFormatter>(Platform.LinkedIn);
@@ -211,6 +224,7 @@ public static class DependencyInjection
         services.AddKeyedScoped<IPlatformFormatter, SubstackFormatter>(Platform.Substack);
         services.AddKeyedScoped<IPlatformFormatter, TikTokFormatter>(Platform.TikTok);
         services.AddKeyedScoped<IPlatformFormatter, InstagramFormatter>(Platform.Instagram);
+        services.AddKeyedScoped<IPlatformFormatter, YouTubeFormatter>(Platform.YouTube);
 
         // TikTok-via-Buffer media hosting: videos are uploaded to R2 and served to Buffer from the
         // bucket's public custom domain (Buffer fetches media by URL, never raw bytes, and HEAD-probes
@@ -315,6 +329,24 @@ public static class DependencyInjection
             o.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(90);
             // The handler requires SamplingDuration >= 2x AttemptTimeout.
             o.CircuitBreaker.SamplingDuration = TimeSpan.FromMinutes(2);
+        });
+
+        services.AddHttpClient<YouTubeConnector>(client =>
+        {
+            // This client only pulls a staged clip back down from R2 — the upload itself goes
+            // through Google's own client. A whole video over one request, so the timeout is the
+            // download's, not an API call's.
+            client.Timeout = TimeSpan.FromMinutes(5);
+        })
+        .AddStandardResilienceHandler(o =>
+        {
+            // Retries are safe on this client (a GET of a staged object) but pointless to tune:
+            // the expensive, non-idempotent part — videos.insert — does not go through it. Left at
+            // defaults deliberately rather than copied from the lanes above, where the no-retry rule
+            // is protecting a publish call that this client never makes.
+            o.AttemptTimeout.Timeout = TimeSpan.FromMinutes(2);
+            o.TotalRequestTimeout.Timeout = TimeSpan.FromMinutes(4);
+            o.CircuitBreaker.SamplingDuration = TimeSpan.FromMinutes(4);
         });
 
         // Hero image generation via self-hosted ComfyUI (BaseAddress is per-request from options)

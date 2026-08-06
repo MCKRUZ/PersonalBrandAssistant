@@ -21,6 +21,7 @@ public class ContentPublisherTests : IDisposable
     private readonly Mock<IPlatformConnector> _twitterConnector = new();
     private readonly Mock<IContentTransformer> _transformer = new();
     private readonly Mock<IMediaHost> _mediaHost = new();
+    private readonly Mock<IPlatformCapabilityReader> _capabilities = new();
     private readonly Mock<ILogger<ContentPublisher>> _logger = new();
 
     public ContentPublisherTests()
@@ -32,6 +33,11 @@ public class ContentPublisherTests : IDisposable
 
         _transformer.Setup(t => t.TransformAsync(It.IsAny<Content>(), It.IsAny<Platform>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((Content c, Platform _, CancellationToken _) => c.Body);
+
+        // Default to a platform that CAN hold a post for us, which is the common case among the
+        // connectors these tests drive. Individual tests override it where the point is a platform
+        // that cannot.
+        _capabilities.Setup(c => c.SupportsScheduling(It.IsAny<Platform>())).Returns(true);
     }
 
     private ContentPublisher CreatePublisher()
@@ -43,7 +49,8 @@ public class ContentPublisherTests : IDisposable
         services.AddKeyedSingleton<IPlatformConnector>(Platform.Twitter, _twitterConnector.Object);
         var sp = services.BuildServiceProvider();
 
-        return new ContentPublisher(_dbContext, sp, _transformer.Object, _mediaHost.Object, _logger.Object);
+        return new ContentPublisher(
+            _dbContext, sp, _transformer.Object, _mediaHost.Object, _capabilities.Object, _logger.Object);
     }
 
     private Content CreateScheduledContent(Platform platform = Platform.Blog) =>
@@ -112,11 +119,14 @@ public class ContentPublisherTests : IDisposable
         Assert.Equal("https://media.matthewkruczek.ai/ig/held.mp4", captured!.HostedMediaUrl);
     }
 
-    // The slot has ARRIVED — that is why this is running. Passing ScheduledAt on would tell a
-    // scheduling-capable connector to book the post for a moment already in the past.
+    // PBA held this one because the platform cannot schedule at all (Instagram's shape), so this
+    // call IS the moment. Passing a time on would ask an API that has no scheduling concept for
+    // something it cannot do — and if it could, it would book a moment already in the past.
     [Fact]
-    public async Task PublishAsync_HeldPost_DoesNotAskTheConnectorToRescheduleIt()
+    public async Task PublishAsync_HeldPost_ForANonSchedulingPlatform_PassesNoTime()
     {
+        _capabilities.Setup(c => c.SupportsScheduling(Platform.Blog)).Returns(false);
+
         var content = CreateScheduledContent();
         content.ScheduledAt = DateTimeOffset.UtcNow.AddMinutes(-1);
         content.StagedMediaUrl = "https://media.matthewkruczek.ai/ig/held.mp4";
@@ -132,6 +142,32 @@ public class ContentPublisherTests : IDisposable
         await CreatePublisher().PublishAsync(content.Id);
 
         Assert.Null(captured!.ScheduledAt);
+    }
+
+    // YouTube's shape, and the reason this stopped being decided by "was it staged?". PBA holds the
+    // clip not because YouTube cannot schedule — it can — but because uploading is rationed, so the
+    // handover happens days EARLY. The go-live time still has to travel with it: without it the
+    // video is uploaded public and the whole campaign appears at once.
+    [Fact]
+    public async Task PublishAsync_HeldPost_ForASchedulingPlatform_StillCarriesTheGoLiveTime()
+    {
+        var goLive = DateTimeOffset.UtcNow.AddDays(3);
+        var content = CreateScheduledContent();
+        content.ScheduledAt = goLive;
+        content.StagedMediaUrl = "https://media.matthewkruczek.ai/clips/held.mp4";
+        content.StagedMediaKey = "clips/held.mp4";
+        _dbContext.Contents.Add(content);
+        await _dbContext.SaveChangesAsync();
+
+        PlatformPublishRequest? captured = null;
+        _blogConnector.Setup(c => c.PublishAsync(It.IsAny<PlatformPublishRequest>(), It.IsAny<CancellationToken>()))
+            .Callback((PlatformPublishRequest r, CancellationToken _) => captured = r)
+            .ReturnsAsync(new PlatformPublishResult(true, "https://example.com/post", "post-1", null));
+
+        await CreatePublisher().PublishAsync(content.Id);
+
+        Assert.Equal(goLive, captured!.ScheduledAt);
+        Assert.Equal("https://media.matthewkruczek.ai/clips/held.mp4", captured.HostedMediaUrl);
     }
 
     // Storage is billed and the pointer must not outlive the object: a stale StagedMediaUrl on a

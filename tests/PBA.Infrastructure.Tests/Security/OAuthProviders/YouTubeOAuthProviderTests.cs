@@ -65,19 +65,35 @@ public class YouTubeOAuthProviderTests : IDisposable
             .ThrowsAsync(new HttpRequestException("network down"));
 
     [Fact]
-    public void BuildAuthorization_IncludesCorrectScopesAndRedirectUri()
+    public void BuildAuthorization_ForAnalytics_AsksOnlyForReadScopes()
     {
-        var request = CreateProvider().BuildAuthorization("STATE1");
+        var request = CreateProvider().BuildAuthorization("STATE1", CredentialPurpose.Analytics);
 
         Assert.StartsWith("https://accounts.google.com/o/oauth2/v2/auth", request.Url);
         var q = HttpUtility.ParseQueryString(new Uri(request.Url).Query);
         Assert.Contains("yt-analytics.readonly", q["scope"]);
         Assert.Contains("youtube.readonly", q["scope"]);
+        // The reason the two purposes have separate scope sets at all: a token that only ever reads
+        // numbers must not also be able to put a video on the channel.
+        Assert.DoesNotContain("youtube.upload", q["scope"]);
         Assert.Equal(_options.RedirectUri, q["redirect_uri"]);
         Assert.Equal("offline", q["access_type"]);
         Assert.Equal("consent", q["prompt"]);
         Assert.Equal("STATE1", q["state"]);
         Assert.Null(request.Additions.CodeVerifier);
+    }
+
+    [Fact]
+    public void BuildAuthorization_ForPublishing_AsksForUploadScope()
+    {
+        var request = CreateProvider().BuildAuthorization("STATE1", CredentialPurpose.Publishing);
+
+        var q = HttpUtility.ParseQueryString(new Uri(request.Url).Query);
+        Assert.Contains("youtube.upload", q["scope"]);
+        // Scheduling a video sets its publish time, which is a write to the video's status and not
+        // covered by the upload scope on its own.
+        Assert.Contains("https://www.googleapis.com/auth/youtube", q["scope"]);
+        Assert.DoesNotContain("yt-analytics.readonly", q["scope"]);
     }
 
     [Fact]

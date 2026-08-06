@@ -10,30 +10,41 @@ using PBA.Infrastructure.Configuration;
 
 namespace PBA.Infrastructure.Security.OAuthProviders;
 
-// YouTube (Google) analytics OAuth. Standard refresh-token grant; Google signals a revoked token with
-// invalid_grant. NeedsRefresh window ~1h before expiry.
+// YouTube (Google) OAuth, for both the analytics credential and the upload credential — same account,
+// different scopes. Standard refresh-token grant; Google signals a revoked token with invalid_grant.
+// NeedsRefresh window ~1h before expiry.
 public sealed class YouTubeOAuthProvider(
     IHttpClientFactory httpClientFactory,
     IOptions<YouTubeOAuthOptions> options,
     ITokenEncryptor encryptor,
     ILogger<YouTubeOAuthProvider> logger) : IOAuthProvider
 {
-    private const string Scope =
+    // Scopes differ by what the credential is FOR, and deliberately do not overlap more than they
+    // must. The analytics token reads; it has no business being able to put a video on the channel.
+    // Uploading needs youtube.upload, and youtube (manage) on top of it because a scheduled upload
+    // sets a publish time — that is a write to the video's status, not part of the upload itself.
+    private const string AnalyticsScope =
         "https://www.googleapis.com/auth/yt-analytics.readonly https://www.googleapis.com/auth/youtube.readonly";
+    private const string PublishingScope =
+        "https://www.googleapis.com/auth/youtube.upload https://www.googleapis.com/auth/youtube";
+
     private const string AuthorizeBase = "https://accounts.google.com/o/oauth2/v2/auth";
     private const string TokenEndpoint = "https://oauth2.googleapis.com/token";
     private static readonly TimeSpan RefreshLead = TimeSpan.FromHours(1);
 
+    private static string ScopeFor(CredentialPurpose purpose) =>
+        purpose == CredentialPurpose.Publishing ? PublishingScope : AnalyticsScope;
+
     public Platform Platform => Platform.YouTube;
 
-    public AuthorizationRequest BuildAuthorization(string state)
+    public AuthorizationRequest BuildAuthorization(string state, CredentialPurpose purpose)
     {
         var o = options.Value;
         var qs = HttpUtility.ParseQueryString(string.Empty);
         qs["response_type"] = "code";
         qs["client_id"] = o.ClientId;
         qs["redirect_uri"] = o.RedirectUri;
-        qs["scope"] = Scope;
+        qs["scope"] = ScopeFor(purpose);
         qs["state"] = state;
         qs["access_type"] = "offline";   // request a refresh token
         qs["prompt"] = "consent";        // guarantee a refresh token is returned
@@ -71,7 +82,7 @@ public sealed class YouTubeOAuthProvider(
             RefreshToken: data.TryGetProperty("refresh_token", out var rt) ? rt.GetString() : null,
             ExpiresIn: data.GetProperty("expires_in").GetInt32(),
             RefreshTokenExpiresIn: null,
-            Scopes: Scope);
+            Scopes: ScopeFor(state.Purpose));
     }
 
     public async Task<OAuthRefreshResult> RefreshAsync(PlatformCredential credential, CancellationToken ct)
@@ -123,7 +134,7 @@ public sealed class YouTubeOAuthProvider(
                 RefreshToken: data.TryGetProperty("refresh_token", out var rt) ? rt.GetString() : null,
                 ExpiresIn: data.GetProperty("expires_in").GetInt32(),
                 RefreshTokenExpiresIn: null,
-                Scopes: Scope));
+                Scopes: ScopeFor(credential.Purpose)));
         }
         catch (Exception ex) when (ex is JsonException or KeyNotFoundException or InvalidOperationException)
         {

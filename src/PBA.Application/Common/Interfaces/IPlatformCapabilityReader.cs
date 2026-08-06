@@ -19,4 +19,12 @@ public interface IPlatformCapabilityReader
     /// responsibility for the timing rather than hand it to something that will ignore it.
     /// </summary>
     bool SupportsScheduling(Platform platform);
+
+    /// <summary>
+    /// True when handing the clip over is itself rationed and PBA must spread the handovers out,
+    /// even though the platform can schedule the release (YouTube's upload quota). False when no
+    /// connector is registered, which keeps an unknown platform on the ordinary path rather than
+    /// inventing a pacing rule for it.
+    /// </summary>
+    bool RequiresPacedHandover(Platform platform);
 }

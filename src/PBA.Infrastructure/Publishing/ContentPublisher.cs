@@ -14,6 +14,7 @@ public sealed class ContentPublisher(
     IServiceProvider serviceProvider,
     IContentTransformer transformer,
     IMediaHost mediaHost,
+    IPlatformCapabilityReader capabilities,
     ILogger<ContentPublisher> logger) : IContentPublisher
 {
     public async Task PublishAsync(Guid contentId)
@@ -201,12 +202,18 @@ public sealed class ContentPublisher(
 
         var transformed = await transformer.TransformAsync(content, platform, ct);
 
-        // A record PBA held until its slot has no bytes left — they arrived days ago with the
-        // original request. What survives is the staged clip on R2, so hand the connector its URL.
-        //
-        // ScheduledAt is suppressed in that case: the slot has ARRIVED, and a connector that can
-        // schedule would otherwise re-schedule the post for a moment now in the past.
+        // A record PBA held has no bytes left — they arrived with the original request, days ago.
+        // What survives is the staged clip on R2, so hand the connector its URL.
         var staged = media is null ? content.StagedMediaUrl : null;
+
+        // Whether the connector still needs to be told the go-live time depends on who is doing the
+        // waiting, and only the connector knows that. Instagram cannot schedule, so PBA held the
+        // post and this call IS the moment — passing a time would ask Meta for something it has no
+        // concept of. YouTube can schedule but had to be handed the video early to fit its upload
+        // quota, so the release time still has to travel with it or the clip goes public on upload.
+        // Deciding from "was it staged?" instead conflated the two and only worked while Instagram
+        // was the only platform PBA held anything for.
+        var platformWaits = capabilities.SupportsScheduling(platform);
 
         var request = new PlatformPublishRequest(
             Content: content,
@@ -214,7 +221,7 @@ public sealed class ContentPublisher(
             Tags: content.Tags.AsReadOnly(),
             CanonicalUrl: canonicalUrl,
             Mode: PublishMode.Publish,
-            ScheduledAt: staged is null ? content.ScheduledAt : null,
+            ScheduledAt: platformWaits ? content.ScheduledAt : null,
             Media: media,
             HostedMediaUrl: staged,
             CoverFrameOffsetMs: content.CoverFrameOffsetMs);

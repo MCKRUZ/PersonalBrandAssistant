@@ -167,10 +167,13 @@ public static class ExternalEndpoints
         // `coverFrameOffsetMs` (optional) picks the cover frame, in milliseconds from the start of
         // the clip. Omit it and the connector guesses from the video's duration, which is fine for
         // an arbitrary clip and wrong for one whose good frame was chosen by hand.
+        // `tags` (optional, comma-separated) fills a platform's real keyword field. Only YouTube has
+        // one; the caption lanes leave it empty on purpose, because their formatter turns tags into
+        // hashtags and these captions already carry their own.
         group.MapPost("/social-clip/publish", async (
             IFormFile file, [FromForm] string caption, [FromForm] string? title,
             [FromForm] string? platforms, [FromForm] string? scheduledAt,
-            [FromForm] int? coverFrameOffsetMs,
+            [FromForm] int? coverFrameOffsetMs, [FromForm] string? tags,
             ISender sender, CancellationToken ct) =>
         {
             if (file.Length == 0)
@@ -194,7 +197,7 @@ public static class ExternalEndpoints
 
             var command = new PublishSocialClip.Command(
                 title ?? string.Empty, caption, media, ParsePlatformsCsv(platforms), when,
-                coverFrameOffsetMs);
+                coverFrameOffsetMs, ParseTagsCsv(tags));
             return (await sender.Send(command, ct)).ToApiResult();
         })
         .DisableAntiforgery()
@@ -268,6 +271,18 @@ public static class ExternalEndpoints
             .ToList();
 
         return platforms.Count > 0 ? platforms : null;
+    }
+
+    private static IReadOnlyList<string>? ParseTagsCsv(string? csv)
+    {
+        if (string.IsNullOrWhiteSpace(csv))
+            return null;
+
+        var tags = csv
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToList();
+
+        return tags.Count > 0 ? tags : null;
     }
 
     private static DigestKind ParseKind(string? kind) =>

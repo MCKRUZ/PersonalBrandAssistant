@@ -83,7 +83,7 @@ public class LinkedInOAuthProviderTests : IDisposable
     {
         var provider = CreateProvider();
 
-        var request = provider.BuildAuthorization("STATE123");
+        var request = provider.BuildAuthorization("STATE123", CredentialPurpose.Publishing);
 
         Assert.StartsWith("https://www.linkedin.com/oauth/v2/authorization", request.Url);
         var query = HttpUtility.ParseQueryString(new Uri(request.Url).Query);

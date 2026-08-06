@@ -14,15 +14,18 @@ namespace PBA.Application.Tests.Features.Content.Commands;
 public class PublishSocialClipHandlerTests
 {
     private readonly Mock<IContentPublisher> _publisher = new();
-    private readonly Mock<IPlatformCapabilityReader> _capabilities = new();
+    private readonly Mock<IHandoverPlanner> _planner = new();
     private readonly Mock<IMediaHost> _mediaHost = new();
     private readonly Mock<IContentScheduler> _scheduler = new();
 
     public PublishSocialClipHandlerTests()
     {
-        // Default to a platform that holds the post itself (TikTok via Buffer) — the original
-        // behaviour of this command, and what every test predating PBA-held scheduling assumes.
-        _capabilities.Setup(c => c.SupportsScheduling(It.IsAny<Platform>())).Returns(true);
+        // Default to a platform that takes the clip now and holds the post itself (TikTok via
+        // Buffer) — the original behaviour of this command, and what every test predating PBA-held
+        // scheduling assumes.
+        _planner.Setup(p => p.PlanAsync(
+                It.IsAny<Platform>(), It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(HandoverPlan.Now());
 
         _mediaHost.Setup(m => m.UploadAsync(
                 It.IsAny<byte[]>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
@@ -34,12 +37,28 @@ public class PublishSocialClipHandlerTests
     }
 
     private PublishSocialClip.Handler CreateHandler(ApplicationDbContext context) =>
-        new(context, _publisher.Object, _capabilities.Object, _mediaHost.Object, _scheduler.Object);
+        new(context, _publisher.Object, _planner.Object, _mediaHost.Object, _scheduler.Object);
 
-    /// <summary>Makes the target platform one that cannot schedule — Instagram, where Meta has no
-    /// scheduling concept — so PBA has to hold the post and the media itself.</summary>
-    private void PlatformCannotSchedule() =>
-        _capabilities.Setup(c => c.SupportsScheduling(It.IsAny<Platform>())).Returns(false);
+    /// <summary>Makes PBA hold the post and the media until the go-live moment — Instagram's shape,
+    /// where Meta has no scheduling concept, so the handover IS the moment of posting.</summary>
+    private void PbaHoldsUntilTheSlot() =>
+        _planner.Setup(p => p.PlanAsync(
+                It.IsAny<Platform>(), It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Platform _, DateTimeOffset goLive, CancellationToken _) =>
+                HandoverPlan.Hold(goLive));
+
+    /// <summary>Makes PBA hold the clip and hand it over EARLY — YouTube's shape, where the platform
+    /// schedules the release itself but rations how many videos it will accept in a day.</summary>
+    private void PbaHoldsUntil(DateTimeOffset handoverAt) =>
+        _planner.Setup(p => p.PlanAsync(
+                It.IsAny<Platform>(), It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(HandoverPlan.Hold(handoverAt));
+
+    /// <summary>Makes the planner refuse — no upload capacity before the go-live moment.</summary>
+    private void PlannerRefuses(string reason) =>
+        _planner.Setup(p => p.PlanAsync(
+                It.IsAny<Platform>(), It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(HandoverPlan.Refuse(reason));
 
     private static ApplicationDbContext CreateContext()
     {
@@ -222,7 +241,7 @@ public class PublishSocialClipHandlerTests
     public async Task Handle_PlatformCannotSchedule_PbaHoldsThePostInsteadOfPublishingNow()
     {
         await using var context = CreateContext();
-        PlatformCannotSchedule();
+        PbaHoldsUntilTheSlot();
 
         var handler = CreateHandler(context);
         var result = await handler.Handle(
@@ -242,7 +261,7 @@ public class PublishSocialClipHandlerTests
     public async Task Handle_PbaHoldsThePost_StagesTheClipSoItSurvivesUntilTheSlot()
     {
         await using var context = CreateContext();
-        PlatformCannotSchedule();
+        PbaHoldsUntilTheSlot();
 
         var handler = CreateHandler(context);
         await handler.Handle(
@@ -261,7 +280,7 @@ public class PublishSocialClipHandlerTests
     public async Task Handle_PbaHoldsThePost_MovesToScheduledAndBooksTheJob()
     {
         await using var context = CreateContext();
-        PlatformCannotSchedule();
+        PbaHoldsUntilTheSlot();
         var when = DateTimeOffset.UtcNow.AddDays(2);
 
         var handler = CreateHandler(context);
@@ -273,6 +292,72 @@ public class PublishSocialClipHandlerTests
         Assert.Equal(ContentStatus.Scheduled, stored.Status);
         Assert.Equal("job-1", stored.HangfireJobId);
         _scheduler.Verify(s => s.SchedulePublish(stored.Id, when.ToUniversalTime()), Times.Once);
+    }
+
+    // YouTube's shape, and the distinction the whole handover idea rests on: the job must fire when
+    // the CLIP is handed over, not when the post goes live. Those are the same instant for Instagram
+    // and days apart here — booking the job at go-live instead would upload the video after the
+    // moment it was supposed to appear, which YouTube rejects outright.
+    [Fact]
+    public async Task Handle_WhenTheHandoverIsEarlierThanTheSlot_BooksTheJobForTheHandover()
+    {
+        await using var context = CreateContext();
+        var goLive = DateTimeOffset.UtcNow.AddDays(6);
+        var handover = DateTimeOffset.UtcNow.AddDays(1);
+        PbaHoldsUntil(handover);
+
+        var handler = CreateHandler(context);
+        await handler.Handle(
+            new PublishSocialClip.Command("Short 3", "description", Clip(), [Platform.YouTube], goLive),
+            CancellationToken.None);
+
+        var stored = await context.Contents.SingleAsync();
+        Assert.Equal(handover, stored.HandoverAt);
+        // The go-live time survives on the record: it is what travels to YouTube as the publish
+        // time, days after the upload.
+        Assert.Equal(goLive.ToUniversalTime(), stored.ScheduledAt);
+        _scheduler.Verify(s => s.SchedulePublish(stored.Id, handover), Times.Once);
+        _scheduler.Verify(s => s.SchedulePublish(stored.Id, goLive.ToUniversalTime()), Times.Never);
+    }
+
+    // Refusing beats accepting something that cannot work. A clip with no upload capacity before its
+    // slot would sit staged, cost storage, and fail unattended days later.
+    [Fact]
+    public async Task Handle_WhenThePlannerRefuses_ReturnsTheReasonAndStoresNothing()
+    {
+        await using var context = CreateContext();
+        PlannerRefuses("YouTube has no upload capacity left before then.");
+
+        var handler = CreateHandler(context);
+        var result = await handler.Handle(
+            new PublishSocialClip.Command("Short 4", "description", Clip(), [Platform.YouTube],
+                DateTimeOffset.UtcNow.AddDays(2)),
+            CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains("no upload capacity", string.Join(" ", result.Errors));
+        Assert.Empty(context.Contents);
+        _mediaHost.Verify(m => m.UploadAsync(
+            It.IsAny<byte[]>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    // Keywords have a real field on YouTube and drive discovery there. The caption lanes must stay
+    // empty — TikTokFormatter turns tags into hashtags, and these captions carry their own.
+    [Fact]
+    public async Task Handle_StoresSuppliedTags_ForPlatformsThatHaveATagsField()
+    {
+        await using var context = CreateContext();
+        PublisherReturns(new PublishResult(true, "https://youtu.be/abc", []));
+
+        var handler = CreateHandler(context);
+        await handler.Handle(
+            new PublishSocialClip.Command("Short 5", "description", Clip(), [Platform.YouTube],
+                Tags: ["impostor syndrome", "engineering"]),
+            CancellationToken.None);
+
+        var stored = await context.Contents.SingleAsync();
+        Assert.Equal(["impostor syndrome", "engineering"], stored.Tags);
     }
 
     // The mirror of the TikTok rule. There, Scheduled would double-post because Buffer also fires.
@@ -305,7 +390,7 @@ public class PublishSocialClipHandlerTests
     public async Task Handle_NoSlotOnANonSchedulingPlatform_PublishesNowWithoutStaging()
     {
         await using var context = CreateContext();
-        PlatformCannotSchedule();
+        PbaHoldsUntilTheSlot();
         PublisherReturns(new PublishResult(true, null, []));
 
         var handler = CreateHandler(context);
@@ -328,7 +413,7 @@ public class PublishSocialClipHandlerTests
     public async Task Handle_HeldPostBeyondTheStagingLifetime_IsRefusedRatherThanStagedToRot()
     {
         await using var context = CreateContext();
-        PlatformCannotSchedule();
+        PbaHoldsUntilTheSlot();
 
         var handler = CreateHandler(context);
         var result = await handler.Handle(
@@ -348,7 +433,7 @@ public class PublishSocialClipHandlerTests
     public async Task Handle_HeldPostInsideTheStagingLifetime_IsAccepted()
     {
         await using var context = CreateContext();
-        PlatformCannotSchedule();
+        PbaHoldsUntilTheSlot();
 
         var handler = CreateHandler(context);
         var result = await handler.Handle(
@@ -365,7 +450,7 @@ public class PublishSocialClipHandlerTests
     public async Task Handle_HeldPost_RemembersTheChosenCoverFrame()
     {
         await using var context = CreateContext();
-        PlatformCannotSchedule();
+        PbaHoldsUntilTheSlot();
 
         var handler = CreateHandler(context);
         await handler.Handle(

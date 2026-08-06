@@ -39,6 +39,21 @@ public class Content
     public string? StagedMediaKey { get; set; }
 
     /// <summary>
+    /// When PBA hands the clip to the platform, which is NOT always when the post goes live.
+    ///
+    /// Three shapes exist. TikTok via Buffer: handed over at once, Buffer holds it — this stays null.
+    /// Instagram: Meta cannot schedule, so handover IS the go-live moment and this equals
+    /// <see cref="ScheduledAt"/>. YouTube: the upload is what costs a scarce daily quota, while
+    /// YouTube itself releases the video at <see cref="ScheduledAt"/> — so PBA uploads as early as
+    /// the budget allows and this lands days BEFORE the post appears.
+    ///
+    /// Recorded rather than inferred from the Hangfire job because the pacing decision needs to
+    /// count what is already booked onto a given day, and reading that back out of a job store is
+    /// both awkward and a second source of truth.
+    /// </summary>
+    public DateTimeOffset? HandoverAt { get; set; }
+
+    /// <summary>
     /// Which frame of the video becomes the post's cover, in milliseconds from the start. Set when
     /// the caller chose one deliberately — the frames that read well are per-clip and a formula
     /// picks them badly, so a supplied value always wins over the connector's own guess.

@@ -10,7 +10,15 @@ namespace PBA.Infrastructure.Publishing;
 /// </summary>
 public sealed class PlatformCapabilityReader(IServiceProvider serviceProvider) : IPlatformCapabilityReader
 {
+    // Null-safe on the capabilities too, not just the connector. Asking a question about a platform
+    // must never be the thing that takes a publish down — false means "PBA keeps responsibility",
+    // which is the safe answer in both directions: it never hands timing to something that will
+    // ignore it, and never invents a pacing rule for a connector that did not ask for one.
     public bool SupportsScheduling(Platform platform) =>
         serviceProvider.GetKeyedService<IPlatformConnector>(platform)?
-            .GetCapabilities().SupportsScheduling ?? false;
+            .GetCapabilities()?.SupportsScheduling ?? false;
+
+    public bool RequiresPacedHandover(Platform platform) =>
+        serviceProvider.GetKeyedService<IPlatformConnector>(platform)?
+            .GetCapabilities()?.RequiresPacedHandover ?? false;
 }

@@ -27,7 +27,7 @@ public sealed class TwitterOAuthProvider(
 
     public Platform Platform => Platform.Twitter;
 
-    public AuthorizationRequest BuildAuthorization(string state)
+    public AuthorizationRequest BuildAuthorization(string state, CredentialPurpose purpose)
     {
         var tw = options.Value;
         var codeVerifier = Convert.ToBase64String(RandomNumberGenerator.GetBytes(64))

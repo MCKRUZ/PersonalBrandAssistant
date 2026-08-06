@@ -67,7 +67,7 @@ public class InstagramOAuthProviderTests : IDisposable
     [Fact]
     public void BuildAuthorization_IncludesCorrectScopesAndRedirectUri()
     {
-        var request = CreateProvider().BuildAuthorization("STATE1");
+        var request = CreateProvider().BuildAuthorization("STATE1", CredentialPurpose.Publishing);
 
         Assert.StartsWith("https://www.instagram.com/oauth/authorize", request.Url);
         var q = HttpUtility.ParseQueryString(new Uri(request.Url).Query);
