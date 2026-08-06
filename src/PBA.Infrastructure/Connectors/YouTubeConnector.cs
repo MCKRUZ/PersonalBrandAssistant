@@ -99,10 +99,21 @@ public sealed class YouTubeConnector(
                 return false;
 
             using var service = CreateService(token.Value!);
-            var listRequest = service.Channels.List("id");
+            var listRequest = service.Channels.List("id,snippet");
             listRequest.Mine = true;
             var response = await listRequest.ExecuteAsync(ct);
-            return response.Items is { Count: > 0 };
+            if (response.Items is not { Count: > 0 })
+                return false;
+
+            // WHICH channel, not just "a channel". A Google account can own several, and consent
+            // silently grants the one picked in Google's chooser — so a valid credential can be
+            // valid for the wrong channel, and the only symptom is uploads landing somewhere
+            // nobody looks. Log it where a human can compare it against the intended handle.
+            var channel = response.Items[0];
+            logger.LogInformation(
+                "YouTube publishing credential belongs to channel {ChannelTitle} ({ChannelId}), handle {Handle}",
+                channel.Snippet?.Title, channel.Id, channel.Snippet?.CustomUrl ?? "(none)");
+            return true;
         }
         catch (Exception ex)
         {
