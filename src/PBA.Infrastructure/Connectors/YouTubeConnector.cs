@@ -75,6 +75,15 @@ public sealed class YouTubeConnector(
                             "nothing to upload. It may have been reaped before its upload slot.");
 
             using var service = CreateService(token.Value!);
+
+            // Check WHERE this is about to go before spending 1,600 quota units finding out. An
+            // upload to the wrong channel cannot be undone from here and leaves no visible trace on
+            // the channel anyone is watching. Costs one quota unit, and runs after the free local
+            // checks so a missing clip does not surface as a Google error.
+            var wrongChannel = await CheckChannelAsync(service, ct);
+            if (wrongChannel is not null)
+                return Fail(wrongChannel);
+
             return await UploadAsync(service, request, title, video, ct);
         }
         catch (Exception ex)
@@ -99,21 +108,7 @@ public sealed class YouTubeConnector(
                 return false;
 
             using var service = CreateService(token.Value!);
-            var listRequest = service.Channels.List("id,snippet");
-            listRequest.Mine = true;
-            var response = await listRequest.ExecuteAsync(ct);
-            if (response.Items is not { Count: > 0 })
-                return false;
-
-            // WHICH channel, not just "a channel". A Google account can own several, and consent
-            // silently grants the one picked in Google's chooser — so a valid credential can be
-            // valid for the wrong channel, and the only symptom is uploads landing somewhere
-            // nobody looks. Log it where a human can compare it against the intended handle.
-            var channel = response.Items[0];
-            logger.LogInformation(
-                "YouTube publishing credential belongs to channel {ChannelTitle} ({ChannelId}), handle {Handle}",
-                channel.Snippet?.Title, channel.Id, channel.Snippet?.CustomUrl ?? "(none)");
-            return true;
+            return await CheckChannelAsync(service, ct) is null;
         }
         catch (Exception ex)
         {
@@ -135,6 +130,53 @@ public sealed class YouTubeConnector(
         // ...but accepting the video costs a rationed daily quota, so the handover is paced.
         RequiresPacedHandover: true
     );
+
+    /// <summary>
+    /// Returns null when the credential owns the channel we intend to publish to, otherwise the
+    /// reason it does not.
+    ///
+    /// This exists because a credential for the WRONG channel is completely valid. A Google account
+    /// can own several channels, OAuth consent grants whichever was picked in Google's chooser, and
+    /// an upload with the wrong one succeeds and returns a real video id — the video is just not on
+    /// the channel anyone is looking at. The first test upload here did exactly that, onto a second
+    /// channel carrying the same display name and a different handle.
+    /// </summary>
+    private async Task<string?> CheckChannelAsync(YouTubeService service, CancellationToken ct)
+    {
+        var listRequest = service.Channels.List("id,snippet");
+        listRequest.Mine = true;
+        var response = await listRequest.ExecuteAsync(ct);
+
+        if (response.Items is not { Count: > 0 })
+            return "The YouTube credential does not own a channel.";
+
+        var channel = response.Items[0];
+        var mismatch = ChannelMismatch(
+            options.CurrentValue.ChannelId, channel.Id, channel.Snippet?.Title, channel.Snippet?.CustomUrl);
+        if (mismatch is not null)
+            return mismatch;
+
+        logger.LogInformation(
+            "YouTube publishing credential belongs to channel {ChannelTitle} ({ChannelId}), handle {Handle}",
+            channel.Snippet?.Title, channel.Id, channel.Snippet?.CustomUrl ?? "(none)");
+        return null;
+    }
+
+    /// <summary>
+    /// The rule on its own: null when the credential's channel is the intended one (or none was
+    /// configured), otherwise the reason it is not. Separated from the API call so the decision that
+    /// actually matters can be tested without a live Google client.
+    /// </summary>
+    internal static string? ChannelMismatch(string? expected, string actualId, string? title, string? handle)
+    {
+        if (string.IsNullOrWhiteSpace(expected) || string.Equals(expected, actualId, StringComparison.Ordinal))
+            return null;
+
+        return $"The YouTube credential is for channel {title ?? "(untitled)"} " +
+               $"({actualId}, {handle ?? "no handle"}), not the configured {expected}. Re-consent and " +
+               "pick the right channel in Google's chooser — an upload with this credential would go " +
+               "somewhere nobody is watching.";
+    }
 
     private YouTubeService CreateService(string accessToken) => new(new BaseClientService.Initializer
     {

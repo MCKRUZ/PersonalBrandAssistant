@@ -142,5 +142,46 @@ public class YouTubeConnectorTests : IDisposable
         Assert.Contains("could not be read back from storage", result.ErrorMessage);
     }
 
+    // The real failure this lane hit on its first test upload. The credential was valid, the upload
+    // succeeded, YouTube returned a real video id — and the video was on a SECOND channel the same
+    // Google account owns, carrying the same display name and a different handle. Nothing on the
+    // channel anyone watches showed a trace. Consent grants whichever channel was picked in
+    // Google's chooser, so "valid credential" and "right channel" are separate facts.
+    [Fact]
+    public void ChannelMismatch_RefusesAValidCredentialForTheWrongChannel()
+    {
+        var reason = YouTubeConnector.ChannelMismatch(
+            expected: "UCZ3-8txSHf0tsTbrm98p8_w",
+            actualId: "UC5oBxdKVePX4cxKIzLAMfZg",
+            title: "Matt Kruczek",
+            handle: "@mattkruczek2665");
+
+        Assert.NotNull(reason);
+        // Both ids belong in the message. The two channels share a display name, so naming only the
+        // title would read as "the credential is for Matt Kruczek, not Matt Kruczek".
+        Assert.Contains("UC5oBxdKVePX4cxKIzLAMfZg", reason);
+        Assert.Contains("UCZ3-8txSHf0tsTbrm98p8_w", reason);
+        Assert.Contains("@mattkruczek2665", reason);
+    }
+
+    [Fact]
+    public void ChannelMismatch_AcceptsTheIntendedChannel()
+    {
+        Assert.Null(YouTubeConnector.ChannelMismatch(
+            "UCZ3-8txSHf0tsTbrm98p8_w", "UCZ3-8txSHf0tsTbrm98p8_w", "Matt Kruczek", "@matthewkruczek"));
+    }
+
+    // Unset means "no expectation on file", which cannot be checked. It has to pass rather than
+    // block every upload — but it is why the production compose file pins the id.
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void ChannelMismatch_WithNoConfiguredChannel_DoesNotBlock(string? configured)
+    {
+        Assert.Null(YouTubeConnector.ChannelMismatch(
+            configured, "UC5oBxdKVePX4cxKIzLAMfZg", "Matt Kruczek", "@mattkruczek2665"));
+    }
+
     public void Dispose() => _httpClient.Dispose();
 }

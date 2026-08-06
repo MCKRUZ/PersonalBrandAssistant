@@ -49,6 +49,10 @@ services:
       # An upload costs 1,600 of Google's 10,000-unit daily quota, shared with the analytics polling
       # against this same project. Four a day leaves headroom; raise it only if the quota is raised.
       Publishing__YouTubeUpload__Enabled: "true"
+      # The channel uploads must land on: @matthewkruczek. Consent grants whichever channel was
+      # picked in Google's chooser, and this account owns a SECOND channel with the same display
+      # name (@mattkruczek2665) — the first test upload went there, valid credential and all.
+      Publishing__YouTubeUpload__ChannelId: ${YOUTUBE_CHANNEL_ID:-UCZ3-8txSHf0tsTbrm98p8_w}
       Publishing__YouTubeUpload__DailyUploadBudget: ${YOUTUBE_DAILY_UPLOAD_BUDGET:-4}
       # Channel analytics OAuth (binds *OAuthOptions "Publishing:{Platform}") + per-platform gates.
       Publishing__YouTube__ClientId: ${YOUTUBE_CLIENT_ID:-}

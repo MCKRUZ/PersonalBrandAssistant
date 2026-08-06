@@ -7,6 +7,19 @@ public sealed class YouTubePublishingOptions
     public bool Enabled { get; init; }
 
     /// <summary>
+    /// The channel uploads MUST land on, e.g. UCZ3-8txSHf0tsTbrm98p8_w (@matthewkruczek).
+    ///
+    /// A Google account can own more than one channel, and OAuth consent silently grants whichever
+    /// was picked in Google's chooser. A credential for the wrong one is completely valid: the
+    /// upload succeeds, returns a real video id, and the video is simply not on the channel anyone
+    /// is looking at. That happened on the first test upload here — the second channel even carries
+    /// the same display name, differing only by handle.
+    ///
+    /// Empty disables the check, which means trusting whatever was consented to. Set it.
+    /// </summary>
+    public string? ChannelId { get; init; }
+
+    /// <summary>
     /// How many videos PBA will upload in one YouTube quota day. Each upload costs 1,600 units of
     /// 10,000, so six is the arithmetic ceiling — four leaves headroom for the analytics polling,
     /// thumbnail sets and list calls that share the same project allowance. Raise it only alongside
