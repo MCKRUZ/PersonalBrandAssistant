@@ -36,6 +36,12 @@ services:
       Media__R2__AccessKeyId: ${R2_ACCESS_KEY_ID:-}
       Media__R2__SecretAccessKey: ${R2_SECRET_ACCESS_KEY:-}
       Media__R2__Endpoint: https://122c54305bb75c93b4ad2eeb5e616d79.r2.cloudflarestorage.com
+      # Instagram Reels publishing. Reuses the same R2 host above — Meta also fetches media by URL
+      # rather than accepting bytes. IgUserId is @matthewkruczek.ai; Meta's publishing endpoints are
+      # rooted at /{ig-user-id}/ and do not accept a handle. The token is NOT here: it lives as an
+      # encrypted Publishing credential in the database, seeded via POST /api/platforms/instagram/credentials.
+      Publishing__Instagram__Enabled: "true"
+      Publishing__Instagram__IgUserId: ${IG_USER_ID:-17841446031323328}
       # Channel analytics OAuth (binds *OAuthOptions "Publishing:{Platform}") + per-platform gates.
       Publishing__YouTube__ClientId: ${YOUTUBE_CLIENT_ID:-}
       Publishing__YouTube__ClientSecret: ${YOUTUBE_CLIENT_SECRET:-}
