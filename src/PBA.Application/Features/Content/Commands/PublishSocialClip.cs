@@ -83,8 +83,13 @@ public static class PublishSocialClip
             //
             // A slot that has already passed becomes an immediate post, matching what a late drip
             // run did before: a past dueAt is not something we have verified the platform accepts.
+            //
+            // ToUniversalTime is required, not tidiness. Npgsql writes DateTimeOffset to timestamptz
+            // and REJECTS any non-zero offset outright, so a caller sending -04:00 — which every
+            // America/New_York campaign queue does — fails the insert with a 500 that says nothing
+            // about scheduling. The in-memory provider the tests use does not enforce this.
             if (request.ScheduledAt is { } scheduledAt && scheduledAt > DateTimeOffset.UtcNow)
-                content.ScheduledAt = scheduledAt;
+                content.ScheduledAt = scheduledAt.ToUniversalTime();
 
             db.Contents.Add(content);
             await db.SaveChangesAsync(ct);

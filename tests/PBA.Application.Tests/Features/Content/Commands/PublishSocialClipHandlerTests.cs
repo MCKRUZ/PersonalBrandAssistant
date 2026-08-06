@@ -120,6 +120,34 @@ public class PublishSocialClipHandlerTests
         Assert.Equal(when, stored.ScheduledAt);
     }
 
+    // Npgsql writes DateTimeOffset to timestamptz and REJECTS a non-zero offset outright, so a
+    // -04:00 slot — what every America/New_York campaign queue sends — kills the insert with a 500
+    // that never mentions scheduling. This is asserted here rather than caught by an integration
+    // test because the in-memory provider these tests run on does not enforce the rule: the first
+    // version of this feature passed every test and then failed on all five real clips.
+    [Theory]
+    [InlineData(-4)]
+    [InlineData(-7)]
+    [InlineData(5.5)]
+    public async Task Handle_NonUtcOffset_IsNormalisedToUtcForPostgres(double offsetHours)
+    {
+        await using var context = CreateContext();
+        PublisherReturns(new PublishResult(true, null, []));
+        var offset = TimeSpan.FromHours(offsetHours);
+        var when = new DateTimeOffset(DateTime.UtcNow.AddDays(2).Ticks, TimeSpan.Zero)
+            .ToOffset(offset);
+
+        var handler = new PublishSocialClip.Handler(context, _publisher.Object);
+        await handler.Handle(
+            new PublishSocialClip.Command("Part 6", "caption", Clip(), ScheduledAt: when),
+            CancellationToken.None);
+
+        var stored = await context.Contents.SingleAsync();
+        Assert.Equal(TimeSpan.Zero, stored.ScheduledAt!.Value.Offset);
+        // Same instant, different clock face — normalising must not move the slot.
+        Assert.Equal(when.UtcDateTime, stored.ScheduledAt!.Value.UtcDateTime);
+    }
+
     // Buffer holds the post and fires it itself, so PBA has already done its job at hand-off time.
     // If the record were left Scheduled, ScheduledPublishReconciler would sweep it once the time
     // passed and publish it a SECOND time — the exact duplicate-post failure that hit TikTok on
