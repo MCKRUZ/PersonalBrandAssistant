@@ -154,7 +154,13 @@ public sealed class YouTubeConnector(
         var mismatch = ChannelMismatch(
             options.CurrentValue.ChannelId, channel.Id, channel.Snippet?.Title, channel.Snippet?.CustomUrl);
         if (mismatch is not null)
+        {
+            // Logged, not just returned. The readiness probe reduces this to a bool, so without a
+            // log line the refusal reaches a caller as "validation failed" with no way to learn WHY
+            // — which is the same nothing-to-go-on that made the wrong-channel upload hard to find.
+            logger.LogWarning("YouTube publishing credential rejected: {Reason}", mismatch);
             return mismatch;
+        }
 
         logger.LogInformation(
             "YouTube publishing credential belongs to channel {ChannelTitle} ({ChannelId}), handle {Handle}",
