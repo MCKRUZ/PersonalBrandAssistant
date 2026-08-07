@@ -59,6 +59,11 @@ services:
       Publishing__YouTube__ClientSecret: ${YOUTUBE_CLIENT_SECRET:-}
       Publishing__YouTube__ApiKey: ${YOUTUBE_API_KEY:-}
       Publishing__YouTube__RedirectUri: ${YOUTUBE_REDIRECT_URI:-}
+      # TikTok analytics reads through a SANDBOX app (client key is sbaw-prefixed). A sandbox needs no
+      # TikTok app review, but only accounts registered as its target users can authorize it.
+      Publishing__TikTok__ClientId: ${TIKTOK_CLIENT_KEY:-}
+      Publishing__TikTok__ClientSecret: ${TIKTOK_CLIENT_SECRET:-}
+      Publishing__TikTok__RedirectUri: ${TIKTOK_REDIRECT_URI:-}
       ChannelAnalytics__YouTubeEnabled: ${YOUTUBE_ANALYTICS_ENABLED:-false}
       ChannelAnalytics__InstagramEnabled: ${INSTAGRAM_ANALYTICS_ENABLED:-false}
       ChannelAnalytics__TikTokEnabled: ${TIKTOK_ANALYTICS_ENABLED:-false}
