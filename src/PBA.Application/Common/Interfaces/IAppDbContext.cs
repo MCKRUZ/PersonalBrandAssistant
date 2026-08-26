@@ -17,6 +17,9 @@ public interface IAppDbContext
     DbSet<Digest> Digests { get; }
     DbSet<DigestItem> DigestItems { get; }
     DbSet<ChannelMetricSnapshot> ChannelMetricSnapshots { get; }
+
+    /// <summary>Video bytes of a clip PBA is holding until its hand-over moment.</summary>
+    DbSet<HeldMedia> HeldMedia { get; }
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 
     /// <summary>Sets the change-tracker ORIGINAL value of a tracked entity's property — used to seed an

@@ -11,7 +11,7 @@ public interface IOAuthProvider
     Platform Platform { get; }
 
     // Provider builds its own authorize URL AND any state it needs persisted (e.g. Twitter PKCE verifier).
-    AuthorizationRequest BuildAuthorization(string state);
+    AuthorizationRequest BuildAuthorization(string state, CredentialPurpose purpose);
 
     Task<OAuthTokenResult> ExchangeCodeAsync(string code, OAuthStateEntry state, CancellationToken ct);
 

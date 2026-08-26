@@ -7,5 +7,9 @@ public interface IContentPublisher
 {
     Task PublishAsync(Guid contentId);
 
-    Task<PublishResult> PublishAsync(Guid contentId, IReadOnlyList<Platform>? targetPlatforms, CancellationToken ct);
+    Task<PublishResult> PublishAsync(
+        Guid contentId,
+        IReadOnlyList<Platform>? targetPlatforms,
+        MediaAttachment? media,
+        CancellationToken ct);
 }

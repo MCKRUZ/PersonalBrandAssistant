@@ -24,7 +24,7 @@ public sealed class LinkedInOAuthProvider(
 
     public Platform Platform => Platform.LinkedIn;
 
-    public AuthorizationRequest BuildAuthorization(string state)
+    public AuthorizationRequest BuildAuthorization(string state, CredentialPurpose purpose)
     {
         var li = options.Value;
         var qs = HttpUtility.ParseQueryString(string.Empty);

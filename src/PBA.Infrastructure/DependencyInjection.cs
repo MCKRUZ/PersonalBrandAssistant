@@ -1,4 +1,5 @@
 using System.Net.Http.Headers;
+using Amazon.S3;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -8,6 +9,7 @@ using PBA.Domain.Enums;
 using PBA.Infrastructure.Configuration;
 using PBA.Infrastructure.Connectors;
 using PBA.Infrastructure.Data;
+using PBA.Infrastructure.Media;
 using PBA.Infrastructure.Publishing;
 using PBA.Infrastructure.Seeding;
 using PBA.Infrastructure.Security;
@@ -159,13 +161,20 @@ public static class DependencyInjection
         services.Configure<TikTokOAuthOptions>(configuration.GetSection(TikTokOAuthOptions.SectionName));
         services.Configure<TransformerOptions>(configuration.GetSection(TransformerOptions.SectionName));
         services.Configure<ComfyUiOptions>(configuration.GetSection(ComfyUiOptions.SectionName));
+        services.Configure<BufferOptions>(configuration.GetSection(BufferOptions.SectionName));
+        services.Configure<InstagramPublishingOptions>(
+            configuration.GetSection(InstagramPublishingOptions.SectionName));
+        services.Configure<YouTubePublishingOptions>(
+            configuration.GetSection(YouTubePublishingOptions.SectionName));
+        services.Configure<R2Options>(configuration.GetSection(R2Options.SectionName));
 
         // Security
         services.AddSingleton<ITokenEncryptor, TokenEncryptor>();
         services.AddScoped<IOAuthService, OAuthService>();
 
-        // On-demand token freshness for the live analytics read path.
-        services.AddScoped<IAnalyticsTokenProvider, AnalyticsTokenProvider>();
+        // On-demand token freshness for callers hitting a live API now — analytics reads and the
+        // Instagram publish path, which use separately-scoped credentials for the same platform.
+        services.AddScoped<IPlatformTokenProvider, PlatformTokenProvider>();
 
         // Keyed OAuth providers (resolved by the OAuthService coordinator)
         services.AddKeyedScoped<IOAuthProvider, LinkedInOAuthProvider>(Platform.LinkedIn);
@@ -183,13 +192,61 @@ public static class DependencyInjection
         services.AddKeyedScoped<IPlatformConnector, LinkedInConnector>(Platform.LinkedIn);
         services.AddKeyedScoped<IPlatformConnector, TwitterConnector>(Platform.Twitter);
         services.AddKeyedScoped<IPlatformConnector, SubstackConnector>(Platform.Substack);
+        // Resolved through the typed-client factory, NOT as a plain keyed type. AddHttpClient<BufferConnector>
+        // below sets BaseAddress on the client it builds; a plain keyed registration constructs the
+        // connector straight from the container instead, handing it an unconfigured HttpClient — every
+        // Buffer call then throws "An invalid request URI was provided". That made TikTok publishing
+        // impossible through ContentPublisher while working fine from a hand-built connector.
+        services.AddKeyedScoped<IPlatformConnector>(Platform.TikTok,
+            (sp, _) => sp.GetRequiredService<BufferConnector>());
+        // Same typed-client caveat as Buffer above: resolved through the factory so the connector
+        // gets the HttpClient configured by AddHttpClient<InstagramConnector>, not a bare one.
+        services.AddKeyedScoped<IPlatformConnector>(Platform.Instagram,
+            (sp, _) => sp.GetRequiredService<InstagramConnector>());
+        // Same typed-client caveat again: the YouTube connector's HttpClient is used only to pull a
+        // staged clip back down from R2, but it still has to be the configured one.
+        services.AddKeyedScoped<IPlatformConnector>(Platform.YouTube,
+            (sp, _) => sp.GetRequiredService<YouTubeConnector>());
 
         // Keyed formatters
+        // Who holds a clip until its slot, and when it is handed over. Lives here rather than with
+        // the general infrastructure registrations because every answer comes from a connector.
+        services.AddSingleton(TimeProvider.System);
+        services.AddScoped<IPlatformCapabilityReader, PlatformCapabilityReader>();
+        services.AddScoped<IHandoverPlanner, HandoverPlanner>();
+        // Only YouTube rations handovers; the planner treats a platform with no pacer as unrationed.
+        services.AddKeyedScoped<IUploadPacer, YouTubeUploadPacer>(Platform.YouTube);
+
         services.AddKeyedScoped<IPlatformFormatter, BlogFormatter>(Platform.Blog);
         services.AddKeyedScoped<IPlatformFormatter, MediumFormatter>(Platform.Medium);
         services.AddKeyedScoped<IPlatformFormatter, LinkedInFormatter>(Platform.LinkedIn);
         services.AddKeyedScoped<IPlatformFormatter, TwitterFormatter>(Platform.Twitter);
         services.AddKeyedScoped<IPlatformFormatter, SubstackFormatter>(Platform.Substack);
+        services.AddKeyedScoped<IPlatformFormatter, TikTokFormatter>(Platform.TikTok);
+        services.AddKeyedScoped<IPlatformFormatter, InstagramFormatter>(Platform.Instagram);
+        services.AddKeyedScoped<IPlatformFormatter, YouTubeFormatter>(Platform.YouTube);
+
+        // TikTok-via-Buffer media hosting: videos are uploaded to R2 and served to Buffer from the
+        // bucket's public custom domain (Buffer fetches media by URL, never raw bytes, and HEAD-probes
+        // it first — so the URL is public and unsigned, not presigned).
+        // Wrapped in Lazy so the client is built on first upload, not on first resolve. It validates
+        // its endpoint in the constructor, and R2MediaHost is now reachable from ContentPublisher —
+        // so an eager registration lets a missing bucket setting break every publish, blog included.
+        services.AddSingleton(sp => new Lazy<IAmazonS3>(() => sp.GetRequiredService<IAmazonS3>()));
+        services.AddSingleton<IAmazonS3>(sp =>
+        {
+            var r2 = sp.GetRequiredService<IOptionsMonitor<R2Options>>().CurrentValue;
+            var config = new AmazonS3Config
+            {
+                ServiceURL = r2.Endpoint,
+                ForcePathStyle = true,
+                // R2's canonical SigV4 region is "auto". Match the proven boto3 IG-lane config.
+                AuthenticationRegion = "auto"
+            };
+            return new AmazonS3Client(
+                new Amazon.Runtime.BasicAWSCredentials(r2.AccessKeyId, r2.SecretAccessKey), config);
+        });
+        services.AddScoped<IMediaHost, R2MediaHost>();
 
         // HttpClient factories
         services.AddHttpClient<MediumConnector>(client =>
@@ -222,6 +279,74 @@ public static class DependencyInjection
             client.BaseAddress = new Uri($"https://{slug}.substack.com");
             client.DefaultRequestHeaders.Accept.Add(
                 new MediaTypeWithQualityHeaderValue("application/json"));
+        });
+
+        services.AddHttpClient<BufferConnector>(client =>
+        {
+            client.BaseAddress = new Uri("https://api.buffer.com");
+            // Must exceed the resilience pipeline's total timeout below, or HttpClient cancels first.
+            client.Timeout = TimeSpan.FromMinutes(5);
+            client.DefaultRequestHeaders.Accept.Add(
+                new MediaTypeWithQualityHeaderValue("application/json"));
+        })
+        .AddStandardResilienceHandler(o =>
+        {
+            // NEVER retry. createPost is not idempotent and Buffer has no request-dedup key, so a
+            // retried mutation posts again. The default handler retried a createPost that had in
+            // fact succeeded but answered slowly, and published the same clip to TikTok three times
+            // (2026-08-03). A duplicate public post is far worse than a failed one: the caller can
+            // retry a failure deliberately, but cannot un-publish.
+            // This also disables retries for the two read queries, which is an acceptable trade —
+            // they are cheap for the caller to repeat.
+            o.Retry.ShouldHandle = _ => ValueTask.FromResult(false);
+
+            // createPost carries a video asset and Buffer validates the media URL before accepting,
+            // so it routinely runs past the 30s default that caused the timeout in the first place.
+            o.AttemptTimeout.Timeout = TimeSpan.FromMinutes(2);
+            o.TotalRequestTimeout.Timeout = TimeSpan.FromMinutes(3);
+            // The handler requires SamplingDuration >= 2x AttemptTimeout.
+            o.CircuitBreaker.SamplingDuration = TimeSpan.FromMinutes(4);
+        });
+
+        services.AddHttpClient<InstagramConnector>(client =>
+        {
+            // No BaseAddress: every call is an absolute URL built from InstagramPublishingOptions.
+            // GraphBase, so the API version is configurable without a code change.
+            client.Timeout = TimeSpan.FromMinutes(2);
+        })
+        .AddStandardResilienceHandler(o =>
+        {
+            // NEVER retry, for the same reason as Buffer above. /media_publish is not idempotent and
+            // carries no dedup key: a retry after a slow-but-successful call publishes the Reel a
+            // second time, and a duplicate public post cannot be undone. The container polls are
+            // GETs and safe to repeat, but they are cheap to repeat deliberately — not worth
+            // enabling retries on the one call that must never repeat.
+            o.Retry.ShouldHandle = _ => ValueTask.FromResult(false);
+
+            // Meta fetches the video asynchronously, so no single call here waits on transcoding —
+            // the long wait is the poll loop, which is many short calls rather than one long one.
+            o.AttemptTimeout.Timeout = TimeSpan.FromSeconds(60);
+            o.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(90);
+            // The handler requires SamplingDuration >= 2x AttemptTimeout.
+            o.CircuitBreaker.SamplingDuration = TimeSpan.FromMinutes(2);
+        });
+
+        services.AddHttpClient<YouTubeConnector>(client =>
+        {
+            // This client only pulls a staged clip back down from R2 — the upload itself goes
+            // through Google's own client. A whole video over one request, so the timeout is the
+            // download's, not an API call's.
+            client.Timeout = TimeSpan.FromMinutes(5);
+        })
+        .AddStandardResilienceHandler(o =>
+        {
+            // Retries are safe on this client (a GET of a staged object) but pointless to tune:
+            // the expensive, non-idempotent part — videos.insert — does not go through it. Left at
+            // defaults deliberately rather than copied from the lanes above, where the no-retry rule
+            // is protecting a publish call that this client never makes.
+            o.AttemptTimeout.Timeout = TimeSpan.FromMinutes(2);
+            o.TotalRequestTimeout.Timeout = TimeSpan.FromMinutes(4);
+            o.CircuitBreaker.SamplingDuration = TimeSpan.FromMinutes(4);
         });
 
         // Hero image generation via self-hosted ComfyUI (BaseAddress is per-request from options)

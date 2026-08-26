@@ -20,6 +20,7 @@ public class ApplicationDbContext : DbContext, IAppDbContext
     public DbSet<BrandProfile> BrandProfiles => Set<BrandProfile>();
     public DbSet<BrandRankingProfile> BrandRankingProfiles => Set<BrandRankingProfile>();
     public DbSet<ChannelMetricSnapshot> ChannelMetricSnapshots => Set<ChannelMetricSnapshot>();
+    public DbSet<HeldMedia> HeldMedia => Set<HeldMedia>();
 
     public void SetOriginalValue<TEntity>(TEntity entity, string propertyName, object value)
         where TEntity : class

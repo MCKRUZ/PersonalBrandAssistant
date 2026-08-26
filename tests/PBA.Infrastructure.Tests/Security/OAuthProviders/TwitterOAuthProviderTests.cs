@@ -82,7 +82,7 @@ public class TwitterOAuthProviderTests : IDisposable
     {
         var provider = CreateProvider();
 
-        var request = provider.BuildAuthorization("STATE123");
+        var request = provider.BuildAuthorization("STATE123", CredentialPurpose.Publishing);
 
         Assert.StartsWith("https://twitter.com/i/oauth2/authorize", request.Url);
         var query = HttpUtility.ParseQueryString(new Uri(request.Url).Query);

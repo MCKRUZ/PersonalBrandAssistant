@@ -59,6 +59,38 @@ public class ScheduledPublishReconcilerTests : IDisposable
         Assert.Contains(c2.Id, overdueIds);
     }
 
+    // Overdue means the HAND-OVER is late, not the post. For a clip the platform releases later the
+    // two are days apart, and sweeping on the post time would leave a missed hand-over untouched
+    // until the moment it was meant to appear — too late to hand over at all, because the platform
+    // would be asked to schedule something already in the past.
+    [Fact]
+    public async Task QueryOverdueContentAsync_FindsAClipWhoseHandoverHasPassedButPostHasNot()
+    {
+        var content = CreateContent(ContentStatus.Scheduled, DateTimeOffset.UtcNow.AddDays(7));
+        content.HandoverAt = DateTimeOffset.UtcNow.AddHours(-2);
+        _dbContext.Contents.Add(content);
+        await _dbContext.SaveChangesAsync();
+
+        var overdueIds = await ScheduledPublishReconciler.QueryOverdueContentAsync(_dbContext);
+
+        Assert.Contains(content.Id, overdueIds);
+    }
+
+    // The mirror case: the post is due but the hand-over is not, so there is nothing to do yet.
+    // Publishing here would hand the platform a clip days before the slot it was booked for.
+    [Fact]
+    public async Task QueryOverdueContentAsync_IgnoresAClipWhoseHandoverIsStillAhead()
+    {
+        var content = CreateContent(ContentStatus.Scheduled, DateTimeOffset.UtcNow.AddHours(-1));
+        content.HandoverAt = DateTimeOffset.UtcNow.AddDays(3);
+        _dbContext.Contents.Add(content);
+        await _dbContext.SaveChangesAsync();
+
+        var overdueIds = await ScheduledPublishReconciler.QueryOverdueContentAsync(_dbContext);
+
+        Assert.DoesNotContain(content.Id, overdueIds);
+    }
+
     [Fact]
     public async Task ReconcileAsync_PublishesEachOverdueItem()
     {

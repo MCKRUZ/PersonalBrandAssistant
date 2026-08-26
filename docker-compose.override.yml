@@ -7,6 +7,11 @@ services:
     build:
       context: .
       dockerfile: src/PBA.Api/Dockerfile
+    # Force IPv4 egress. LinkedIn (behind Cloudflare) resolves to IPv6, but the container has no
+    # IPv6 route, so outbound HTTPS (e.g. the OAuth token exchange) hangs and gets canceled.
+    # Disabling IPv6 in the container makes getaddrinfo + connections use IPv4.
+    sysctls:
+      - net.ipv6.conf.all.disable_ipv6=1
     volumes:
       - ./secrets:/app/secrets:ro
       # matthewkruczek-ai checkout for blog publishing (git push happens in-container).
@@ -33,6 +38,15 @@ services:
       Publishing__LinkedIn__ClientId: ${LINKEDIN_CLIENT_ID:-}
       Publishing__LinkedIn__ClientSecret: ${LINKEDIN_CLIENT_SECRET:-}
       Publishing__LinkedIn__RedirectUri: ${LINKEDIN_REDIRECT_URI:-http://localhost:5001/api/auth/linkedin/callback}
+      # TikTok publishing via Buffer (transport) + Cloudflare R2 (media hosting). Buffer fetches the
+      # video from the bucket's public custom domain (media.matthewkruczek.ai), so both must be
+      # configured together.
+      Publishing__Buffer__Enabled: "true"
+      Publishing__Buffer__ApiKey: ${BUFFER_API_KEY:-}
+      Media__R2__Enabled: "true"
+      Media__R2__AccessKeyId: ${R2_ACCESS_KEY_ID:-}
+      Media__R2__SecretAccessKey: ${R2_SECRET_ACCESS_KEY:-}
+      Media__R2__Endpoint: https://122c54305bb75c93b4ad2eeb5e616d79.r2.cloudflarestorage.com
       PlatformIntegrations__Twitter__CallbackUrl: http://localhost:4201/platforms/twitter/callback
       PlatformIntegrations__LinkedIn__CallbackUrl: http://localhost:4201/platforms/linkedin/callback
       PlatformIntegrations__Instagram__CallbackUrl: http://localhost:4201/platforms/instagram/callback
@@ -40,6 +54,10 @@ services:
       GoogleAnalytics__CredentialsPath: /app/secrets/google-analytics-sa.json
       DOTNET_USE_POLLING_FILE_WATCHER: "true"
       Encryption__Key: ${Encryption__Key}
+      # X-Api-Key for the /api/external surface. dev-up.ps1 already exports
+      # EXTERNAL_API_KEY, but only prod mapped it — so every external request in dev
+      # hit the fail-closed filter and 401'd. Mirrors docker-compose.prod.yml.
+      ExternalApi__ApiKey: ${EXTERNAL_API_KEY}
       # Drafting engine: OpenRouter (OpenAI-compatible). Model switchable via OPENROUTER_MODEL.
       OpenRouter__ApiKey: ${OPENROUTER_API_KEY}
       OpenRouter__Model: ${OPENROUTER_MODEL:-google/gemini-2.5-pro}

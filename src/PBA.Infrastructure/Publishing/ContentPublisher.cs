@@ -13,6 +13,8 @@ public sealed class ContentPublisher(
     IAppDbContext db,
     IServiceProvider serviceProvider,
     IContentTransformer transformer,
+    IMediaHost mediaHost,
+    IPlatformCapabilityReader capabilities,
     ILogger<ContentPublisher> logger) : IContentPublisher
 {
     public async Task PublishAsync(Guid contentId)
@@ -30,12 +32,13 @@ public sealed class ContentPublisher(
             return;
         }
 
-        await PublishAsync(contentId, targetPlatforms: null, CancellationToken.None);
+        await PublishAsync(contentId, targetPlatforms: null, media: null, CancellationToken.None);
     }
 
     public async Task<PublishResult> PublishAsync(
         Guid contentId,
         IReadOnlyList<Platform>? targetPlatforms,
+        MediaAttachment? media,
         CancellationToken ct)
     {
         var content = await db.Contents.FindAsync([contentId], ct);
@@ -62,7 +65,7 @@ public sealed class ContentPublisher(
 
         if (platforms.Contains(primaryPlatform) && !publishedPrimary)
         {
-            primaryResult = await PublishToPlatformAsync(content, primaryPlatform, canonicalUrl: null, ct);
+            primaryResult = await PublishToPlatformAsync(content, primaryPlatform, canonicalUrl: null, media, ct);
 
             db.ContentPlatformPublishes.Add(new ContentPlatformPublish
             {
@@ -77,6 +80,7 @@ public sealed class ContentPublisher(
 
             if (!primaryResult.Success)
             {
+                await ResetStagedCopyForRetryAsync(content, ct);
                 await db.SaveChangesAsync(ct);
                 logger.LogWarning("Failed to publish content {ContentId} to primary {Platform}: {Error}",
                     contentId, primaryPlatform, primaryResult.ErrorMessage);
@@ -123,7 +127,7 @@ public sealed class ContentPublisher(
             {
                 try
                 {
-                    var result = await PublishToPlatformAsync(content, platform, primaryUrl, ct);
+                    var result = await PublishToPlatformAsync(content, platform, primaryUrl, media, ct);
                     return new PlatformPublishOutcome(platform, result.Success, result.PublishedUrl, result.ErrorMessage);
                 }
                 catch (Exception ex)
@@ -153,6 +157,12 @@ public sealed class ContentPublisher(
                 secondaryOutcomes.Add(new PlatformPublishOutcome(skipped, true, null, null));
         }
 
+        if (content.Status == ContentStatus.Published)
+            await ReleaseHeldMediaAsync(content, primaryPlatform, ct);
+        else
+            await ResetStagedCopyForRetryAsync(content, ct);
+
+
         await db.SaveChangesAsync(ct);
 
         logger.LogInformation("Published content {ContentId} to {Platform} (primary) + {SecondaryCount} secondaries",
@@ -168,6 +178,7 @@ public sealed class ContentPublisher(
         Content content,
         Platform platform,
         string? canonicalUrl,
+        MediaAttachment? media,
         CancellationToken ct)
     {
         var connector = serviceProvider.GetKeyedService<IPlatformConnector>(platform);
@@ -178,15 +189,122 @@ public sealed class ContentPublisher(
         }
 
         var transformed = await transformer.TransformAsync(content, platform, ct);
+
+        // A record PBA held has no bytes on THIS request — they arrived with the original one, days
+        // ago, and have been sitting beside the record ever since. This is the moment they become a
+        // public URL: connectors in these lanes only ever fetch media by link, and the link's short
+        // lifecycle now only has to outlast the platform reading it rather than the whole wait.
+        var staged = media is null
+            ? content.StagedMediaUrl ?? await PublishHeldMediaAsync(content, ct)
+            : null;
+
+        // Whether the connector still needs to be told the go-live time depends on who is doing the
+        // waiting, and only the connector knows that. Instagram cannot schedule, so PBA held the
+        // post and this call IS the moment — passing a time would ask Meta for something it has no
+        // concept of. YouTube can schedule but had to be handed the video early to fit its upload
+        // quota, so the release time still has to travel with it or the clip goes public on upload.
+        // Deciding from "was it staged?" instead conflated the two and only worked while Instagram
+        // was the only platform PBA held anything for.
+        var platformWaits = capabilities.SupportsScheduling(platform);
+
         var request = new PlatformPublishRequest(
             Content: content,
             TransformedContent: transformed,
             Tags: content.Tags.AsReadOnly(),
             CanonicalUrl: canonicalUrl,
             Mode: PublishMode.Publish,
-            ScheduledAt: content.ScheduledAt);
+            ScheduledAt: platformWaits ? content.ScheduledAt : null,
+            Media: media,
+            HostedMediaUrl: staged,
+            CoverFrameOffsetMs: content.CoverFrameOffsetMs);
 
         return await connector.PublishAsync(request, ct);
+    }
+
+    /// <summary>
+    /// Turns the bytes PBA has been holding into a public URL, at the moment of hand-over. Returns
+    /// null when there is nothing held, which is the ordinary case for a post published immediately.
+    /// </summary>
+    private async Task<string?> PublishHeldMediaAsync(Content content, CancellationToken ct)
+    {
+        var held = await db.HeldMedia.FindAsync([content.Id], ct);
+        if (held is null)
+            return null;
+
+        var hosted = await mediaHost.UploadAsync(held.Data, held.FileName, held.ContentType, ct);
+        content.StagedMediaUrl = hosted.Url;
+        content.StagedMediaKey = hosted.Key;
+        return hosted.Url;
+    }
+
+    /// <summary>
+    /// Drops the pointer to the public copy after a failed publish, so a retry makes a fresh one
+    /// from the bytes PBA is still holding.
+    ///
+    /// The public copy is on a short lifecycle rule. A retry days later would otherwise reuse a URL
+    /// whose object has since been reaped — the failure would stop being "the publish failed" and
+    /// become "the publish succeeded and the video is a dead link", which is far worse and far
+    /// quieter. The held bytes are the source of truth for as long as the post is unpublished, so
+    /// re-promoting is always available and always correct. The abandoned object is left to the
+    /// lifecycle rule, which is what it is for.
+    /// </summary>
+    private async Task ResetStagedCopyForRetryAsync(Content content, CancellationToken ct)
+    {
+        if (content.StagedMediaKey is null)
+            return;
+
+        if (await db.HeldMedia.FindAsync([content.Id], ct) is null)
+            return;
+
+        content.StagedMediaUrl = null;
+        content.StagedMediaKey = null;
+    }
+
+    /// <summary>
+    /// Cleans up after a successful publish. The two copies are released on different schedules, and
+    /// conflating them is how a clip disappears before anyone reads it:
+    ///
+    /// The HELD bytes are always dropped now — the public copy exists and is what gets read, and a
+    /// held clip is tens of megabytes sitting in the database for no further purpose.
+    ///
+    /// The PUBLIC copy is only removed for a platform that has already consumed it. Instagram and
+    /// YouTube take the video during the hand-over, so by this line they are finished with the URL.
+    /// Buffer is not: it stores the link and follows it when the post fires, up to a week later, so
+    /// deleting here would hand it a URL that 404s on the day. Its copy is left to the bucket's
+    /// lifecycle rule, which is sized for exactly that wait.
+    ///
+    /// Cleanup failure must never fail a live publish.
+    /// </summary>
+    private async Task ReleaseHeldMediaAsync(Content content, Platform primaryPlatform, CancellationToken ct)
+    {
+        var held = await db.HeldMedia.FindAsync([content.Id], ct);
+        if (held is not null)
+            db.HeldMedia.Remove(held);
+
+        if (capabilities.FetchesHostedMediaAtPostTime(primaryPlatform))
+        {
+            logger.LogInformation(
+                "Leaving staged clip {Key} for content {ContentId} in place: {Platform} fetches it " +
+                "when the post fires, and the lifecycle rule will reap it after",
+                content.StagedMediaKey, content.Id, primaryPlatform);
+            return;
+        }
+
+        if (content.StagedMediaKey is not { } stagedKey)
+            return;
+
+        try
+        {
+            await mediaHost.DeleteAsync(stagedKey, ct);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Could not unstage {Key} for content {ContentId}; " +
+                "the lifecycle rule will reap it", stagedKey, content.Id);
+        }
+
+        content.StagedMediaKey = null;
+        content.StagedMediaUrl = null;
     }
 
     private static IReadOnlyList<Platform> DetermineTargetPlatforms(Content content, IReadOnlyList<Platform>? explicitTargets)

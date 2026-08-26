@@ -54,7 +54,9 @@ public sealed class InstagramGraphClient(HttpClient http, ILogger<InstagramGraph
         if (!list.TryGetProperty("data", out var data) || data.ValueKind != JsonValueKind.Array)
             return media;
 
-        var metricCsv = string.Join(",", mediaMetrics);
+        // Media insights name the saves metric "saved"; the account endpoint (and our canonical bag) uses
+        // "saves". Translate on the way out and normalize on the way back so the quirk stays in this seam.
+        var metricCsv = string.Join(",", mediaMetrics.Select(m => m == "saves" ? "saved" : m));
         foreach (var item in data.EnumerateArray().Take(max))
         {
             var mediaId = item.TryGetProperty("id", out var id) ? id.GetString() : null;
@@ -71,6 +73,8 @@ public sealed class InstagramGraphClient(HttpClient http, ILogger<InstagramGraph
                     var name = m.TryGetProperty("name", out var n) ? n.GetString() : null;
                     if (name is null)
                         continue;
+                    if (name == "saved")
+                        name = "saves";
                     if (m.TryGetProperty("values", out var values) && values.ValueKind == JsonValueKind.Array
                         && values.EnumerateArray().FirstOrDefault() is { } first
                         && first.TryGetProperty("value", out var val) && val.ValueKind == JsonValueKind.Number)

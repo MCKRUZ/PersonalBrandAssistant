@@ -230,7 +230,13 @@ namespace PBA.Infrastructure.Data.Migrations
                     b.Property<int>("ContentType")
                         .HasColumnType("integer");
 
+                    b.Property<int?>("CoverFrameOffsetMs")
+                        .HasColumnType("integer");
+
                     b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("HandoverAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("HangfireJobId")
@@ -254,6 +260,12 @@ namespace PBA.Infrastructure.Data.Migrations
 
                     b.Property<Guid?>("SourceIdeaId")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("StagedMediaKey")
+                        .HasColumnType("text");
+
+                    b.Property<string>("StagedMediaUrl")
+                        .HasColumnType("text");
 
                     b.Property<int>("Status")
                         .HasColumnType("integer");
@@ -472,6 +484,33 @@ namespace PBA.Infrastructure.Data.Migrations
                     b.HasIndex("Type", "IsActedOn");
 
                     b.ToTable("FeedItems");
+                });
+
+            modelBuilder.Entity("PBA.Domain.Entities.HeldMedia", b =>
+                {
+                    b.Property<Guid>("ContentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<byte[]>("Data")
+                        .IsRequired()
+                        .HasColumnType("bytea");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateTimeOffset>("HeldAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("ContentId");
+
+                    b.ToTable("HeldMedia");
                 });
 
             modelBuilder.Entity("PBA.Domain.Entities.Idea", b =>
@@ -793,6 +832,15 @@ namespace PBA.Infrastructure.Data.Migrations
                     b.Navigation("Digest");
 
                     b.Navigation("Idea");
+                });
+
+            modelBuilder.Entity("PBA.Domain.Entities.HeldMedia", b =>
+                {
+                    b.HasOne("PBA.Domain.Entities.Content", null)
+                        .WithOne()
+                        .HasForeignKey("PBA.Domain.Entities.HeldMedia", "ContentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("PBA.Domain.Entities.Idea", b =>

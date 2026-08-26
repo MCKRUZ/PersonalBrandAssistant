@@ -27,6 +27,46 @@ services:
       Publishing__LinkedIn__ClientId: ${LINKEDIN_CLIENT_ID:-}
       Publishing__LinkedIn__ClientSecret: ${LINKEDIN_CLIENT_SECRET:-}
       Publishing__LinkedIn__RedirectUri: ${LINKEDIN_REDIRECT_URI:-http://localhost:5001/api/auth/linkedin/callback}
+      # TikTok publishing via Buffer (transport) + Cloudflare R2 (media hosting). Buffer fetches the
+      # video from the bucket's public custom domain (media.matthewkruczek.ai), so both must be
+      # configured together.
+      Publishing__Buffer__Enabled: "true"
+      Publishing__Buffer__ApiKey: ${BUFFER_API_KEY:-}
+      Media__R2__Enabled: "true"
+      Media__R2__AccessKeyId: ${R2_ACCESS_KEY_ID:-}
+      Media__R2__SecretAccessKey: ${R2_SECRET_ACCESS_KEY:-}
+      Media__R2__Endpoint: https://122c54305bb75c93b4ad2eeb5e616d79.r2.cloudflarestorage.com
+      # Instagram Reels publishing. Reuses the same R2 host above — Meta also fetches media by URL
+      # rather than accepting bytes. IgUserId is @matthewkruczek.ai; Meta's publishing endpoints are
+      # rooted at /{ig-user-id}/ and do not accept a handle. The token is NOT here: it lives as an
+      # encrypted Publishing credential in the database, seeded via POST /api/platforms/instagram/credentials.
+      Publishing__Instagram__Enabled: "true"
+      Publishing__Instagram__IgUserId: ${IG_USER_ID:-17841446031323328}
+      # YouTube uploading. Same Google app as the analytics OAuth below — a SEPARATE credential in
+      # the database, scoped to upload rather than read, seeded by consenting once at
+      # /api/auth/youtube/authorize?purpose=publishing. No token here: it rotates.
+      #
+      # An upload costs 1,600 of Google's 10,000-unit daily quota, shared with the analytics polling
+      # against this same project. Four a day leaves headroom; raise it only if the quota is raised.
+      Publishing__YouTubeUpload__Enabled: "true"
+      # The channel uploads must land on: @matthewkruczek. Consent grants whichever channel was
+      # picked in Google's chooser, and this account owns a SECOND channel with the same display
+      # name (@mattkruczek2665) — the first test upload went there, valid credential and all.
+      Publishing__YouTubeUpload__ChannelId: ${YOUTUBE_CHANNEL_ID:-UCZ3-8txSHf0tsTbrm98p8_w}
+      Publishing__YouTubeUpload__DailyUploadBudget: ${YOUTUBE_DAILY_UPLOAD_BUDGET:-4}
+      # Channel analytics OAuth (binds *OAuthOptions "Publishing:{Platform}") + per-platform gates.
+      Publishing__YouTube__ClientId: ${YOUTUBE_CLIENT_ID:-}
+      Publishing__YouTube__ClientSecret: ${YOUTUBE_CLIENT_SECRET:-}
+      Publishing__YouTube__ApiKey: ${YOUTUBE_API_KEY:-}
+      Publishing__YouTube__RedirectUri: ${YOUTUBE_REDIRECT_URI:-}
+      # TikTok analytics reads through a SANDBOX app (client key is sbaw-prefixed). A sandbox needs no
+      # TikTok app review, but only accounts registered as its target users can authorize it.
+      Publishing__TikTok__ClientId: ${TIKTOK_CLIENT_KEY:-}
+      Publishing__TikTok__ClientSecret: ${TIKTOK_CLIENT_SECRET:-}
+      Publishing__TikTok__RedirectUri: ${TIKTOK_REDIRECT_URI:-}
+      ChannelAnalytics__YouTubeEnabled: ${YOUTUBE_ANALYTICS_ENABLED:-false}
+      ChannelAnalytics__InstagramEnabled: ${INSTAGRAM_ANALYTICS_ENABLED:-false}
+      ChannelAnalytics__TikTokEnabled: ${TIKTOK_ANALYTICS_ENABLED:-false}
       PlatformIntegrations__Reddit__ClientId: ${REDDIT_CLIENT_ID:-}
       PlatformIntegrations__Reddit__ClientSecret: ${REDDIT_CLIENT_SECRET:-}
       PlatformIntegrations__Reddit__Username: ${REDDIT_USERNAME:-}

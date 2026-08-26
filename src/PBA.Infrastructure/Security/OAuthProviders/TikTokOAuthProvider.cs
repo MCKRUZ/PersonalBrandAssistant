@@ -26,7 +26,7 @@ public sealed class TikTokOAuthProvider(
 
     public Platform Platform => Platform.TikTok;
 
-    public AuthorizationRequest BuildAuthorization(string state)
+    public AuthorizationRequest BuildAuthorization(string state, CredentialPurpose purpose)
     {
         var o = options.Value;
         var qs = HttpUtility.ParseQueryString(string.Empty);
