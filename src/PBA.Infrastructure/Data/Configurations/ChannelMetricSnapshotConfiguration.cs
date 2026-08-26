@@ -20,7 +20,13 @@ public class ChannelMetricSnapshotConfiguration : IEntityTypeConfiguration<Chann
         builder.Property(s => s.SnapshotDate).IsRequired();
 
         builder.Property(s => s.VideoId).IsRequired().HasMaxLength(128);
-        builder.Property(s => s.VideoTitle).HasMaxLength(500);
+
+        // Deliberately unbounded. Only YouTube has a real title; for Instagram and TikTok the poller
+        // stores the CAPTION, and both allow 2,200 characters. A 500-character cap worked until a long
+        // caption appeared, then rejected the write — and because every platform in a run shares one
+        // database session, it took the other platforms' captures down with it. The cap bought nothing:
+        // Postgres stores varchar(n) and text identically, so the limit was pure downside.
+        builder.Property(s => s.VideoTitle);
 
         // Metrics: a dictionary of a value type isn't mappable by the InMemory provider, so it goes through
         // an explicit JSON string converter (stored as jsonb on Npgsql, as a string on InMemory) — same

@@ -60,12 +60,20 @@ public sealed class ChannelMetricPollingService(
 
         var enabled = AnalyticsPlatforms.Where(p => IsEnabled(p, options)).ToHashSet();
 
-        var candidates = await db.PlatformCredentials
+        // Ids, not entities: a platform that fails has its pending work abandoned below, which detaches
+        // everything this session was tracking. Re-reading the credential each time round is what keeps
+        // the next platform's token and IsActive updates saveable after that.
+        var candidateIds = await db.PlatformCredentials
             .Where(c => c.IsActive && c.Purpose == CredentialPurpose.Analytics)
+            .Select(c => c.Id)
             .ToListAsync(ct);
 
-        foreach (var credential in candidates.Where(c => enabled.Contains(c.Platform)))
+        foreach (var credentialId in candidateIds)
         {
+            var credential = await db.PlatformCredentials.FindAsync([credentialId], ct);
+            if (credential is null || !enabled.Contains(credential.Platform))
+                continue;
+
             // Never throw out of the loop — one platform's failure must not stop the others.
             try
             {
@@ -74,6 +82,13 @@ public sealed class ChannelMetricPollingService(
             catch (Exception ex)
             {
                 logger.LogError(ex, "Channel metric poll failed for {Platform}; continuing", credential.Platform);
+
+                // Abandon this platform's pending work before moving on, or "continuing" is a lie. Every
+                // platform in the run shares this session, and rows a failed save left queued in it are
+                // re-attempted by the NEXT platform's save — which then fails for a reason that has
+                // nothing to do with it. One oversized Instagram caption silenced YouTube and TikTok
+                // for a fortnight that way, and the logs blamed all three equally.
+                db.ChangeTracker.Clear();
             }
         }
     }

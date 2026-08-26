@@ -105,6 +105,32 @@ public class ChannelAnalyticsPersistenceTests(ChannelAnalyticsDbFixture fixture)
         await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync());
     }
 
+    // Instagram and TikTok have no title — the poller stores the CAPTION, and both platforms allow
+    // 2,200 characters. A 500-character column silently worked until a long caption appeared, then
+    // rejected the write and stopped the daily capture. The InMemory provider ignores column length,
+    // so only a real database can hold this honest.
+    [Fact]
+    public async Task ChannelMetricSnapshotConfiguration_AcceptsAFullLengthCaptionAsATitle()
+    {
+        await using var db = fixture.CreateContext();
+        var caption = new string('x', 2200);
+
+        db.ChannelMetricSnapshots.Add(new ChannelMetricSnapshot
+        {
+            Platform = Platform.Instagram,
+            SnapshotDate = new DateOnly(2026, 2, 3),
+            Scope = SnapshotScope.Video,
+            VideoId = "ig-long-caption",
+            VideoTitle = caption
+        });
+        await db.SaveChangesAsync();
+
+        await using var read = fixture.CreateContext();
+        var stored = await read.ChannelMetricSnapshots
+            .SingleAsync(x => x.VideoId == "ig-long-caption");
+        Assert.Equal(caption, stored.VideoTitle);
+    }
+
     [Fact]
     public async Task ChannelMetricSnapshotConfiguration_UniqueIndex_RejectsDuplicateVideoRow_SamePlatformDateVideo()
     {

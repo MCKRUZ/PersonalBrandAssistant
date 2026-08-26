@@ -223,6 +223,52 @@ public class ChannelMetricPollingServiceTests
         }
     }
 
+    // Models the one database rule the InMemory provider ignores and production enforces: Postgres
+    // rejects a VideoTitle longer than its column. Without this the failure that actually stopped
+    // three platforms for a fortnight cannot be reproduced in a test at all.
+    private sealed class RejectLongTitleDbContext(DbContextOptions<ApplicationDbContext> options, int limit)
+        : ApplicationDbContext(options)
+    {
+        public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+        {
+            if (ChangeTracker.Entries<ChannelMetricSnapshot>()
+                .Any(e => e.State == EntityState.Added && e.Entity.VideoTitle is { } t && t.Length > limit))
+                throw new InvalidOperationException($"22001: value too long for character varying({limit})");
+            return base.SaveChangesAsync(cancellationToken);
+        }
+    }
+
+    // The promise the catch in PollAllAsync makes in so many words — "one platform's failure must not
+    // stop the others" — and the reason all three platforms went quiet on the same day rather than
+    // just the one with the bad data. Every platform in the run shares a database session, so rows a
+    // failed platform left queued in it get re-attempted by the next platform's save, and fail again.
+    // Instagram had the long caption; YouTube, whose titles cannot exceed 100 characters, died of it.
+    [Fact]
+    public async Task Poller_WhenOnePlatformsWriteFails_TheOthersStillRecord()
+    {
+        var db = new RejectLongTitleDbContext(new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString()).Options, limit: 500);
+        var h = Build(AllEnabled(), db);
+
+        // Instagram first, so its failure precedes YouTube's turn.
+        db.PlatformCredentials.Add(AnalyticsCredential(Platform.Instagram));
+        db.PlatformCredentials.Add(AnalyticsCredential(Platform.YouTube));
+        await db.SaveChangesAsync();
+
+        SetupSuccessfulPoll(h.Services[Platform.Instagram],
+            [new VideoMetrics("ig-1", new string('x', 600), new Dictionary<string, long> { ["views"] = 10 }, false)]);
+        SetupSuccessfulPoll(h.Services[Platform.YouTube], [Video("yt-1")]);
+
+        await h.Svc.PollAllAsync(Now, CancellationToken.None);
+
+        Assert.True(
+            await db.ChannelMetricSnapshots.AnyAsync(s => s.Platform == Platform.YouTube && s.Scope == SnapshotScope.Account),
+            "YouTube has nothing wrong with it and must still be captured when Instagram fails");
+        Assert.True(
+            await db.ChannelMetricSnapshots.AnyAsync(s => s.Platform == Platform.YouTube && s.VideoId == "yt-1"),
+            "YouTube's video rows must not be lost to another platform's bad data");
+    }
+
     [Fact]
     public async Task Poller_MidWriteFailure_LeavesNoAccountRow()
     {
