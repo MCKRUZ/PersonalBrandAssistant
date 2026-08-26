@@ -42,8 +42,14 @@ public sealed class BufferConnector(
     {
         try
         {
-            // Buffer → TikTok is video-only in this lane.
-            if (request.Media is not { } media || !media.IsVideo)
+            // Either the bytes arrive with the request (publish now) or PBA staged them earlier and
+            // hands over the URL — a clip PBA held until the slot came inside Buffer's window has no
+            // bytes left, they arrived with the original request days ago. Buffer only ever fetches
+            // media from a URL, so a pre-staged one needs no upload at all.
+            var preStagedUrl = request.HostedMediaUrl;
+            var media = request.Media;
+
+            if (preStagedUrl is null && media is not { IsVideo: true })
                 return new PlatformPublishResult(false, null, null,
                     "TikTok via Buffer requires a video attachment (mp4/mov). No supported video was provided.");
 
@@ -59,7 +65,8 @@ public sealed class BufferConnector(
                     $"TikTok via Buffer cannot schedule more than {maxWindow.TotalDays:0} days out: " +
                     "the hosted media object would be reaped before Buffer fetches the video.");
 
-            var hosted = await mediaHost.UploadAsync(media.Data, media.FileName, media.ContentType, ct);
+            var mediaUrl = preStagedUrl ??
+                (await mediaHost.UploadAsync(media!.Data, media.FileName, media.ContentType, ct)).Url;
 
             var organizationId = await ResolveOrganizationIdAsync(ct);
             if (organizationId is null)
@@ -71,7 +78,7 @@ public sealed class BufferConnector(
                 return new PlatformPublishResult(false, null, null,
                     "No TikTok channel is connected in Buffer for this organization.");
 
-            return await CreatePostAsync(request, channelId, hosted.Url, ct);
+            return await CreatePostAsync(request, channelId, mediaUrl, ct);
         }
         catch (Exception ex)
         {
@@ -111,7 +118,17 @@ public sealed class BufferConnector(
         SupportsImages: false,
         SupportsScheduling: true,
         SupportsThreads: false,
-        SupportedMediaTypes: ["video/mp4", "video/quicktime"]
+        SupportedMediaTypes: ["video/mp4", "video/quicktime"],
+        // Buffer never receives the bytes: it fetches the hosted URL when the post fires, which is
+        // why the two properties below both trace back to the media window. Everything PBA stages
+        // for a TikTok post has to still be there at GO-LIVE, not merely at hand-over.
+        FetchesHostedMediaAtPostTime: true,
+        // Buffer will hold a post, but not indefinitely: it fetches the video from the hosted URL at
+        // post time, and storage reaps that object on a lifecycle rule. Declaring the window here is
+        // what lets HandoverPlanner keep a further-out clip at PBA and hand it over once the slot is
+        // near enough, instead of pushing it at Buffer today and being refused below. Same property
+        // as the refusal in PublishAsync on purpose — one bucket, one rule, one number.
+        SchedulingHorizon: mediaHost.MaxHostedLifetime
     );
 
     private async Task<string?> ResolveOrganizationIdAsync(CancellationToken ct)
@@ -152,7 +169,7 @@ public sealed class BufferConnector(
         PlatformPublishRequest request, string channelId, string mediaUrl, CancellationToken ct)
     {
         var scheduled = request.ScheduledAt is not null;
-        var thumbnailOffsetMs = ResolveCoverOffsetMs(request.Media?.Data);
+        var thumbnailOffsetMs = ResolveCoverOffsetMs(request.CoverFrameOffsetMs, request.Media?.Data);
 
         var videoAsset = new
         {
@@ -204,12 +221,17 @@ public sealed class BufferConnector(
     }
 
     /// <summary>
-    /// Picks the TikTok cover-frame offset (ms). Reading duration from the MP4 and taking a mid-clip
-    /// frame avoids the black title-card that opens these clips — the frame TikTok/Buffer would grab
-    /// at offset 0. Falls back to a fixed non-zero offset when the duration can't be read.
+    /// Picks the TikTok cover-frame offset (ms). A frame the caller asked for wins: it is an explicit
+    /// instruction, and on a clip PBA held it is the ONLY signal left — the bytes the probe would
+    /// read are gone by then. Otherwise read the duration from the MP4 and take a mid-clip frame,
+    /// which avoids the black title-card these clips open on (the frame Buffer grabs at offset 0),
+    /// and fall back to a fixed non-zero offset when neither is available.
     /// </summary>
-    private int ResolveCoverOffsetMs(byte[]? videoData)
+    private int ResolveCoverOffsetMs(int? requested, byte[]? videoData)
     {
+        if (requested is >= 0)
+            return requested.Value;
+
         if (videoData is not null &&
             Mp4Probe.TryGetDurationMs(videoData, out var durationMs) && durationMs > 0)
         {

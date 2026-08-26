@@ -24,28 +24,37 @@ public class Content
     public bool IsDeleted { get; set; }
 
     /// <summary>
-    /// Public URL of the clip staged on R2, held from the moment the content is accepted until it
-    /// is published. Only set when PBA itself has to hold a post until its slot — i.e. the target
-    /// platform cannot schedule (Instagram) — because the video bytes arrive with the request and
-    /// would otherwise be gone by the time the slot came round.
+    /// Public URL of the clip on R2. Set at HAND-OVER, not when the content is accepted: while PBA
+    /// is waiting, the video lives beside the record in <see cref="HeldMedia"/>, and this is the
+    /// public copy made from it at the moment a platform needs a link to fetch.
     ///
-    /// Not set for platforms that can hold the post themselves (TikTok via Buffer), which take the
-    /// clip immediately and need nothing kept here.
+    /// That ordering is the point. Public objects are reaped on a short lifecycle rule, so creating
+    /// one at request time made the reachable campaign length a storage setting rather than a fact
+    /// about the platform. Created at hand-over, the rule only has to outlast the platform reading
+    /// it, which is what it was sized for.
+    ///
+    /// Null for a post that goes out immediately — the bytes travel with that request.
     /// </summary>
     public string? StagedMediaUrl { get; set; }
 
-    /// <summary>Storage key behind <see cref="StagedMediaUrl"/>, kept so the object can be removed
-    /// once published rather than left for the bucket's lifecycle rule.</summary>
+    /// <summary>
+    /// Storage key behind <see cref="StagedMediaUrl"/>. Kept after publishing for a platform that
+    /// fetches the video when the post fires (TikTok via Buffer) — deleting it then would hand
+    /// Buffer a dead link on the day — and cleared once a platform that takes the bytes at
+    /// hand-over (Instagram, YouTube) is finished with it.
+    /// </summary>
     public string? StagedMediaKey { get; set; }
 
     /// <summary>
     /// When PBA hands the clip to the platform, which is NOT always when the post goes live.
     ///
-    /// Three shapes exist. TikTok via Buffer: handed over at once, Buffer holds it — this stays null.
-    /// Instagram: Meta cannot schedule, so handover IS the go-live moment and this equals
-    /// <see cref="ScheduledAt"/>. YouTube: the upload is what costs a scarce daily quota, while
-    /// YouTube itself releases the video at <see cref="ScheduledAt"/> — so PBA uploads as early as
-    /// the budget allows and this lands days BEFORE the post appears.
+    /// Four shapes exist. TikTok via Buffer with a near slot: handed over at once, Buffer holds it —
+    /// this stays null. TikTok via Buffer with a distant slot: Buffer refuses anything more than a
+    /// week ahead, so PBA keeps the clip and this lands just inside that week. Instagram: Meta
+    /// cannot schedule, so handover IS the go-live moment and this equals <see cref="ScheduledAt"/>.
+    /// YouTube: the upload is what costs a scarce daily quota, while YouTube itself releases the
+    /// video at <see cref="ScheduledAt"/> — so PBA uploads as early as the budget allows and this
+    /// lands days BEFORE the post appears.
     ///
     /// Recorded rather than inferred from the Hangfire job because the pacing decision needs to
     /// count what is already booked onto a given day, and reading that back out of a job store is

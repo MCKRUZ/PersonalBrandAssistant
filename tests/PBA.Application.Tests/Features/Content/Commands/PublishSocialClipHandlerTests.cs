@@ -15,7 +15,6 @@ public class PublishSocialClipHandlerTests
 {
     private readonly Mock<IContentPublisher> _publisher = new();
     private readonly Mock<IHandoverPlanner> _planner = new();
-    private readonly Mock<IMediaHost> _mediaHost = new();
     private readonly Mock<IContentScheduler> _scheduler = new();
 
     public PublishSocialClipHandlerTests()
@@ -27,17 +26,12 @@ public class PublishSocialClipHandlerTests
                 It.IsAny<Platform>(), It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(HandoverPlan.Now());
 
-        _mediaHost.Setup(m => m.UploadAsync(
-                It.IsAny<byte[]>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new HostedMedia("https://media.matthewkruczek.ai/ig/x.mp4", "ig/x.mp4"));
-        _mediaHost.Setup(m => m.MaxHostedLifetime).Returns(TimeSpan.FromDays(7));
-
         _scheduler.Setup(s => s.SchedulePublish(It.IsAny<Guid>(), It.IsAny<DateTimeOffset>()))
             .Returns("job-1");
     }
 
     private PublishSocialClip.Handler CreateHandler(ApplicationDbContext context) =>
-        new(context, _publisher.Object, _planner.Object, _mediaHost.Object, _scheduler.Object);
+        new(context, _publisher.Object, _planner.Object, _scheduler.Object);
 
     /// <summary>Makes PBA hold the post and the media until the go-live moment — Instagram's shape,
     /// where Meta has no scheduling concept, so the handover IS the moment of posting.</summary>
@@ -53,6 +47,13 @@ public class PublishSocialClipHandlerTests
         _planner.Setup(p => p.PlanAsync(
                 It.IsAny<Platform>(), It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(HandoverPlan.Hold(handoverAt));
+
+    /// <summary>Makes PBA hold the clip AND keep the staged media alive past the hand-over, because
+    /// the platform only ever fetches it from the URL when the post fires — TikTok via Buffer.</summary>
+    private void PbaHoldsUntil(DateTimeOffset handoverAt, DateTimeOffset mediaNeededUntil) =>
+        _planner.Setup(p => p.PlanAsync(
+                It.IsAny<Platform>(), It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(HandoverPlan.Hold(handoverAt, mediaNeededUntil));
 
     /// <summary>Makes the planner refuse — no upload capacity before the go-live moment.</summary>
     private void PlannerRefuses(string reason) =>
@@ -255,10 +256,14 @@ public class PublishSocialClipHandlerTests
             It.IsAny<MediaAttachment?>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
-    // The video arrives with THIS request and is gone by the slot. Staging it up front is the only
-    // thing that makes a held post publishable later — without it the job fires with no media.
+    // The video arrives with THIS request and is gone by the slot. Keeping it is the only thing that
+    // makes a held post publishable later — without it the job fires with no media.
+    //
+    // It is kept beside the record rather than on public storage, and nothing public is created yet.
+    // Public objects are reaped on a short lifecycle rule, so staging one at request time made the
+    // reachable campaign length a storage setting rather than a fact about the platform.
     [Fact]
-    public async Task Handle_PbaHoldsThePost_StagesTheClipSoItSurvivesUntilTheSlot()
+    public async Task Handle_PbaHoldsThePost_KeepsTheClipBesideTheRecordAndNothingPublicYet()
     {
         await using var context = CreateContext();
         PbaHoldsUntilTheSlot();
@@ -270,8 +275,14 @@ public class PublishSocialClipHandlerTests
             CancellationToken.None);
 
         var stored = await context.Contents.SingleAsync();
-        Assert.Equal("https://media.matthewkruczek.ai/ig/x.mp4", stored.StagedMediaUrl);
-        Assert.Equal("ig/x.mp4", stored.StagedMediaKey);
+        var held = await context.HeldMedia.SingleAsync();
+        Assert.Equal(stored.Id, held.ContentId);
+        Assert.Equal("clip.mp4", held.FileName);
+        Assert.Equal("video/mp4", held.ContentType);
+        Assert.Equal(Clip().Data, held.Data);
+
+        Assert.Null(stored.StagedMediaUrl);
+        Assert.Null(stored.StagedMediaKey);
     }
 
     // Scheduled is what makes the record PBA's responsibility: it is the status the Hangfire job and
@@ -320,6 +331,56 @@ public class PublishSocialClipHandlerTests
         _scheduler.Verify(s => s.SchedulePublish(stored.Id, goLive.ToUniversalTime()), Times.Never);
     }
 
+    // TikTok's new shape, and the reason a two-week campaign used to need a human on the right day:
+    // Buffer refuses a post more than a week out, so PBA holds the clip and hands it over once the
+    // slot is near. Nothing about the handler is TikTok-specific here on purpose — the planner is the
+    // only thing that decides handover timing, and this proves the held path serves it unchanged.
+    [Fact]
+    public async Task Handle_TikTokSlotBeyondBuffersHorizon_IsHeldAndBookedRatherThanRefused()
+    {
+        await using var context = CreateContext();
+        var goLive = DateTimeOffset.UtcNow.AddDays(10);
+        var handover = DateTimeOffset.UtcNow.AddDays(4);
+        PbaHoldsUntil(handover);
+
+        var handler = CreateHandler(context);
+        var result = await handler.Handle(
+            new PublishSocialClip.Command("Drip 8", "caption", Clip(), [Platform.TikTok], goLive),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        var stored = await context.Contents.SingleAsync();
+        Assert.Equal(handover, stored.HandoverAt);
+        Assert.Equal(goLive.ToUniversalTime(), stored.ScheduledAt);
+        Assert.Equal(stored.Id, (await context.HeldMedia.SingleAsync()).ContentId);
+        _scheduler.Verify(s => s.SchedulePublish(stored.Id, handover), Times.Once);
+        // Nothing went to Buffer today — that call is what used to come back refused.
+        _publisher.Verify(p => p.PublishAsync(
+            It.IsAny<Guid>(), It.IsAny<IReadOnlyList<Platform>?>(),
+            It.IsAny<MediaAttachment?>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    // The point of holding the clip beside the record: how far ahead a campaign can be booked is now
+    // a fact about the platform, not about a storage lifetime. A two-week TikTok queue used to be
+    // refused at the far end for a reason that had nothing to do with TikTok.
+    [Fact]
+    public async Task Handle_WhenTheClipIsReadLongAfterTheHandover_IsAcceptedRatherThanRefused()
+    {
+        await using var context = CreateContext();
+        var goLive = DateTimeOffset.UtcNow.AddDays(13);
+        PbaHoldsUntil(DateTimeOffset.UtcNow.AddDays(6), mediaNeededUntil: goLive);
+
+        var handler = CreateHandler(context);
+        var result = await handler.Handle(
+            new PublishSocialClip.Command("Drip 9", "caption", Clip(), [Platform.TikTok], goLive),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        var stored = await context.Contents.SingleAsync();
+        Assert.Equal(goLive.ToUniversalTime(), stored.ScheduledAt);
+        Assert.Equal(stored.Id, (await context.HeldMedia.SingleAsync()).ContentId);
+    }
+
     // Refusing beats accepting something that cannot work. A clip with no upload capacity before its
     // slot would sit staged, cost storage, and fail unattended days later.
     [Fact]
@@ -337,9 +398,7 @@ public class PublishSocialClipHandlerTests
         Assert.False(result.IsSuccess);
         Assert.Contains("no upload capacity", string.Join(" ", result.Errors));
         Assert.Empty(context.Contents);
-        _mediaHost.Verify(m => m.UploadAsync(
-            It.IsAny<byte[]>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
-            Times.Never);
+        Assert.Empty(context.HeldMedia);
     }
 
     // Keywords have a real field on YouTube and drive discovery there. The caption lanes must stay
@@ -379,9 +438,7 @@ public class PublishSocialClipHandlerTests
         Assert.Equal(ContentStatus.Approved, stored.Status);
         Assert.Null(stored.StagedMediaUrl);
         _scheduler.Verify(s => s.SchedulePublish(It.IsAny<Guid>(), It.IsAny<DateTimeOffset>()), Times.Never);
-        _mediaHost.Verify(m => m.UploadAsync(
-            It.IsAny<byte[]>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
-            Times.Never);
+        Assert.Empty(context.HeldMedia);
     }
 
     // No slot means post now, whatever the platform can or cannot schedule. Staging here would hold
@@ -406,11 +463,14 @@ public class PublishSocialClipHandlerTests
             It.IsAny<MediaAttachment?>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
-    // The clip has to outlive the wait. Storage reaps staged objects on a lifecycle rule, so a slot
-    // beyond it would stage now, be reaped, and fail at the slot as a dead link days later — with
-    // nobody watching. Refusing while the caller is still there is the only useful moment.
-    [Fact]
-    public async Task Handle_HeldPostBeyondTheStagingLifetime_IsRefusedRatherThanStagedToRot()
+    // Held bytes live as long as their record, so a distant slot is no longer a reason to refuse. The
+    // public copy is made at hand-over, and it is that copy — not this one — the lifecycle rule
+    // reaps. This case used to be rejected outright.
+    [Theory]
+    [InlineData(5)]
+    [InlineData(9)]
+    [InlineData(30)]
+    public async Task Handle_HeldPost_IsAcceptedHoweverFarOutTheSlotIs(int daysOut)
     {
         await using var context = CreateContext();
         PbaHoldsUntilTheSlot();
@@ -418,30 +478,11 @@ public class PublishSocialClipHandlerTests
         var handler = CreateHandler(context);
         var result = await handler.Handle(
             new PublishSocialClip.Command("Beat 2", "caption", Clip(), [Platform.Instagram],
-                DateTimeOffset.UtcNow.AddDays(9)),
-            CancellationToken.None);
-
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ResultFailureType.Validation, result.FailureType);
-        Assert.Empty(await context.Contents.ToListAsync());
-        _mediaHost.Verify(m => m.UploadAsync(
-            It.IsAny<byte[]>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
-            Times.Never);
-    }
-
-    [Fact]
-    public async Task Handle_HeldPostInsideTheStagingLifetime_IsAccepted()
-    {
-        await using var context = CreateContext();
-        PbaHoldsUntilTheSlot();
-
-        var handler = CreateHandler(context);
-        var result = await handler.Handle(
-            new PublishSocialClip.Command("Beat 2", "caption", Clip(), [Platform.Instagram],
-                DateTimeOffset.UtcNow.AddDays(5)),
+                DateTimeOffset.UtcNow.AddDays(daysOut)),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);
+        Assert.Equal(1, await context.HeldMedia.CountAsync());
     }
 
     // Persisted, not just passed through: a held post is published days later, and by then this

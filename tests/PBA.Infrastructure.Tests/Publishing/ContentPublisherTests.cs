@@ -170,6 +170,136 @@ public class ContentPublisherTests : IDisposable
         Assert.Equal("https://media.matthewkruczek.ai/clips/held.mp4", captured.HostedMediaUrl);
     }
 
+    // The hand-over moment, and the reason a campaign is no longer capped by a storage setting: the
+    // clip has been sitting beside its record since the request, and becomes a public URL only now.
+    // The lifecycle rule that reaps that URL therefore only has to outlast the platform reading it,
+    // instead of the entire wait before the post was due.
+    [Fact]
+    public async Task PublishAsync_HeldClip_IsPublishedToStorageAtHandoverAndPassedToTheConnector()
+    {
+        var content = CreateScheduledContent();
+        _dbContext.Contents.Add(content);
+        _dbContext.HeldMedia.Add(new HeldMedia
+        {
+            ContentId = content.Id,
+            FileName = "clip.mp4",
+            ContentType = "video/mp4",
+            Data = [1, 2, 3]
+        });
+        await _dbContext.SaveChangesAsync();
+
+        _mediaHost.Setup(m => m.UploadAsync(
+                It.IsAny<byte[]>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new HostedMedia("https://media.matthewkruczek.ai/tiktok/now.mp4", "tiktok/now.mp4"));
+
+        PlatformPublishRequest? captured = null;
+        _blogConnector.Setup(c => c.PublishAsync(It.IsAny<PlatformPublishRequest>(), It.IsAny<CancellationToken>()))
+            .Callback<PlatformPublishRequest, CancellationToken>((r, _) => captured = r)
+            .ReturnsAsync(new PlatformPublishResult(true, "https://example.com/post", "post-1", null));
+
+        await CreatePublisher().PublishAsync(content.Id);
+
+        _mediaHost.Verify(m => m.UploadAsync(
+            It.Is<byte[]>(d => d.SequenceEqual(new byte[] { 1, 2, 3 })),
+            "clip.mp4", "video/mp4", It.IsAny<CancellationToken>()), Times.Once);
+        Assert.Equal("https://media.matthewkruczek.ai/tiktok/now.mp4", captured!.HostedMediaUrl);
+    }
+
+    // Tens of megabytes per clip: once the public copy exists and the post is out, the held bytes
+    // are pure weight in the database and the backups it lands in.
+    [Fact]
+    public async Task PublishAsync_HeldClip_IsDroppedFromTheDatabaseOncePublished()
+    {
+        var content = CreateScheduledContent();
+        _dbContext.Contents.Add(content);
+        _dbContext.HeldMedia.Add(new HeldMedia
+        {
+            ContentId = content.Id, FileName = "clip.mp4", ContentType = "video/mp4", Data = [1, 2, 3]
+        });
+        await _dbContext.SaveChangesAsync();
+
+        _mediaHost.Setup(m => m.UploadAsync(
+                It.IsAny<byte[]>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new HostedMedia("https://media.matthewkruczek.ai/tiktok/now.mp4", "tiktok/now.mp4"));
+        SetupConnectorSuccess(_blogConnector);
+
+        await CreatePublisher().PublishAsync(content.Id);
+
+        Assert.Empty(_dbContext.HeldMedia);
+    }
+
+    // A failed publish is retried, and the retry needs the bytes. Dropping them on failure would
+    // make the first failure permanent.
+    [Fact]
+    public async Task PublishAsync_HeldClipThatFails_KeepsTheBytesForTheRetry()
+    {
+        var content = CreateScheduledContent();
+        _dbContext.Contents.Add(content);
+        _dbContext.HeldMedia.Add(new HeldMedia
+        {
+            ContentId = content.Id, FileName = "clip.mp4", ContentType = "video/mp4", Data = [1, 2, 3]
+        });
+        await _dbContext.SaveChangesAsync();
+
+        _mediaHost.Setup(m => m.UploadAsync(
+                It.IsAny<byte[]>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new HostedMedia("https://media.matthewkruczek.ai/tiktok/now.mp4", "tiktok/now.mp4"));
+        SetupConnectorFailure(_blogConnector);
+
+        await CreatePublisher().PublishAsync(content.Id);
+
+        Assert.Single(_dbContext.HeldMedia);
+    }
+
+    // A retry days after a failure must not reuse the public copy made on the first attempt: it sits
+    // on a short lifecycle rule and may well have been reaped by then. Reusing it would turn "the
+    // publish failed" into "the publish succeeded and the video is a dead link" — quieter and worse.
+    // The held bytes are still there, so a fresh copy is always available.
+    [Fact]
+    public async Task PublishAsync_WhenTheHandoverFails_DropsThePublicCopySoTheRetryMakesAFreshOne()
+    {
+        var content = CreateScheduledContent();
+        _dbContext.Contents.Add(content);
+        _dbContext.HeldMedia.Add(new HeldMedia
+        {
+            ContentId = content.Id, FileName = "clip.mp4", ContentType = "video/mp4", Data = [1, 2, 3]
+        });
+        await _dbContext.SaveChangesAsync();
+
+        _mediaHost.Setup(m => m.UploadAsync(
+                It.IsAny<byte[]>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new HostedMedia("https://media.matthewkruczek.ai/tiktok/first.mp4", "tiktok/first.mp4"));
+        SetupConnectorFailure(_blogConnector);
+
+        await CreatePublisher().PublishAsync(content.Id);
+
+        var updated = await _dbContext.Contents.FindAsync(content.Id);
+        Assert.Null(updated!.StagedMediaUrl);
+        Assert.Null(updated.StagedMediaKey);
+        Assert.Single(_dbContext.HeldMedia);
+    }
+
+    // The one cleanup that must NOT happen. Buffer stores the link and follows it when the post
+    // fires, up to a week after this line runs — deleting here hands it a URL that 404s on the day,
+    // and nothing fails until then. The lifecycle rule is sized for exactly that wait.
+    [Fact]
+    public async Task PublishAsync_WhenThePlatformFetchesTheMediaAtPostTime_LeavesTheStagedClipInPlace()
+    {
+        _capabilities.Setup(c => c.FetchesHostedMediaAtPostTime(Platform.Blog)).Returns(true);
+        var content = CreateScheduledContent();
+        content.StagedMediaUrl = "https://media.matthewkruczek.ai/tiktok/held.mp4";
+        content.StagedMediaKey = "tiktok/held.mp4";
+        _dbContext.Contents.Add(content);
+        await _dbContext.SaveChangesAsync();
+        SetupConnectorSuccess(_blogConnector);
+
+        await CreatePublisher().PublishAsync(content.Id);
+
+        _mediaHost.Verify(m => m.DeleteAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        var updated = await _dbContext.Contents.FindAsync(content.Id);
+        Assert.Equal("tiktok/held.mp4", updated!.StagedMediaKey);
+    }
+
     // Storage is billed and the pointer must not outlive the object: a stale StagedMediaUrl on a
     // republish would send the platform at something that has already been reaped.
     [Fact]

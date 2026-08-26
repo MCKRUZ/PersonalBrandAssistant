@@ -5,6 +5,7 @@ using PBA.Application.Common.Models;
 using PBA.Application.Features.ContentStudio;
 using PBA.Domain.Common;
 using PBA.Domain.Enums;
+using PBA.Domain.Entities;
 using ContentEntity = PBA.Domain.Entities.Content;
 
 namespace PBA.Application.Features.Content.Commands;
@@ -47,7 +48,6 @@ public static class PublishSocialClip
         IAppDbContext db,
         IContentPublisher publisher,
         IHandoverPlanner planner,
-        IMediaHost mediaHost,
         IContentScheduler scheduler)
         : IRequestHandler<Command, Result<PublishResult>>
     {
@@ -130,24 +130,18 @@ public static class PublishSocialClip
             {
                 var handoverAt = plan.HandoverAt!.Value;
 
-                // The clip has to still be hosted when PBA finally hands it over, and storage reaps
-                // it on a lifecycle rule. Staging something that will be gone first does not fail
-                // here — it fails days later, in the middle of the night, as a dead link with a log
-                // line nobody is reading. Refuse it while there is someone to tell.
+                // The bytes arrive with this request and are gone by the time the hand-over comes
+                // round, so PBA has to keep them. It keeps them HERE, beside the record, rather than
+                // on public media storage.
                 //
-                // Measured against the HANDOVER, not the go-live: a YouTube Short scheduled a month
-                // out is uploaded within days and YouTube keeps it from there, so the storage window
-                // has nothing to do with when the video appears.
-                var maxWindow = mediaHost.MaxHostedLifetime;
-                if (handoverAt - DateTimeOffset.UtcNow > maxWindow)
-                    return Result<PublishResult>.ValidationFailure(
-                        [$"{platforms[0]} cannot be scheduled that far out: PBA would hold the clip " +
-                         $"until {handoverAt:u}, and storage reaps it after {maxWindow.TotalDays:0} days."]);
-
-                var staged = await mediaHost.UploadAsync(
-                    request.Media.Data, request.Media.FileName, request.Media.ContentType, ct);
-                content.StagedMediaUrl = staged.Url;
-                content.StagedMediaKey = staged.Key;
+                // That is the whole point of this shape. Public storage is reaped on a short
+                // lifecycle rule, because everything there exists only so a platform can fetch it.
+                // Putting a held clip there at request time meant the wait raced that rule, and how
+                // far ahead a campaign could be booked was decided by a storage setting instead of
+                // by anything about the platform — a two-week TikTok queue was refused at the far
+                // end for a reason that had nothing to do with TikTok. Held beside the record, the
+                // clip lives exactly as long as the record does, and the public copy is made at
+                // hand-over, when the reaping window only has to cover the platform reading it.
                 content.HandoverAt = handoverAt;
 
                 try
@@ -160,6 +154,16 @@ public static class PublishSocialClip
                 }
 
                 db.Contents.Add(content);
+                db.HeldMedia.Add(new HeldMedia
+                {
+                    ContentId = content.Id,
+                    FileName = request.Media.FileName,
+                    ContentType = request.Media.ContentType,
+                    Data = request.Media.Data
+                });
+
+                // One transaction, so there is no moment where a scheduled clip exists without the
+                // video it will need, or bytes sit held for a record that was never written.
                 await db.SaveChangesAsync(ct);
 
                 content.HangfireJobId = scheduler.SchedulePublish(content.Id, handoverAt);

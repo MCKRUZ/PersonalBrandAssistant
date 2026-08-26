@@ -21,4 +21,14 @@ public sealed class PlatformCapabilityReader(IServiceProvider serviceProvider) :
     public bool RequiresPacedHandover(Platform platform) =>
         serviceProvider.GetKeyedService<IPlatformConnector>(platform)?
             .GetCapabilities()?.RequiresPacedHandover ?? false;
+
+    // Null, not false, is the neutral answer here: it means "no limit", so an unregistered or
+    // silent connector keeps the behaviour every connector had before horizons existed.
+    public TimeSpan? SchedulingHorizon(Platform platform) =>
+        serviceProvider.GetKeyedService<IPlatformConnector>(platform)?
+            .GetCapabilities()?.SchedulingHorizon;
+
+    public bool FetchesHostedMediaAtPostTime(Platform platform) =>
+        serviceProvider.GetKeyedService<IPlatformConnector>(platform)?
+            .GetCapabilities()?.FetchesHostedMediaAtPostTime ?? false;
 }

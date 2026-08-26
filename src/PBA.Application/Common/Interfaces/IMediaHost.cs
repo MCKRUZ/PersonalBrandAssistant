@@ -11,10 +11,15 @@ public interface IMediaHost
 {
     /// <summary>
     /// How long a hosted object can be relied on to still be there. Storage reaps them on a
-    /// lifecycle rule, and everything that publishes from a URL fetches it LATER than it was
-    /// staged — Buffer at the scheduled moment, Meta when PBA finally posts a held clip. Staging
-    /// something that will be gone before it is fetched fails days later, in the middle of the
-    /// night, as a dead link. Callers must refuse to schedule beyond this rather than find out.
+    /// lifecycle rule, and a platform that publishes from a URL fetches it LATER than it was
+    /// uploaded — Buffer at the scheduled moment, which can be a week after PBA handed it the link.
+    /// An object that is gone before it is fetched fails days later, in the middle of the night, as
+    /// a dead link.
+    ///
+    /// Nothing is uploaded here while PBA is merely WAITING — a clip PBA holds lives beside its
+    /// record until hand-over, so this window never has to cover the wait, only the gap between
+    /// hand-over and the platform reading it. A connector whose gap could exceed this window
+    /// reports it as its scheduling horizon so the planner can keep the hand-over inside it.
     /// </summary>
     TimeSpan MaxHostedLifetime { get; }
 

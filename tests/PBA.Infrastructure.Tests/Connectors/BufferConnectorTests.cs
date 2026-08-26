@@ -297,6 +297,66 @@ public class BufferConnectorTests : IDisposable
             It.IsAny<CancellationToken>()), Times.Never);
     }
 
+    // A clip PBA held until Buffer's window opened has no bytes left — they arrived with the
+    // original request, days ago. All that survives is the staged object on R2, and Buffer only
+    // ever fetches media from a URL anyway. Without this the entire held path ends in "requires a
+    // video attachment", which is the failure that made holding a TikTok clip impossible at all.
+    [Fact]
+    public async Task PublishAsync_WithPreStagedMediaAndNoBytes_PostsTheStagedUrlWithoutReuploading()
+    {
+        SetupGraphQl();
+        var connector = CreateConnector();
+        const string stagedUrl = "https://media.matthewkruczek.ai/tiktok/held-clip.mp4";
+        var request = new PlatformPublishRequest(
+            CreateContent(), "Drip 8", [], null, PublishMode.Publish,
+            DateTimeOffset.UtcNow.AddDays(3), Media: null, HostedMediaUrl: stagedUrl);
+
+        var result = await connector.PublishAsync(request, CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.NotNull(_capturedCreateBody);
+        Assert.Contains(stagedUrl, _capturedCreateBody);
+        Assert.Contains("customScheduled", _capturedCreateBody);
+        // Re-uploading would mint a SECOND object with a fresh lifecycle clock and orphan the first,
+        // which is the opposite of what staging early was for.
+        _mediaHost.Verify(m => m.UploadAsync(
+            It.IsAny<byte[]>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    // Neither bytes nor a staged URL is still nothing to post, and saying so beats a Buffer error.
+    [Fact]
+    public async Task PublishAsync_WithNeitherBytesNorStagedUrl_IsRefused()
+    {
+        SetupGraphQl();
+        var connector = CreateConnector();
+        var request = new PlatformPublishRequest(
+            CreateContent(), "Drip 8", [], null, PublishMode.Publish, null, Media: null);
+
+        var result = await connector.PublishAsync(request, CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Contains("video attachment", result.ErrorMessage);
+    }
+
+    // On a held clip the duration probe has nothing to read, so the frame the caller chose is the
+    // only signal left — and it is persisted on the record precisely so it survives the wait.
+    [Fact]
+    public async Task PublishAsync_WithAnExplicitCoverFrame_UsesItRatherThanProbingOrFallingBack()
+    {
+        SetupGraphQl();
+        var connector = CreateConnector();
+        var request = new PlatformPublishRequest(
+            CreateContent(), "Drip 8", [], null, PublishMode.Publish, null,
+            Media: null, HostedMediaUrl: "https://media.matthewkruczek.ai/tiktok/held.mp4",
+            CoverFrameOffsetMs: 4500);
+
+        var result = await connector.PublishAsync(request, CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.Contains("\"thumbnailOffset\":4500", _capturedCreateBody);
+    }
+
     [Fact]
     public void GetCapabilities_ReturnsCorrectValues()
     {
@@ -310,6 +370,29 @@ public class BufferConnectorTests : IDisposable
         Assert.False(caps.SupportsThreads);
         Assert.Contains("video/mp4", caps.SupportedMediaTypes);
         Assert.Contains("video/quicktime", caps.SupportedMediaTypes);
+    }
+
+    // Buffer schedules, but only as far ahead as the hosted video survives — it fetches the URL at
+    // post time. Declaring that window is what lets the planner hold a further-out clip at PBA
+    // instead of pushing it here today and being refused by PublishAsync. Must be the SAME property
+    // the refusal reads, or the two drift and the planner aims hand-offs at a window that closed.
+    [Fact]
+    public void GetCapabilities_ReportsTheHostedMediaWindowAsItsSchedulingHorizon()
+    {
+        _mediaHost.Setup(m => m.MaxHostedLifetime).Returns(TimeSpan.FromDays(5));
+
+        var caps = CreateConnector().GetCapabilities();
+
+        Assert.Equal(TimeSpan.FromDays(5), caps.SchedulingHorizon);
+    }
+
+    // The property the staging window is sized against. Buffer never receives the bytes: it follows
+    // the link when the post fires, so a staged object has to outlive the hand-over by a whole
+    // horizon. Declaring false here would stage clips that are reaped before Buffer reads them.
+    [Fact]
+    public void GetCapabilities_DeclaresThatBufferFetchesTheMediaWhenThePostFires()
+    {
+        Assert.True(CreateConnector().GetCapabilities().FetchesHostedMediaAtPostTime);
     }
 
     [Fact]

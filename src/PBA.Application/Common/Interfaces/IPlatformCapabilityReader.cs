@@ -27,4 +27,20 @@ public interface IPlatformCapabilityReader
     /// inventing a pacing rule for it.
     /// </summary>
     bool RequiresPacedHandover(Platform platform);
+
+    /// <summary>
+    /// How far ahead the platform will accept a scheduled post, or null when it will accept any
+    /// distance — which is also the answer when no connector is registered. Null is the safe reading
+    /// here for the opposite reason to the flags above: inventing a horizon for an unknown platform
+    /// would delay a hand-over PBA has no evidence needs delaying.
+    /// </summary>
+    TimeSpan? SchedulingHorizon(Platform platform);
+
+    /// <summary>
+    /// True when the platform fetches the video from our hosted URL when the post fires, rather than
+    /// taking it at hand-over. Decides how long a staged object must outlive its own staging. False
+    /// when no connector is registered — the shorter requirement, so an unknown platform is never
+    /// promised a window PBA has no evidence it needs.
+    /// </summary>
+    bool FetchesHostedMediaAtPostTime(Platform platform);
 }
