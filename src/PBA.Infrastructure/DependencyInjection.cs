@@ -188,10 +188,16 @@ public static class DependencyInjection
 
         // Keyed connectors
         services.AddKeyedScoped<IPlatformConnector, BlogConnector>(Platform.Blog);
-        services.AddKeyedScoped<IPlatformConnector, MediumConnector>(Platform.Medium);
-        services.AddKeyedScoped<IPlatformConnector, LinkedInConnector>(Platform.LinkedIn);
-        services.AddKeyedScoped<IPlatformConnector, TwitterConnector>(Platform.Twitter);
-        services.AddKeyedScoped<IPlatformConnector, SubstackConnector>(Platform.Substack);
+        // Medium, LinkedIn, Twitter and Substack each have an AddHttpClient<T> below that sets their
+        // BaseAddress, so they go through the typed-client factory for the reason given for Buffer.
+        services.AddKeyedScoped<IPlatformConnector>(Platform.Medium,
+            (sp, _) => sp.GetRequiredService<MediumConnector>());
+        services.AddKeyedScoped<IPlatformConnector>(Platform.LinkedIn,
+            (sp, _) => sp.GetRequiredService<LinkedInConnector>());
+        services.AddKeyedScoped<IPlatformConnector>(Platform.Twitter,
+            (sp, _) => sp.GetRequiredService<TwitterConnector>());
+        services.AddKeyedScoped<IPlatformConnector>(Platform.Substack,
+            (sp, _) => sp.GetRequiredService<SubstackConnector>());
         // Resolved through the typed-client factory, NOT as a plain keyed type. AddHttpClient<BufferConnector>
         // below sets BaseAddress on the client it builds; a plain keyed registration constructs the
         // connector straight from the container instead, handing it an unconfigured HttpClient — every

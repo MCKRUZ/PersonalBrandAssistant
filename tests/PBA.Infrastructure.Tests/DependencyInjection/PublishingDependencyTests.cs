@@ -155,6 +155,30 @@ public class PublishingDependencyTests : IDisposable
         Assert.StartsWith(expectedBase, client.BaseAddress!.ToString());
     }
 
+    // The named client being configured is not enough: a connector registered as a plain keyed type
+    // is built straight from the container and handed a bare HttpClient, so every relative request
+    // throws "An invalid request URI was provided" (LinkedIn, 2026-11-24). Check the client the
+    // keyed connector actually holds, for every connector whose typed client sets a BaseAddress.
+    [Theory]
+    [InlineData(Platform.Medium, "https://api.medium.com")]
+    [InlineData(Platform.LinkedIn, "https://api.linkedin.com")]
+    [InlineData(Platform.Twitter, "https://api.x.com")]
+    [InlineData(Platform.Substack, "https://test.substack.com")]
+    [InlineData(Platform.TikTok, "https://api.buffer.com")]
+    public void ResolveKeyedConnector_HoldsTheConfiguredHttpClient(Platform platform, string expectedBase)
+    {
+        using var scope = _provider.CreateScope();
+        var connector = scope.ServiceProvider.GetRequiredKeyedService<IPlatformConnector>(platform);
+
+        var field = connector.GetType()
+            .GetFields(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+            .Single(f => f.FieldType == typeof(HttpClient));
+        var client = (HttpClient)field.GetValue(connector)!;
+
+        Assert.NotNull(client.BaseAddress);
+        Assert.StartsWith(expectedBase, client.BaseAddress!.ToString());
+    }
+
     public void Dispose()
     {
         _provider.Dispose();
